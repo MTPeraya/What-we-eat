@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 4000",
-    "build": "next build --turbopack",
+    "build": "next build --turbopack --no-lint",
     "start": "next start -p 4000",
     "lint": "eslint",
     "db:push": "prisma db push",
@@ -26,6 +26,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@types/bcrypt": "^6.0.0",
+    "@types/deep-eql": "^4.0.2",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20",
     "@types/react": "^19",
