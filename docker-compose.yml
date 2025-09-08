@@ -4,12 +4,12 @@ services:
     build:
       context: ./frontend
     ports:
-      - "3000:3000"
+      - "3000:5173"
     container_name: react-frontend
 
   backend:
     build:
       context: ./backend
     ports:
-      - "4001:3000"
+      - "4001:4000"
     container_name: next-backend

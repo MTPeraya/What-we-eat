@@ -13,7 +13,7 @@ COPY . .
 RUN npm run build
 
 # ---- Expose Next.js backend API port ----
-EXPOSE 4001
+EXPOSE 4000
 
 # ---- Run in production ----
 CMD ["npm", "start"]

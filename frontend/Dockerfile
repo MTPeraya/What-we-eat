@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:22-alpine
  
 # Set the working directory inside the container
 WORKDIR /app
@@ -16,4 +16,4 @@ COPY . .
 EXPOSE 3000
  
 # Define the command to run your app
-CMD ["npm", "start"]
+CMD ["npm", "run","dev"]
