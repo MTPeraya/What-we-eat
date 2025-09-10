@@ -40,3 +40,107 @@
 .read-the-docs {
   color: #888;
 }
+
+
+/*added mine*/
+
+/* set the front of whole website */
+* {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-weight: bold;
+}
+
+/* for most button (can fix the width and height with other class) */
+.button {
+    border: none;
+    width: 70vw;
+    padding: 15px 0px;
+    font-size: 24px;
+    border-radius: 10px;
+    color: white;
+}
+
+.shadow{
+    box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+}
+
+/* for colored button */
+
+.green{
+    background-color: #517824;
+}
+.green:hover {background-color: #3f5e1b}
+
+.brown{
+    background-color: #603A2B;
+}
+.brown:hover{
+    background-color: #4a2b1f
+}
+
+
+/* header */
+
+.header{
+
+  background-color: #BB3D25;
+  width: 100vw;
+  height: 10vh;
+  display: flex;
+  justify-content: space-between;
+
+}
+
+.profile-s{
+  background-color: white;
+  width: 8vh;
+  height: 8vh;
+  border-radius: 50%;
+}
+
+.Margin1vh{
+  margin:1vh;
+}
+
+/* preference page */
+
+.full-app{
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.p-contain{
+  display: flex;
+  flex-direction: column;
+  height: 90vh;
+  justify-content: space-around;
+}
+
+.Preferences{
+  font-size: 36px;
+  width: 40%;
+  height: 50px;
+  border-color: #603A2B;
+  color: #603A2B;
+  border-width: 2px;
+  border-style: solid;
+  padding: 10px 50px;
+  text-align: center;
+  border-radius: 40px;
+}
+
+.Preferences:hover{
+  background-color: #603A2B;
+  color: white;
+}
+
+
+
+.thin-button{
+  color:#BB3D25;
+  text-decoration: underline;
+}
+
