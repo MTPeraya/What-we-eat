@@ -9,7 +9,7 @@ RUN npm install
 # ---- Copy source code ----
 COPY . .
 
-# ---- Build the app ----
+# ---- Build the app (skip ESLint) ----
 RUN npm run build
 
 # ---- Expose Next.js backend API port ----
