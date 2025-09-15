@@ -1,1 +1,44 @@
+name: Docker Compose CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    env:
+      POSTGRES_USER: whatweeat
+      POSTGRES_PASSWORD: whatweeatpass
+      POSTGRES_DB: whatweeatdb
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Start all services
+        run: |
+          docker-compose up -d --build
+          # wait for db
+          dockerize -wait tcp://localhost:5432 -timeout 1m
+          # if backend needs migration or setup, run that
+          docker-compose exec backend npm run migrate || true
+
+      - name: Test backend
+        run: |
+          docker-compose exec backend npm test
+
+      - name: Test frontend
+        run: |
+          docker-compose exec frontend npm test
+
+      - name: Shutdown
+        if: always()
+        run: docker-compose down -v
 
