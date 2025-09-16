@@ -1,8 +1,8 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+
+
+body {
+  background: #FFE2C5; /* or any color/image you want */
+  margin: 0;
 }
 
 .logo {
@@ -18,14 +18,6 @@
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 @media (prefers-reduced-motion: no-preference) {
   a:nth-of-type(2) .logo {
@@ -53,7 +45,7 @@
 /* for most button (can fix the width and height with other class) */
 .button {
     border: none;
-    width: 70vw;
+    width: 200px;
     padding: 15px 0px;
     font-size: 24px;
     border-radius: 10px;
@@ -144,3 +136,31 @@
   text-decoration: underline;
 }
 
+/* Add for home page */
+.hero_section{
+  display: flex;
+  background-image: url("../../public/unfocused-restaurant-with-tables-ready.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  justify-content: center;
+  height: 500px;
+  background-blend-mode: multiply;
+
+  position: relative;
+  isolation:isolate;
+  /* flex-wrap: wrap-reverse; */
+}
+
+.hero_section::after{
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: white;
+  opacity: 0.4;
+}
+
+.white_txt{
+  color: white !important;
+}
