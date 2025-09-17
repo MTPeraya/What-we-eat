@@ -4,12 +4,83 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
+enum RoomStatus {
+  OPEN
+  CLOSED
+}
+
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model Restaurant {
+  id               String   @id @default(cuid())
+  placeId          String   @unique
+  name             String
+  address          String
+  lat              Float
+  lng              Float
+  rating           Float?
+  priceLevel       Int?
+  userRatingsTotal Int?
+  source           String   @default("google")
+  fetchedAt        DateTime @default(now())
+
+  @@index([placeId])
+  @@index([lat, lng])
+}
+
+model User {
+  id        String  @id @default(cuid())
+  email     String  @unique
+  createdAt DateTime @default(now())
+  rooms              Room[]             @relation("HostRooms")
+  roomParticipants   RoomParticipant[]
+  votes              Vote[]
+}
+
+model Room {
+  id        String      @id @default(cuid())
+  code      String      @unique @db.VarChar(8)
+  hostId    String
+  status    RoomStatus  @default(OPEN)
+  expiresAt DateTime?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  host      User        @relation("HostRooms", fields: [hostId], references: [id])
+  participants RoomParticipant[]
+  votes     Vote[]
+  @@index([code])
+}
+
+model RoomParticipant {
+  id          String   @id @default(cuid())
+  roomId      String
+  userId      String?
+  displayName String
+  role        String   @default("member")
+  joinedAt    DateTime @default(now())
+  room        Room     @relation(fields: [roomId], references: [id])
+  user        User?    @relation(fields: [userId], references: [id])
+  @@unique([roomId, userId])
+  @@index([roomId])
+}
+
+model Vote {
+  id         String   @id @default(cuid())
+  roomId     String
+  userId     String
+  restaurantId String?
+  createdAt  DateTime @default(now())
+  user User @relation(fields: [userId], references: [id])
+  room Room @relation(fields: [roomId], references: [id])
+  @@index([roomId])
+  @@index([userId])
+}
+
+
