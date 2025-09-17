@@ -29,7 +29,7 @@ function Footer(){
       <footer className="row row-cols-1 row-cols-sm-2 row-cols-md-5 py-5 border-top">
         <div className="col mb-3">
           <a href="/" className="d-flex align-items-center mb-3 link-body-emphasis text-decoration-none" aria-label="What We Eat">
-            <img src="../../public/WWELOGO.PNG" style={{width:"100px"}}/>
+            <img src="../../public/WWELOGO_w.PNG" style={{width:"100px"}}/>
           </a>
           <p className="white_txt">© WWE 2025</p>
         </div>
