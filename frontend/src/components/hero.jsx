@@ -1,9 +1,12 @@
+import { useNavigate } from 'react-router-dom';
 import React from 'react'
 import '../App.css'
 import preview from "../../public/wwePreview.png"
 
 
 function HeroSection(){
+
+    const navigate = useNavigate();
 
     const textWWE = "fun, fast, and fair way to choose the meal with your companion!!";
     return (
