@@ -39,7 +39,7 @@ function Register() {
 
             {/* login thin button */}
             <p className="font-normal" style={{ margin: "0px auto" }}>
-                Already have an Account?<Link to="/Login" className="thin-button">Login</Link>
+                Already have an Account?<Link to="/login" className="thin-button">Login</Link>
             </p>
             </div>
         </div>

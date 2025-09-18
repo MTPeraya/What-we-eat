@@ -30,9 +30,8 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
-        {/*
         <Route path="/enter-code" element={<EnterCode />} />
-        <Route path="/create-room" element={<CreateRoom />} /> */}
+        <Route path="/create-room" element={<CreateRoom />} />
       </Routes>
     </Router>
   );

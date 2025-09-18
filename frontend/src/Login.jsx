@@ -40,14 +40,13 @@ function Login() {
                 {/* register thin button */}
                 <p className="font-normal" style={{ margin: "-5px auto" }}>
                 Don't have an Account?{" "}
-                <Link to="/Register" className="thin-button">Register</Link></p>
+                <Link to="/register" className="thin-button">Register</Link></p>
             </div>
 
             {/* guest thin button */}
             <p className="font-normal" style={{color: 'white', margin: "15px auto" }}>
             Don't want to login?{" "}
-            <a className="white-thin-button">
-            Stay as a guest</a></p>
+            <Link to="/enter-code" className="white-thin-button">Stay as a guest</Link></p>
 
             {/* forget password */}
             <p className="font-normal" style={{margin: "0px auto" }}>
