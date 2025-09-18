@@ -1,19 +1,26 @@
-# ---- Base Node.js image ----
-FROM node:18-alpine AS base
+# ---- Backend (Next.js + Prisma) ----
+FROM node:20-alpine AS base
+
 WORKDIR /app
 
-# ---- Install dependencies ----
+# Copy dependency files and prisma schema first
 COPY package*.json ./
+COPY prisma ./prisma
+
+# Install dependencies
 RUN npm install
 
-# ---- Copy source code ----
+# Generate Prisma client
+RUN npx prisma generate
+
+# Copy rest of backend source
 COPY . .
 
-# ---- Build the app (skip ESLint) ----
+# Build Next.js app
 RUN npm run build
 
-# ---- Expose Next.js backend API port ----
+# Expose backend port
 EXPOSE 4000
 
-# ---- Run in production ----
+# Start in production
 CMD ["npm", "start"]
