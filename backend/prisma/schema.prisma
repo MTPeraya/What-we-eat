@@ -82,5 +82,3 @@ model Vote {
   @@index([roomId])
   @@index([userId])
 }
-
-

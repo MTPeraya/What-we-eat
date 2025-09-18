@@ -2,47 +2,65 @@
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
 
-// --- helper: สร้างโค้ดห้อง ---
-const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // ตัด 0/O/I/1
+/** สุ่มโค้ดห้อง (ตัดตัวที่สับสนอย่าง 0/O/I/1) */
+const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 function genCode(len = 6) {
   let s = "";
-  for (let i = 0; i < len; i++) s += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+  for (let i = 0; i < len; i++) {
+    s += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+  }
   return s;
 }
 
-// --- input types ---
+/** payload types (ให้ TS รู้ว่ามี participants ติดมาด้วย) */
+export type RoomWithParticipants = Prisma.RoomGetPayload<{
+  include: { participants: true };
+}>;
+
 export type CreateRoomInput = {
   hostId: string;
-  expiresInMinutes?: number;   // ไม่ใส่ = ไม่หมดอายุ
+  /** ไม่ใส่ = ไม่หมดอายุ */
+  expiresInMinutes?: number;
+  /** ชื่อ host ที่จะแสดงใน participants (default: "Host") */
   hostDisplayName?: string;
 };
 
 export type JoinByCodeInput = {
   code: string;
-  userId?: string;             // ถ้า guest ให้ไม่ส่ง
+  /** ถ้าเป็น guest ให้เว้นไว้ */
+  userId?: string;
+  /** ชื่อที่จะแสดงในห้อง */
   displayName: string;
 };
 
-// --- payload types (ให้ TS รู้ว่า include อะไรบ้าง) ---
-export type RoomWithParticipants = Prisma.RoomGetPayload<{
-  include: { participants: true };
-}>;
-
 export class RoomService {
   /**
+   * ดึงห้องด้วย code พร้อม participants (ถ้าไม่เจอ → null)
+   */
+  async getByCodeWithParticipants(code: string): Promise<RoomWithParticipants | null> {
+    return prisma.room.findUnique({
+      where: { code },
+      include: { participants: true },
+    });
+  }
+
+  /**
    * สร้างห้อง + โค้ด + เพิ่ม host เป็น participant(role=host)
+   * - เช็คว่า host มีอยู่จริง (กัน FK error)
+   * - โค้ดไม่ซ้ำ (ลองสุ่มใหม่สูงสุด 10 ครั้ง)
    */
   async createRoom(input: CreateRoomInput): Promise<RoomWithParticipants> {
-    // กันโค้ดซ้ำ (ลองสุ่มใหม่ไม่เกิน 5 ครั้ง)
+    const host = await prisma.user.findUnique({ where: { id: input.hostId } });
+    if (!host) throw new Error("HOST_NOT_FOUND");
+
+    // สร้างโค้ดไม่ซ้ำ
     let code = genCode();
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 10; i++) {
       const exists = await prisma.room.findUnique({ where: { code } });
       if (!exists) break;
       code = genCode();
+      if (i === 9) throw new Error("ROOM_CODE_COLLISION");
     }
-
-    const host = await prisma.user.findUnique({ where: { id: input.hostId } });
-    if (!host) throw new Error("HOST_NOT_FOUND");
 
     const expiresAt =
       input.expiresInMinutes && input.expiresInMinutes > 0
@@ -70,9 +88,11 @@ export class RoomService {
 
   /**
    * เข้าห้องด้วย code (guest/registered)
+   * - ห้องต้อง OPEN และไม่หมดอายุ
+   * - ถ้า userId มีอยู่เดิมในห้อง → ไม่สร้างซ้ำ (คืนสถานะห้องเดิม)
+   * - ถ้า guest → สร้าง participant ใหม่ (userId=null)
    */
   async joinByCode(input: JoinByCodeInput): Promise<RoomWithParticipants> {
-    // ดึงห้องจาก code
     const room = await prisma.room.findUnique({
       where: { code: input.code },
     });
@@ -83,15 +103,12 @@ export class RoomService {
       throw new Error("ROOM_EXPIRED");
     }
 
-    // ถ้าเป็นผู้ใช้ที่ล็อกอินและเคยอยู่ในห้องแล้ว -> คืนสถานะห้อง (พร้อม participants)
+    // ถ้าเป็นผู้ใช้ที่ล็อกอินและเคยเข้าห้องแล้ว -> คืนสถานะห้องเลย (ไม่สร้างซ้ำ)
     if (input.userId) {
       const existed = await prisma.roomParticipant.findUnique({
-        where: {
-          // มาจาก @@unique([roomId, userId]) ใน schema → ชื่อฟิลด์ composite key จะเป็น roomId_userId
-          roomId_userId: { roomId: room.id, userId: input.userId },
-        },
+        // จาก @@unique([roomId, userId]) → composite key ชื่อ roomId_userId
+        where: { roomId_userId: { roomId: room.id, userId: input.userId } },
       });
-
       if (existed) {
         return prisma.room.findUniqueOrThrow({
           where: { id: room.id },
@@ -104,15 +121,25 @@ export class RoomService {
     await prisma.roomParticipant.create({
       data: {
         roomId: room.id,
-        userId: input.userId ?? null, // Prisma รับ null ได้ถ้า field เป็น optional
+        userId: input.userId ?? null,
         displayName: input.displayName,
         role: "member",
       },
     });
 
-    // คืนห้องพร้อม participants
     return prisma.room.findUniqueOrThrow({
       where: { id: room.id },
+      include: { participants: true },
+    });
+  }
+
+  /**
+   * (ตัวเลือก) ปิดห้อง
+   */
+  async closeRoom(roomId: string): Promise<RoomWithParticipants> {
+    return prisma.room.update({
+      where: { id: roomId },
+      data: { status: "CLOSED" },
       include: { participants: true },
     });
   }

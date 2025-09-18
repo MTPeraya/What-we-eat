@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z, ZodError } from "zod";
 import RoomService from "@/services/RoomService";
+import type { RoomParticipant } from '@prisma/client';
+
 
 const joinSchema = z.object({
   code: z.string().min(4),
@@ -29,9 +31,12 @@ export async function POST(req: NextRequest) {
         id: room?.id,
         code: room?.code,
         status: room?.status,
-        participants: room?.participants.map(p => ({
-          id: p.id, userId: p.userId, name: p.displayName, role: p.role
-        })),
+        participants: (room?.participants ?? []).map((p: RoomParticipant) => ({
+          id: p.id,
+          userId: p.userId,
+          name: p.displayName,
+          role: p.role,
+          })),
       },
       { status }
     );
