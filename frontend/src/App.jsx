@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 // import Features from './components/feature.jsx'
 // import Footer from './components/bigfooter.jsx'
 
+import FoodTinder from './foodtinder'
+
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css'
 import HomePage from "./Homepage";
@@ -31,7 +33,10 @@ function App() {
       <h1>Frontend is running ✅</h1>
       <p>Backend says: <strong>{message}</strong></p>
     </div>
+    {/* <FoodTinder/> */}
     </div>
+
+    
   );
 }
 
