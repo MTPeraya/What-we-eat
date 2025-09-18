@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import "./App.css";
+import { Link } from "react-router-dom";
 
 
 function Login() {
@@ -39,7 +40,7 @@ function Login() {
                 {/* register thin button */}
                 <p className="font-normal" style={{ margin: "-5px auto" }}>
                 Don't have an Account?{" "}
-                <a className="thin-button">Register</a></p>
+                <Link to="/Register" className="thin-button">Register</Link></p>
             </div>
 
             {/* guest thin button */}

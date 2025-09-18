@@ -20,7 +20,7 @@ function HeroSection(){
                 marginTop: "100px"}}>
             <h1 style={{fontSize:"60px", height:"80px", margin: "10px"}}>What We Eat</h1>
             <p style={{fontSize:"24px"}}>{textWWE}</p>
-            <button className='button green shadow' onClick={() => navigate('/register')}> Start Now! </button>
+            <button className='button green shadow' onClick={() => navigate('/Login')}> Start Now! </button>
         </div>
         <img src={preview} style={{width:"510px"}}/>
     </div>
