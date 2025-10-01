@@ -5,18 +5,31 @@ services:
     build: ./frontend
     image: mperaya/wwe-frontend:latest
     ports:
-      - "5173:5173"   # frontend available at http://localhost:5173
+      - "5173:5173"  # dev server at http://localhost:5173
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    stdin_open: true
-    tty: true
-    # container_name: react-frontend   # optional
+    command: npm run dev  # or change to preview for prod
 
   backend:
-    build:
-      context: ./backend
+    build: ./backend
     image: mperaya/wwe-backend:latest
     ports:
-      - "4001:4000"   # backend available at http://localhost:4001
-    # container_name: next-backend     # optional
+      - "4001:4000"  # backend at http://localhost:4001
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/mydb
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mydb
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:

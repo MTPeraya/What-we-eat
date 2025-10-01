@@ -1,8 +1,8 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+
+
+body {
+  background: #FFE2C5; /* or any color/image you want */
+  margin: 0;
 }
 
 .logo {
@@ -18,14 +18,6 @@
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 @media (prefers-reduced-motion: no-preference) {
   a:nth-of-type(2) .logo {
@@ -53,7 +45,7 @@
 /* for most button (can fix the width and height with other class) */
 .button {
     border: none;
-    width: 70vw;
+    width: 200px;
     padding: 15px 0px;
     font-size: 24px;
     border-radius: 10px;
@@ -144,3 +136,205 @@
   text-decoration: underline;
 }
 
+/* Add for home page */
+.hero_section{
+  display: flex;
+  background-image: url("../../public/unfocused-restaurant-with-tables-ready.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  justify-content: center;
+  height: 500px;
+  background-blend-mode: multiply;
+
+  position: relative;
+  isolation:isolate;
+  /* flex-wrap: wrap-reverse; */
+}
+
+.hero_section::after{
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: white;
+  opacity: 0.4;
+}
+
+.white_txt{
+  color: white !important;
+}
+
+
+/* register / login / enter code page*/
+
+.background {
+  margin: 0;
+  min-height: 100vh;
+  width: 100vw;
+  background: linear-gradient(to bottom, #BB3D25, #E88C7A);
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* Horizontal */
+  align-items: center;  /* Vertical */
+}
+
+.head-name {
+  color: white;
+  font-size: 55px;
+  font-weight: bold;
+}
+
+.box {
+  background-color: #FFE2C5;
+  width: 350px;
+  height: 300px;
+  border-radius: 10px;
+  margin: 10px;
+  padding: 5px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* container for input */
+.n-container {
+  background-color: #D4B89C;
+  width: 280px;
+  height: 45px;
+  border-radius: 10px;
+  border-style: none;
+  margin: -15px auto;
+  margin-bottom: 0px;
+
+  color: #603A2B;
+  font-size: 16px;
+  font-family: "Arial", sans-serif;
+  font-weight: bold;
+  padding: 7px;
+}
+
+.font-normal {
+  color: #603A2B;
+  font-size: 16px;
+  font-family: "Arial", sans-serif;
+  font-weight: normal;
+  margin-left: 35px;
+  margin-top: 20px;
+}
+
+.small-btn {
+  border: none;
+  width: 280px;
+  height: 48px;
+  padding: 30px auto;
+  margin: 30px auto;
+  font-size: 24px;
+  font-weight: bold;
+  border-radius: 10px;
+
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+
+.white-thin-button{
+  color: white;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+input[type="checkbox"] {
+  width: 30px;
+  height: 30px;
+  margin-left: 40px;
+  accent-color: #BB3D25;
+  cursor: pointer;
+}
+
+input::placeholder {
+  color: #425E21;
+  font-size: 24px;
+  font-weight: bold;
+  opacity: 0.5;
+  text-align: center;
+}
+
+
+/* create room page */
+.room-container {
+  margin: 0;
+  height: 100vh;
+  width: 100vw;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.left {
+  margin: 0;
+  height: 100vh;
+  width: 50vw;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: end;
+  padding: 100px;
+}
+
+.right {
+  margin: 0;
+  height: 100vh;
+  width: 50vw;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: start;
+  padding: 100px;
+}
+
+.room-code {
+  background-color: #603A2B;
+  margin-top: 30px;
+  width: 280px;
+  height: 50px;
+  border-radius: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-size: 25px;
+}
+
+.location-box {
+  background-color: #FFE2C5;
+  margin-top: 25px;
+  width: 280px;
+  height: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  
+  border: 2px solid #603A2B;
+  border-radius: 10px;
+  color: #603A2B;
+  font-size: 18px;
+  font-weight: normal;
+
+  /* padding: 10px; */
+}
+
+.room-btn {
+  display: flex;
+  gap: 20px;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+}
