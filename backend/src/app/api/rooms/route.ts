@@ -35,3 +35,14 @@ export async function POST(req: NextRequest) {
     console.log(`[API][done] POST /api/rooms ${status} ${duration}ms`);
   }
 }
+
+export async function fetchRoomTally(roomId: string) {
+  const res = await fetch(`/api/rooms/${roomId}/decide/score`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Fetch tally failed: ${res.status}`);
+  return res.json() as Promise<{
+    roomId: string;
+    generatedAt: string;
+    stats: { totalVotes: number; totalRestaurants: number };
+    scores: { restaurantId: string; accept: number; reject: number; approval: number; netScore: number }[];
+  }>;
+}

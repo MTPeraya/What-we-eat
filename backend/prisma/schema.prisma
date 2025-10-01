@@ -1,14 +1,32 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
+// ==================== Enums ====================
 enum RoomStatus {
   OPEN
   CLOSED
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
+enum VoteValue {
+  ACCEPT
+  REJECT
+}
+
+enum ImageSource {
+  google
+  wongnai
+  ugc
+}
+
+enum AssetStatus {
+  pending
+  approved
+  rejected
+}
+
+// ================= Generator/Datasource =================
 generator client {
   provider = "prisma-client-js"
 }
@@ -18,9 +36,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ==================== Core Models ======================
 model Restaurant {
-  id               String   @id @default(cuid())
-  placeId          String   @unique
+  id               String        @id @default(cuid())
+  placeId          String        @unique
   name             String
   address          String
   lat              Float
@@ -28,57 +47,183 @@ model Restaurant {
   rating           Float?
   priceLevel       Int?
   userRatingsTotal Int?
-  source           String   @default("google")
-  fetchedAt        DateTime @default(now())
+  source           String        @default("google")
+  fetchedAt        DateTime      @default(now())
 
-  @@index([placeId])
+  // Relations
+  images               RestaurantImage[]
+  assets               ImageAsset[]
+  votes                Vote[]
+  // 👇 back-relations (แก้ error)
+  mealHistories        MealHistory[]
+  suggestionHistories  RoomSuggestionHistory[]
+
   @@index([lat, lng])
 }
 
 model User {
-  id        String  @id @default(cuid())
-  email     String  @unique
-  createdAt DateTime @default(now())
-  rooms              Room[]             @relation("HostRooms")
-  roomParticipants   RoomParticipant[]
-  votes              Vote[]
+  id                String            @id @default(cuid())
+  createdAt         DateTime          @default(now())
+  username          String            @unique
+  password          String
+  role              Role              @default(USER)
+
+  // Relations
+  rooms             Room[]            @relation("HostRooms")
+  roomParticipants  RoomParticipant[]
+  votes             Vote[]
+  assets            ImageAsset[]
+  sessions          Session[]
+  // 👇 back-relation (แก้ error)
+  mealHistories     MealHistory[]
 }
 
 model Room {
-  id        String      @id @default(cuid())
-  code      String      @unique @db.VarChar(8)
-  hostId    String
-  status    RoomStatus  @default(OPEN)
-  expiresAt DateTime?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  host      User        @relation("HostRooms", fields: [hostId], references: [id])
-  participants RoomParticipant[]
-  votes     Vote[]
+  id           String           @id @default(cuid())
+  code         String           @unique @db.VarChar(8)
+  hostId       String
+  status       RoomStatus       @default(OPEN)
+  expiresAt    DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  // Relations
+  host                 User                 @relation("HostRooms", fields: [hostId], references: [id])
+  participants         RoomParticipant[]
+  votes                Vote[]
+  assets               ImageAsset[]
+  // 👇 back-relations (แก้ error)
+  mealHistories        MealHistory[]
+  suggestionHistories  RoomSuggestionHistory[]
+
   @@index([code])
 }
 
 model RoomParticipant {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   roomId      String
   userId      String?
   displayName String
-  role        String   @default("member")
-  joinedAt    DateTime @default(now())
-  room        Room     @relation(fields: [roomId], references: [id])
-  user        User?    @relation(fields: [userId], references: [id])
-  @@unique([roomId, userId])
+  role        String    @default("member")
+  joinedAt    DateTime  @default(now())
+
+  room        Room      @relation(fields: [roomId], references: [id])
+  user        User?     @relation(fields: [userId], references: [id])
+
+  @@unique([roomId, userId]) // ผู้ใช้หนึ่งคนเข้าห้องเดียวกันได้ครั้งเดียว (nullable userId อนุญาตซ้ำ)
   @@index([roomId])
 }
 
 model Vote {
-  id         String   @id @default(cuid())
-  roomId     String
-  userId     String
-  restaurantId String?
-  createdAt  DateTime @default(now())
-  user User @relation(fields: [userId], references: [id])
-  room Room @relation(fields: [roomId], references: [id])
+  id            String      @id @default(cuid())
+  roomId        String
+  userId        String
+  restaurantId  String
+  value         VoteValue
+  createdAt     DateTime    @default(now())
+
+  user          User        @relation(fields: [userId], references: [id])
+  room          Room        @relation(fields: [roomId], references: [id])
+  restaurant    Restaurant  @relation(fields: [restaurantId], references: [id])
+
+  @@unique([roomId, userId, restaurantId]) // 1 คน/1 ร้าน/1 ห้อง โหวตเดียว
   @@index([roomId])
   @@index([userId])
+  @@index([restaurantId])
+}
+
+// ================ Images (External & UGC) ==============
+model RestaurantImage {
+  id            String       @id @default(cuid())
+  restaurantId  String
+  source        ImageSource
+  externalRef   String?      // เช่น Google photo_reference
+  externalUrl   String?
+  width         Int?
+  height        Int?
+  attribution   String?
+  isPrimary     Boolean      @default(false)
+  fetchedAt     DateTime     @default(now())
+  expiresAt     DateTime?
+
+  restaurant    Restaurant   @relation(fields: [restaurantId], references: [id])
+
+  @@index([restaurantId])
+  @@index([source])
+}
+
+model ImageAsset {
+  id            String       @id @default(cuid())
+  source        ImageSource  @default(ugc)
+  storageKey    String       // path/key ใน Object Storage
+  publicUrl     String       // CDN URL
+  contentType   String?
+  sizeBytes     Int?
+  width         Int?
+  height        Int?
+  blurHash      String?
+  status        AssetStatus  @default(pending)
+
+  // Optional links
+  restaurantId  String?
+  userId        String?
+  roomId        String?
+
+  restaurant    Restaurant?  @relation(fields: [restaurantId], references: [id])
+  user          User?        @relation(fields: [userId], references: [id])
+  room          Room?        @relation(fields: [roomId], references: [id])
+
+  createdAt     DateTime     @default(now())
+  moderatedAt   DateTime?
+  flaggedCount  Int?         @default(0)
+
+  @@index([restaurantId])
+  @@index([userId])
+  @@index([roomId])
+  @@index([status])
+}
+
+// ===================== Session =========================
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  userAgent  String?
+  ip         String?
+
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ============== Decision / Suggestion History ===========
+model MealHistory {
+  id            String      @id @default(cuid())
+  userId        String
+  roomId        String
+  restaurantId  String
+  decidedAt     DateTime    @default(now())
+
+  user          User        @relation(fields: [userId], references: [id])
+  room          Room        @relation(fields: [roomId], references: [id])
+  restaurant    Restaurant  @relation(fields: [restaurantId], references: [id])
+
+  @@index([userId, decidedAt])
+  @@index([roomId, decidedAt])
+}
+
+model RoomSuggestionHistory {
+  id            String      @id @default(cuid())
+  roomId        String
+  restaurantId  String
+  suggestedAt   DateTime    @default(now())
+
+  room          Room        @relation(fields: [roomId], references: [id])
+  restaurant    Restaurant  @relation(fields: [restaurantId], references: [id])
+
+  @@index([roomId, suggestedAt])
+  @@index([restaurantId])
 }
