@@ -1,26 +1,61 @@
-name: Docker Compose CI
+name: CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  build-and-push:
+  test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        ports: ["5432:5432"]
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: whatweeat_test
 
     steps:
-      - name: 🛒 Checkout repository
-        uses: actions/checkout@v3
-
-      - name: 🔑 Log in to Docker Hub
-        uses: docker/login-action@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
-          username: mperaya
+          node-version: 20
+
+      - name: Backend tests
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/whatweeat_test
+        run: |
+          cd backend
+          npm ci
+          npm test
+
+      - name: Frontend tests
+        run: |
+          cd frontend
+          npm ci
+          npm test
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v3
+      - uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      - name: 🛠 Build and push Docker images
+      - name: Build & Push Backend
         run: |
-          docker compose -f docker-compose.yml build
-          docker compose -f docker-compose.yml push
+          docker build -t mperaya/wwe-backend:${{ github.sha }} -t mperaya/wwe-backend:latest ./backend
+          docker push mperaya/wwe-backend:${{ github.sha }}
+          docker push mperaya/wwe-backend:latest
+
+      - name: Build & Push Frontend
+        run: |
+          docker build -t mperaya/wwe-frontend:${{ github.sha }} -t mperaya/wwe-frontend:latest ./frontend
+          docker push mperaya/wwe-frontend:${{ github.sha }}
+          docker push mperaya/wwe-frontend:latest
+
