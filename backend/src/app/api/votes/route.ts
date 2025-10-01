@@ -1,49 +1,38 @@
-// backend/src/app/api/votes/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { prisma } from "@/lib/db";
-
-// NOTE: ตอนนี้ schema ยังไม่มี decision ดังนั้นจะ "รับ" ไว้เฉยๆ แต่ไม่เซฟ
-const voteSchema = z.object({
-  roomId: z.string().min(1),
-  restaurantId: z.string().optional().nullable(),
-  userId: z.string().optional().default("TEMP_USER"),
-  decision: z.enum(["accept", "reject"]).optional(), // <-- ignored for now
-});
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { VoteValue } from '@prisma/client';
+import { requireAuth } from '@/lib/session';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const parsed = voteSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.format() }, { status: 400 });
+    const { userId } = await requireAuth(req);
+
+    const body = (await req.json()) as Partial<{
+      roomId: string; restaurantId: string; value: VoteValue | 'ACCEPT' | 'REJECT';
+    }>;
+    const roomId = body.roomId?.trim();
+    const restaurantId = body.restaurantId?.trim();
+    const rawValue = body.value as VoteValue | undefined;
+
+    if (!roomId || !restaurantId || !rawValue) {
+      return NextResponse.json({ error: 'MISSING_FIELDS' }, { status: 400 });
+    }
+    if (rawValue !== 'ACCEPT' && rawValue !== 'REJECT') {
+      return NextResponse.json({ error: 'INVALID_VALUE' }, { status: 400 });
     }
 
-    const { roomId, restaurantId, userId } = parsed.data;
-
-    // หา vote เดิม (ไม่มี unique composite ใน schema ตอนนี้ เลยใช้ findFirst)
-    const existing = await prisma.vote.findFirst({
-      where: { roomId, userId, restaurantId: restaurantId ?? null },
+    const vote = await prisma.vote.upsert({
+      where: { roomId_userId_restaurantId: { roomId, userId, restaurantId } },
+      update: { value: rawValue },
+      create: { roomId, userId, restaurantId, value: rawValue },
+      select: { id: true, roomId: true, userId: true, restaurantId: true, value: true, createdAt: true },
     });
 
-    const vote = existing
-      ? await prisma.vote.update({
-          where: { id: existing.id },
-          data: {}, // ยังไม่มี field ให้แก้ (เช่น decision) เลยไม่อัปเดตอะไร
-        })
-      : await prisma.vote.create({
-          data: {
-            roomId,
-            userId,
-            restaurantId: restaurantId ?? null,
-          },
-        });
-
-    return NextResponse.json({ vote }, { status: existing ? 200 : 201 });
-  } catch (err) {
-    return NextResponse.json(
-      { error: "Failed to save vote", details: String(err) },
-      { status: 500 }
-    );
+    return NextResponse.json({ vote }, { status: 200 });
+  } catch (e) {
+    if ((e as Error).message === 'UNAUTHENTICATED') {
+      return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 });
+    }
+    return NextResponse.json({ error: 'FAILED_TO_SAVE_VOTE', details: String(e) }, { status: 500 });
   }
 }
