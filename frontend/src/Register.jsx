@@ -4,6 +4,7 @@ import { Link, useNavigate} from "react-router-dom";
 
 // remaining : connect with backend
 
+
 function Register() {
     const navigate = useNavigate();
 
