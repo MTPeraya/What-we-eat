@@ -24,6 +24,7 @@ function App() {
   // }, []);
 
   return (
+<<<<<<< Updated upstream
     // <div style={{ fontFamily: "Arial", textAlign: "center", marginTop: "50px" }}>
     //   <h1>Frontend is running ✅</h1>
     //   <p>Backend says: <strong>{message}</strong></p>
@@ -31,6 +32,25 @@ function App() {
     <div>
       <HomePage/>
     </div>
+=======
+    // <div>
+    //   <HomePage/>
+    //   {/* <Register/> */}
+    //   {/* <Login/> */}
+    //   {/* <EnterCode/> */}
+      // <CreateRoom/>
+    // </div>
+
+    <Router>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/enter-code" element={<EnterCode />} />
+        <Route path="/create-room" element={<CreateRoom />} />
+      </Routes>
+    </Router>
+>>>>>>> Stashed changes
   );
 }
 
