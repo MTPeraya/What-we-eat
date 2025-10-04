@@ -23,6 +23,7 @@
     "vite": "^7.1.2"
   },
   "dependencies": {
+    "@heroui/react": "^2.8.4",
     "bootstrap": "^5.3.8",
     "framer-motion": "^12.23.14",
     "react": "^18.3.1",
