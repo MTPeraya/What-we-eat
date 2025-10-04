@@ -284,8 +284,9 @@ input::placeholder {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: end;
+  align-items: center;
   padding: 100px;
+  /* background-color: green; */
 }
 
 .right {
@@ -296,8 +297,9 @@ input::placeholder {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: start;
+  align-items: center;
   padding: 100px;
+  /* background-color: pink; */
 }
 
 .room-code {
@@ -338,3 +340,29 @@ input::placeholder {
   justify-content: flex-start;
   align-items: center;
 }
+/* 
+.scoll {
+  height: 300px;
+  width: 410px;
+  overflow: auto;
+  border: 1px solid white;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.member-box {
+  background-color: #222;
+  color: white;
+  border: 1px solid #555;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+  text-align: center;
+  font-weight: 500;
+  transition: 0.2s;
+}
+
+.member-box:hover {
+  background-color: #444;
+  transform: scale(1.02);
+} */
