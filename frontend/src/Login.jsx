@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import "./App.css";
 import { Link, useNavigate } from "react-router-dom";
 
-// remaining : check exist username, is username match with password
-
 
 function Login() {
     const navigate = useNavigate();
@@ -12,6 +10,7 @@ function Login() {
     const [password, setPassword] = useState("");
     const [remember, setRemember] = useState(false);
     const [error, setError] = useState("");
+    const [message, setMessage] = useState("");
 
     useEffect(() => {
         const savedUsername = localStorage.getItem("WhatWeEatUsername");
@@ -21,7 +20,7 @@ function Login() {
         }
     }, []);
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
         setError("");
 
@@ -35,10 +34,30 @@ function Login() {
             localStorage.removeItem("rememberedUsername");
         }
 
-        console.log({ username, password, remember });
+        try {
+            const res = await fetch("http://localhost:4001/api/auth/login", {
+                method: "POST",
+                headers: {"Content-Type": "application/json",},
+                body: JSON.stringify({ username, password }),
+            });
 
-        navigate("/create-room")
-    };
+            const data = await res.json();
+            if (res.ok) {
+                // สมมติ backend ส่ง token กลับมา
+                localStorage.setItem("token", data.token);
+                setMessage("✅ เข้าสู่ระบบสำเร็จ!");
+                navigate("/create-room")
+            } else {
+                setMessage(`❌ ${data.error || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"}`);
+            }
+        } catch (err) {
+            setMessage("🚨 ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+            }
+
+        // console.log({ username, password, remember });
+        // console.log({ message })
+        // navigate("/create-room")
+    }; 
 
     return (
         <>
@@ -53,6 +72,8 @@ function Login() {
                 <input
                     type="text"
                     id="username"
+                    autoComplete="username"
+                    value={username}
                     className="n-container"
                     onChange={(e) => setUsername(e.target.value)}/>
 
@@ -61,6 +82,7 @@ function Login() {
                 <input
                     type="password"
                     id="password"
+                    autoComplete="current-password"
                     value={password}
                     className="n-container"
                     onChange={(e) => setPassword(e.target.value)}/>
