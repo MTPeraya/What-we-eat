@@ -1,4 +1,4 @@
-import React, {useState, useRef} from 'react';
+import React, {useState, useRef, useEffect, useCallback} from 'react';
 // eslint-disable-next-line no-unused-vars
 import { motion, useMotionValue,  useTransform, animate} from 'framer-motion';
 import Button from "./components/swipeButton"
@@ -9,7 +9,93 @@ const cross = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" vie
 
 const locationPin = <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 20 20"><path fill="white" d="M10 20S3 10.87 3 7a7 7 0 1 1 14 0c0 3.87-7 13-7 13zm0-11a2 2 0 1 0 0-4a2 2 0 0 0 0 4z"/></svg>
 
-const RoomID = "123456"
+// API Configuration
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001/api';
+const RoomID = "123456" // This should come from props or routing
+
+// API Functions
+const fetchRestaurantsFromAPI = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/restaurants`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Failed to fetch restaurants:', error);
+    throw error;
+  }
+};
+
+const submitVote = async (roomId, restaurantId, value) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/votes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        roomId,
+        restaurantId,
+        value: value === 'accept' ? 'ACCEPT' : 'REJECT'
+      }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Vote submission failed: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to submit vote:', error);
+    throw error;
+  }
+};
+
+const checkRoomResults = async (roomId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/decide/score`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Results check failed: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to check results:', error);
+    throw error;
+  }
+};
+
+// Transform API data to match component format
+const transformRestaurantData = (apiData) => {
+  // Extract items array from API response
+  const restaurants = apiData.items || [];
+  return restaurants.map((restaurant, index) => ({
+    id: restaurant.id,
+    url: `/restaurant/restaurant${(index % 8) + 1}.jpg`, // Fallback to local images
+    name: restaurant.name,
+    address: restaurant.address,
+    rating: restaurant.rating,
+    price: restaurant.price,
+    lat: restaurant.location?.lat,
+    lng: restaurant.location?.lng,
+    userRatingsTotal: restaurant.userRatingsTotal,
+  }));
+};
 
 
 const RoomIDContainer = () =>{
@@ -25,23 +111,150 @@ const RoomIDContainer = () =>{
 }
 
 const SwipeCards = () => {
-    const [cards, setCards] = useState(cardData);
+    const [cards, setCards] = useState([]);
     const [isSwiping, setIsSwiping] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [showResults, setShowResults] = useState(false);
+    const [results, setResults] = useState(null);
 
     const topCardRef = useRef(null); // ref to call programmatic swipe
 
+    // Load restaurants from API
+    const loadRestaurants = useCallback(async () => {
+        try {
+            setIsLoading(true);
+            console.log('Fetching restaurants from:', API_BASE_URL + '/restaurants');
+            const apiData = await fetchRestaurantsFromAPI();
+            console.log('API Response:', apiData);
+            const transformedCards = transformRestaurantData(apiData);
+            console.log('Transformed cards:', transformedCards);
+            setCards(prev => [...prev, ...transformedCards]);
+        } catch (error) {
+            console.error('Failed to load restaurants:', error);
+            // Fallback to local data
+            console.log('Using fallback data');
+            setCards(prev => [...prev, ...cardData]);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    // Fetch initial data when component mounts
+    useEffect(() => {
+        loadRestaurants();
+    }, [loadRestaurants]);
+
+    // Check if we need more cards (when less than 2)
+    useEffect(() => {
+        if (cards.length < 2 && !isLoading) {
+            loadRestaurants();
+        }
+    }, [cards.length, isLoading, loadRestaurants]);
+
+    // Handle vote submission and result checking
+    const handleVote = async (restaurantId, voteValue) => {
+        try {
+            // Submit vote to backend
+            await submitVote(RoomID, restaurantId, voteValue);
+            console.log(`Vote submitted: ${voteValue} for restaurant ${restaurantId}`);
+            
+            // Check if results are ready
+            const roomResults = await checkRoomResults(RoomID);
+            if (roomResults.scores && roomResults.scores.length > 0) {
+                // Check if we have a clear winner (you can customize this logic)
+                const hasWinner = roomResults.scores.some(score => score.approval && score.approval > 0.7);
+                if (hasWinner) {
+                    setResults(roomResults);
+                    setShowResults(true);
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error('Failed to handle vote:', error);
+        }
+    };
+
     const swipeLeft = () => {
-      if (!isSwiping) {
+      if (!isSwiping && cards.length > 0) {
         setIsSwiping(true);
-        topCardRef.current?.swipe("left", () => setIsSwiping(false));
+        const currentCard = cards[0];
+        topCardRef.current?.swipe("left", () => {
+            setIsSwiping(false);
+            handleVote(currentCard.id, 'reject');
+        });
       }
     };
+
     const swipeRight = () => {
-      if (!isSwiping) {
+      if (!isSwiping && cards.length > 0) {
         setIsSwiping(true);
-        topCardRef.current?.swipe("right", () => setIsSwiping(false));
+        const currentCard = cards[0];
+        topCardRef.current?.swipe("right", () => {
+            setIsSwiping(false);
+            handleVote(currentCard.id, 'accept');
+        });
       }
     };
+
+    // Show results page if results are ready
+    if (showResults && results) {
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{
+                width: "100vw",
+                flexDirection: "column",
+                alignItems: "center",
+                minHeight: "90vh",
+                backgroundColor: "#FFE2C5"
+            }}>
+                <RoomIDContainer/>
+                <div style={{textAlign: "center", padding: "20px"}}>
+                    <h2>🎉 Results are ready!</h2>
+                    <p>Based on everyone's votes:</p>
+                    {results.scores.slice(0, 3).map((score, index) => (
+                        <div key={score.restaurantId} style={{
+                            margin: "10px 0",
+                            padding: "15px",
+                            backgroundColor: index === 0 ? "#4CAF50" : "#f0f0f0",
+                            color: index === 0 ? "white" : "black",
+                            borderRadius: "10px"
+                        }}>
+                            <strong>#{index + 1}</strong> Restaurant ID: {score.restaurantId}
+                            {score.approval && ` - ${(score.approval * 100).toFixed(1)}% approval`}
+                        </div>
+                    ))}
+                    <button 
+                        onClick={() => setShowResults(false)} 
+                        style={{
+                            marginTop: "20px",
+                            padding: "10px 20px",
+                            backgroundColor: "#801F08",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "5px"
+                        }}
+                    >
+                        Continue Swiping
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // Show loading state
+    if (isLoading && cards.length === 0) {
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{
+                width: "100vw",
+                flexDirection: "column",
+                alignItems: "center",
+                minHeight: "90vh",
+                backgroundColor: "#FFE2C5"
+            }}>
+                <RoomIDContainer/>
+                <div style={{fontSize: "2rem", color: "#888"}}>Loading restaurants...</div>
+            </div>
+        );
+    }
 
     return(
       <div className="d-flex justify-content-start align-items-center" style={{
@@ -70,6 +283,7 @@ const SwipeCards = () => {
               setCards={setCards}
               ref={topCardRef}
               name={cards[0].name}
+              onVote={handleVote}
             />
           )}
           {cards.length === 0 && (
@@ -90,7 +304,7 @@ const SwipeCards = () => {
 }
 
 
-const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0"}, ref) => {
+const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0", onVote}, ref) => {
     const x = useMotionValue(0);
 
     const opacity = useTransform(x, [-150, 0 , 150], [0, 1, 0])
@@ -104,9 +318,11 @@ const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0"}
         if (Math.abs(x.get()) > 50){
             if (x.get() > 50){
                 console.log(`Yes${id}`);
+                onVote && onVote(id, 'accept');
             }
             if (x.get() < -50){
                 console.log(`No${id}`)
+                onVote && onVote(id, 'reject');
             }
             removeCard();
         }
