@@ -1,9 +1,10 @@
 # ---- Backend (Next.js + Prisma) ----
-FROM node:20-alpine AS base
+FROM node:20-bullseye AS base   
+# Use bullseye instead of alpine for better compatibility
 
 WORKDIR /app
 
-# Copy dependency files and prisma schema first
+# Copy dependency files and Prisma schema first
 COPY package*.json ./
 COPY prisma ./prisma
 
@@ -15,6 +16,9 @@ RUN npx prisma generate
 
 # Copy rest of backend source
 COPY . .
+
+# Remove potentially invalid NODE_OPTIONS
+ENV NODE_OPTIONS=""
 
 # Build Next.js app
 RUN npm run build

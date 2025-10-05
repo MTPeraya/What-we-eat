@@ -83,7 +83,3 @@ Enable groups to decide on a restaurant quickly and fairly, considering local cu
     - [sprint 1](https://youtu.be/OVbAiq7yjBQ?feature=shared)
     - [sprint 2](https://youtu.be/CaL2scmboik)
 
----
-
-## 📌 License
-This project is for educational and research purposes.

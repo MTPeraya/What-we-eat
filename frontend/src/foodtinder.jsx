@@ -1,5 +1,5 @@
 import React from "react";
-import SwipeCards from './swipecard.jsx'
+import SwipeCards from './components/swipecard.jsx'
 import Header from './header.jsx'
 import Footer from './components/smallfooter.jsx'
 
