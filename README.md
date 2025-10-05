@@ -80,9 +80,6 @@ Enable groups to decide on a restaurant quickly and fairly, considering local cu
 - ([Jira](https://ku-team-nattanan.atlassian.net/jira/software/projects/WWE/boards/38/backlog?atlOrigin=eyJpIjoiNzM0YjU2NDZlYzJkNDgyY2FmN2QzNGIyMjljZWJlNDEiLCJwIjoiaiJ9))
 
 - Sprint VDO
-    - [sprint1](https://youtu.be/OVbAiq7yjBQ?feature=shared)
+    - [sprint 1](https://youtu.be/OVbAiq7yjBQ?feature=shared)
+    - [sprint 2](https://youtu.be/CaL2scmboik)
 
----
-
-## 📌 License
-This project is for educational and research purposes.

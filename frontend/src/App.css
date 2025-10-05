@@ -1,3 +1,8 @@
+@media (max-width: 600px) {
+  .preview-pic {
+    display: none !important;
+  }
+}
 
 
 body {
@@ -24,10 +29,10 @@ body {
     animation: logo-spin infinite 20s linear;
   }
 }
-
+/* 
 .card {
   padding: 2em;
-}
+} */
 
 .read-the-docs {
   color: #888;
@@ -48,6 +53,15 @@ body {
     width: 200px;
     padding: 15px 0px;
     font-size: 24px;
+    border-radius: 10px;
+    color: white;
+}
+
+.s-button {
+    border: none;
+    width: 100px;
+    padding: 5px 0px;
+    font-size: 16px;
     border-radius: 10px;
     color: white;
 }
@@ -144,12 +158,15 @@ body {
   background-position: center;
   background-repeat: no-repeat;
   justify-content: center;
-  height: 500px;
+  min-height: 500px;
+  max-height: 1000px;
+  width: 100vw;
   background-blend-mode: multiply;
+  flex-direction:row-reverse;
 
   position: relative;
   isolation:isolate;
-  /* flex-wrap: wrap-reverse; */
+  flex-wrap: wrap;
 }
 
 .hero_section::after{

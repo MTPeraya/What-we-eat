@@ -1,30 +1,54 @@
 // backend/src/middleware.ts
-import { NextResponse, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { jwtVerify } from "jose";
 
-export function middleware(req: NextRequest) {
-  // Use only /api/*
+const COOKIE = "wwe_session";
+const SECRET = new TextEncoder().encode(process.env.AUTH_JWT_SECRET ?? "dev-secret");
+
+// เส้นทางที่ต้องล็อกอินก่อนเข้า
+const PROTECTED = ["/rooms/create", "/history", "/reviews", "/profile", "/admin"];
+
+export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
-  const started = Date.now();
-  const reqId = crypto.randomUUID();
 
-  // clone headers, and send to Route Handler
-  const headers = new Headers(req.headers);
-  headers.set("x-request-id", reqId);
-  headers.set("x-request-start", String(started));
+  // ถ้าไม่ใช่เส้นทางที่ป้องกัน → ปล่อยผ่าน
+  if (!PROTECTED.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
 
-  // log when call
-  console.log(
-    `[API][start] id=${reqId} ${req.method} ${pathname}${search} at=${new Date(
-      started
-    ).toISOString()}`
-  );
+  const token = req.cookies.get(COOKIE)?.value;
 
-  const res = NextResponse.next({ request: { headers } });
-  // If wanna see network
-  res.headers.set("x-request-id", reqId);
-  return res;
+  // ไม่มี token → เด้งไป /login
+  if (!token) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("next", pathname + (search ? `?${search}` : ""));
+    return NextResponse.redirect(url);
+  }
+
+  try {
+    // ตรวจสอบลายเซ็น JWT (ทำงานได้ใน middleware/edge)
+    await jwtVerify(token, SECRET);
+    return NextResponse.next();
+  } catch {
+    // token เสีย/หมดอายุ → ลบ cookie แล้วเด้งไป /login
+    const url = req.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("next", pathname + (search ? `?${search}` : ""));
+    const res = NextResponse.redirect(url);
+    res.cookies.set({ name: COOKIE, value: "", path: "/", maxAge: 0 });
+    return res;
+  }
 }
 
+// ให้ middleware ทำงานเฉพาะ path ที่สนใจ (แม่นกว่าเช็คเอง)
 export const config = {
-  matcher: ["/api/:path*"],
+  matcher: [
+    "/rooms/create/:path*",
+    "/history/:path*",
+    "/reviews/:path*",
+    "/profile/:path*",
+    "/admin/:path*",
+  ],
 };
