@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import "./App.css"
 import Header from "./header"
+// import {ScrollShadow} from "@heroui/react";
 
 
 function CreateRoom () {
@@ -16,17 +17,28 @@ function CreateRoom () {
         <div className='room-container'>
             {/* left side */}
             <div className='left'>
-                <img src={{qrCodeImage}} 
-                     alt='QR Code' 
-                     width="280" 
-                     height="280"></img>
+                <div style={{border: '3px solid #603A2B', borderRadius: '5px'}}>
+                    <img src={qrCodeImage}
+                        alt='QR Code'
+                        width={280}
+                        height={280}
+                        style={{borderRadius: '5px'}}></img>
+                </div>
                 <div className='room-code'>12345</div>
                 <div className='location-box'>📍 Your Location</div>
             </div>
 
             {/* right side */}
             <div className='right'>
-                <div>scoll bar</div>
+                <div className='scroll'>
+                    <div className="member-box">Member</div>
+                    <div className="member-box">Member</div>
+                    <div className="member-box">Member</div>
+                    <div className="member-box">Member</div>
+                    <div className="member-box">Member</div>
+                    <div className="member-box">Member</div>
+                    <div className="member-box">Member</div>
+                </div>
                 <div className='room-btn'>
                     <button className='green small-btn shadow'
                             style={{width: '200px'}}>
@@ -35,8 +47,8 @@ function CreateRoom () {
                             style={{width: '200px'}}>
                     Cancel</button>
                 </div>
-                <button className='green small-btn shadow'>Start</button>
-                <button className='brown small-btn shadow'>Cancel</button>
+                {/* <button className='green small-btn shadow'>Start</button>
+                <button className='brown small-btn shadow'>Cancel</button> */}
             </div>
         </div>
         </>
