@@ -3,6 +3,11 @@ import Header from './header.jsx'
 import Footer from './components/smallfooter.jsx'
 import Found from './components/showResult.jsx'
 
+const result = {
+    id: 4,
+    url: "/restaurant/restaurant8.jpg",
+    name: "R8",
+  }
 
 function Result() {
   return(
@@ -15,7 +20,7 @@ function Result() {
           <h4 className="mb-0">Restaurant</h4>
           <h1>FOUND</h1>
         </div>
-      <Found/>
+      <Found pics={result.url} name={result.name}/>
       <div className="d-flex flex-column align-items-center">
         <button className="green button">Map</button>
         <div style={{height:"10px"}}/>
