@@ -3,6 +3,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { z, ZodError } from "zod";
 import { RestaurantService, type RestaurantUpsertInput } from "@/services/RestaurantService";
 
+// ===== CORS =====
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
+
+function withCORS(res: NextResponse) {
+  res.headers.set("Access-Control-Allow-Origin", FRONTEND_ORIGIN);
+  res.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.headers.set("Access-Control-Allow-Credentials", "true");
+  return res;
+}
+
 // -------- Types from Google Places we actually use --------
 type GooglePlaceResult = {
   place_id: string;
@@ -58,18 +69,16 @@ class RestaurantsController {
       const params = Object.fromEntries(req.nextUrl.searchParams.entries());
       const qp = querySchema.parse(params);
 
-      // อ่าน key "ต่อคำขอ" ไม่ cache ไว้ที่ constructor
       const placesKey = process.env.EXTERNAL_PLACES_API_KEY;
 
-      // ในโหมด test อนุญาตให้ไม่มี key (เพราะจะ stub fetch)
       if (!placesKey && process.env.NODE_ENV !== "test") {
-        return NextResponse.json(
+        return withCORS(NextResponse.json(
           { error: "Missing EXTERNAL_PLACES_API_KEY" },
           { status: 500 }
-        );
+        ));
       }
 
-      const keyForCall = placesKey ?? "test"; // ใน test ไม่ถูกใช้จริงเพราะ fetch ถูก stub
+      const keyForCall = placesKey ?? "test";
 
       const api =
         `https://maps.googleapis.com/maps/api/place/textsearch/json` +
@@ -80,10 +89,10 @@ class RestaurantsController {
 
       const res = await fetch(api);
       if (!res.ok) {
-        return NextResponse.json(
+        return withCORS(NextResponse.json(
           { error: `Google API error: ${res.status}` },
           { status: 500 }
-        );
+        ));
       }
 
       const data = (await res.json()) as GooglePlacesResponse;
@@ -112,7 +121,7 @@ class RestaurantsController {
       // WWE-43: upsert cache
       if (items.length) await this.service.createOrUpdateMany(items);
 
-      return NextResponse.json({
+      return withCORS(NextResponse.json({
         count: items.length,
         items: items.map((i) => ({
           id: i.placeId,
@@ -123,10 +132,10 @@ class RestaurantsController {
           location: { lat: i.lat, lng: i.lng },
           userRatingsTotal: i.userRatingsTotal ?? null,
         })),
-      }, { status: 200 });
+      }, { status: 200 }));
     } catch (err: unknown) {
       const message = this.toMessage(err, "Failed to fetch restaurants");
-      return NextResponse.json({ error: message }, { status: 500 });
+      return withCORS(NextResponse.json({ error: message }, { status: 500 }));
     }
   }
 
@@ -136,22 +145,15 @@ class RestaurantsController {
       const body = await req.json();
       const parsed = upsertManySchema.parse(body);
       const result = await this.service.createOrUpdateMany(parsed.items);
-      return NextResponse.json({ upserted: result.length }, { status: 200 });
+      return withCORS(NextResponse.json({ upserted: result.length }, { status: 200 }));
     } catch (err: unknown) {
       const message = this.toMessage(err, "Failed to save restaurants");
-      return NextResponse.json({ error: message }, { status: 400 });
+      return withCORS(NextResponse.json({ error: message }, { status: 400 }));
     }
   }
 
   async options() {
-    return new NextResponse(null, {
-      status: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      },
-    });
+    return withCORS(new NextResponse(null, { status: 204 }));
   }
 }
 
