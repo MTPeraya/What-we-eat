@@ -181,29 +181,6 @@ body {
 .white_txt{
   color: white !important;
 }
-.hero_text{
-  display: "flex";
-  flex-direction: "column";
-  width: "40vw"; 
-  height: "300px";
-  align-items: "left";
-  margin-top: "100px";
-}
-
-#title{
-  font-size:"60px";
-  height:"80px";
-  margin: "10px"
-}
-
-@media (max-width: 860px) {
-  .preview-pic {
-    display: none !important;
-  }
-  .title{
-
-  }
-}
 
 
 /* register / login / enter code page*/
@@ -289,9 +266,10 @@ body {
 }
 
 input[type="checkbox"] {
-  width: 30px;
-  height: 30px;
+  width: 20px;
+  height: 20px;
   margin-left: 40px;
+  margin-right: 5px;
   accent-color: #BB3D25;
   cursor: pointer;
 }
@@ -318,6 +296,7 @@ input::placeholder {
 
 .left {
   margin: 0;
+  margin-left: 100px;
   height: 100vh;
   width: 50vw;
 
@@ -325,12 +304,13 @@ input::placeholder {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 100px;
+  padding: 50px;
   /* background-color: green; */
 }
 
 .right {
   margin: 0;
+  margin-right: 100px;
   height: 100vh;
   width: 50vw;
 
@@ -338,7 +318,7 @@ input::placeholder {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 100px;
+  padding: 50px;
   /* background-color: pink; */
 }
 
@@ -380,29 +360,40 @@ input::placeholder {
   justify-content: flex-start;
   align-items: center;
 }
-/* 
-.scoll {
+
+.scroll {
   height: 300px;
   width: 410px;
   overflow: auto;
-  border: 1px solid white;
   border-radius: 8px;
   padding: 10px;
+  background-color: #E5D4B7;
+  /* background-color: #FFE2C5;
+  border: 2px solid #603A2B; */
 }
 
-.member-box {
-  background-color: #222;
-  color: white;
-  border: 1px solid #555;
+.scroll::-webkit-scrollbar {
+  width: 14px;
+}
+
+.scroll::-webkit-scrollbar-track {
+  background: #D4B89C;
   border-radius: 8px;
-  padding: 10px;
-  margin-bottom: 10px;
-  text-align: center;
-  font-weight: 500;
-  transition: 0.2s;
 }
 
-.member-box:hover {
-  background-color: #444;
-  transform: scale(1.02);
-} */
+.scroll::-webkit-scrollbar-thumb {
+  background-color: #FFE2C5;
+  border-radius: 5px;
+  border: 3px solid #D4B89C;
+}
+
+.member-box{
+  background-color: #D4B89C;
+  color: #603A2B;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 13px;
+  text-align: left;
+  font-weight: bold;
+  font-size: 20px;
+}
