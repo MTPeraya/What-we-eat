@@ -18,11 +18,11 @@ function App() {
 
   return (
     // <div>
-    //   <HomePage/>
+    //   {/* <HomePage/> */}
     //   {/* <Register/> */}
     //   {/* <Login/> */}
     //   {/* <EnterCode/> */}
-      // <CreateRoom/>
+    //   <CreateRoom/>
     // </div>
 
     <Router>
