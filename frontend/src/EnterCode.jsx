@@ -1,8 +1,10 @@
 import { useState } from "react";
 import "./App.css";
+import { Link, useNavigate} from "react-router-dom";
 
 function EnterCode() {
 
+    const navigate = useNavigate();
     const [code, setCode] = useState("");
 
     return (
@@ -33,7 +35,8 @@ function EnterCode() {
 
                 {/* create room */}
                 <button className="brown small-btn shadow"
-                        style={{ marginTop: "-10px" }}>
+                        style={{ marginTop: "-10px" }}
+                        onClick={() => navigate("/create-room")}>
                 Create Room</button>
             </div>
         </>

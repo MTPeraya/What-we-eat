@@ -6,7 +6,7 @@ import Result from './ResultPage.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    {/* <App /> */}
-    <Result/>
+    <App />
+    {/* <Result/> */}
   </StrictMode>,
 )

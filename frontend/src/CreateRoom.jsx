@@ -1,11 +1,13 @@
 import React, { useState } from 'react'
 import "./App.css"
 import Header from "./header"
+import { Link, useNavigate} from "react-router-dom";
 // import {ScrollShadow} from "@heroui/react";
 
 
 function CreateRoom () {
 
+    const navigate = useNavigate();
     const [qrCodeImage, setQrCodeImage] = useState(null);
 
     return (
@@ -44,7 +46,8 @@ function CreateRoom () {
                             style={{width: '200px'}}>
                     Start</button>
                     <button className='brown small-btn shadow'
-                            style={{width: '200px'}}>
+                            style={{width: '200px'}}
+                            onClick={() => navigate("/enter-code")}>
                     Cancel</button>
                 </div>
                 {/* <button className='green small-btn shadow'>Start</button>
