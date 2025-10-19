@@ -56,6 +56,10 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
       - name: 🛠 Build and push Docker images
+        env:             
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          IRON_SESSION_COOKIE_NAME: ${{ secrets.IRON_SESSION_COOKIE_NAME }}
+          IRON_SESSION_PASSWORD: ${{ secrets.IRON_SESSION_PASSWORD }}
         run: |
           docker compose -f docker-compose.yml build
           docker compose -f docker-compose.yml push
