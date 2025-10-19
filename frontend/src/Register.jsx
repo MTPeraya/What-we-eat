@@ -19,7 +19,7 @@ function Register() {
         if (!username) { setError("Please enter username !"); return; }
         if (!password) { setError("Please enter password !"); return; }
         if (!rePassword) { setError("Please re-enter password !"); return; }
-        if (password.length < 4) { setError("Password must be at least 4 characters !"); return; }
+        if (password.length <= 4) { setError("Password must be at least 4 characters !"); return; }
         if (password !== rePassword) { setError("Passwords do not match !"); return; }
 
         // const payload = { username, password, rePassword };
@@ -28,19 +28,32 @@ function Register() {
             const res = await fetch("http://localhost:4001/api/auth/register", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
+                credentials: 'include',
                 body: JSON.stringify({ username, password }),
             });
 
             const data = await res.json();
+            console.log("data", data);
+
             if (res.ok) {
-                // สมมติ backend ส่ง token กลับมา
-                localStorage.setItem("token", data.token);
-                setMessage("✅ เข้าสู่ระบบสำเร็จ!");
+                // Backend uses HttpOnly cookie session; no token to store
+                setMessage("✅ ลงทะเบียนสำเร็จ!");
                 navigate("/create-room");
             } else {
-                setMessage(`❌ ${data.error || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"}`);
+                // Show friendlier validation/duplicate messages
+                if (data?.error === 'VALIDATION_ERROR') {
+                    const fieldErr = data?.details?.fieldErrors || {};
+                    const firstField = Object.keys(fieldErr)[0];
+                    const firstMsg = firstField && Array.isArray(fieldErr[firstField]) ? fieldErr[firstField][0] : 'Validation failed';
+                    setMessage(`❌ ${firstMsg}`);
+                } else if (data?.error === 'USERNAME_TAKEN') {
+                    setMessage('❌ Username is already taken');
+                } else {
+                    setMessage(`❌ ${data?.error || "Registration failed"}`);
+                }
             }
         } catch (err) {
+            console.log("err", err);
             setMessage("🚨 ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
         }
 

@@ -53,3 +53,5 @@ pnpm-lock.yaml
 # old generated prisma client path (keep if you want to ensure it never gets committed)
 src/generated/prisma/
 
+# session / cookie artifacts
+cookies.txt

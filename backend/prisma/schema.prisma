@@ -26,6 +26,12 @@ enum AssetStatus {
   rejected
 }
 
+enum RatingStatus {
+  pending
+  approved
+  rejected
+}
+
 // ================= Generator/Datasource =================
 generator client {
   provider = "prisma-client-js"
@@ -54,7 +60,9 @@ model Restaurant {
   images               RestaurantImage[]
   assets               ImageAsset[]
   votes                Vote[]
-  // 👇 back-relations (แก้ error)
+  ratings              Rating[]              // 👈 back-relations (ratings)
+
+  // back-relations
   mealHistories        MealHistory[]
   suggestionHistories  RoomSuggestionHistory[]
 
@@ -74,8 +82,13 @@ model User {
   votes             Vote[]
   assets            ImageAsset[]
   sessions          Session[]
-  // 👇 back-relation (แก้ error)
+  ratings           Rating[]          // 👈 ratings ที่ผู้ใช้สร้าง
+
+  // back-relations
   mealHistories     MealHistory[]
+
+  // back-relation for ShortLink that user create
+  shortLinks        ShortLink[]       @relation("UserShortLinks")
 }
 
 model Room {
@@ -92,9 +105,14 @@ model Room {
   participants         RoomParticipant[]
   votes                Vote[]
   assets               ImageAsset[]
-  // 👇 back-relations (แก้ error)
+  ratings              Rating[]            // 👈 ratings ผูกกับห้อง (optional)
+
+  // back-relations
   mealHistories        MealHistory[]
   suggestionHistories  RoomSuggestionHistory[]
+
+  // back-relation for ShortLink of this room
+  shortLinks           ShortLink[]          @relation("RoomShortLinks")
 
   @@index([code])
 }
@@ -110,7 +128,7 @@ model RoomParticipant {
   room        Room      @relation(fields: [roomId], references: [id])
   user        User?     @relation(fields: [userId], references: [id])
 
-  @@unique([roomId, userId]) // ผู้ใช้หนึ่งคนเข้าห้องเดียวกันได้ครั้งเดียว (nullable userId อนุญาตซ้ำ)
+  @@unique([roomId, userId])
   @@index([roomId])
 }
 
@@ -126,7 +144,7 @@ model Vote {
   room          Room        @relation(fields: [roomId], references: [id])
   restaurant    Restaurant  @relation(fields: [restaurantId], references: [id])
 
-  @@unique([roomId, userId, restaurantId]) // 1 คน/1 ร้าน/1 ห้อง โหวตเดียว
+  @@unique([roomId, userId, restaurantId])
   @@index([roomId])
   @@index([userId])
   @@index([restaurantId])
@@ -137,7 +155,7 @@ model RestaurantImage {
   id            String       @id @default(cuid())
   restaurantId  String
   source        ImageSource
-  externalRef   String?      // เช่น Google photo_reference
+  externalRef   String?
   externalUrl   String?
   width         Int?
   height        Int?
@@ -155,8 +173,8 @@ model RestaurantImage {
 model ImageAsset {
   id            String       @id @default(cuid())
   source        ImageSource  @default(ugc)
-  storageKey    String       // path/key ใน Object Storage
-  publicUrl     String       // CDN URL
+  storageKey    String
+  publicUrl     String
   contentType   String?
   sizeBytes     Int?
   width         Int?
@@ -226,4 +244,58 @@ model RoomSuggestionHistory {
 
   @@index([roomId, suggestedAt])
   @@index([restaurantId])
+}
+
+// ===================== Short Link =======================
+model ShortLink {
+  code       String   @id
+  targetUrl  String
+  roomId     String?
+  createdBy  String?
+  expireAt   DateTime?
+  createdAt  DateTime @default(now())
+
+  // Relations
+  room       Room?   @relation("RoomShortLinks", fields: [roomId], references: [id])
+  user       User?   @relation("UserShortLinks", fields: [createdBy], references: [id])
+
+  @@index([roomId])
+  @@index([expireAt])
+}
+
+// ===================== Ratings =========================
+model Rating {
+  id           String        @id @default(cuid())
+  roomId       String?
+  userId       String?
+  restaurantId String
+  score        Int
+  tags         Json?
+  comment      String?
+  status       RatingStatus  @default(pending)
+  createdAt    DateTime      @default(now())
+
+  room         Room?         @relation(fields: [roomId], references: [id])
+  user         User?         @relation(fields: [userId], references: [id])
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id])
+  photos       RatingPhoto[]
+
+  @@index([restaurantId, status, createdAt])
+  @@index([userId, createdAt])
+}
+
+model RatingPhoto {
+  id         String   @id @default(cuid())
+  ratingId   String
+  storageKey String
+  publicUrl  String?
+  width      Int?
+  height     Int?
+  mime       String
+  sizeBytes  Int
+  createdAt  DateTime @default(now())
+
+  rating     Rating   @relation(fields: [ratingId], references: [id])
+
+  @@index([ratingId])
 }
