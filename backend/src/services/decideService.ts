@@ -1,12 +1,36 @@
-import prisma from "@/lib/db"; // ถ้าโปรเจ็กต์คุณ export เป็น { prisma } ให้แก้บรรทัดนี้
-// import { prisma } from "@/lib/db";
+import prisma from "@/lib/db";
 
-type TallyRow = {
+// ===== Types =====
+export type TallyRow = {
   restaurantId: string;
   accept: number;
   reject: number;
-  approval: number;  // 0..1
-  netScore: number;  // accept - reject
+  approval: number; // 0..1
+  netScore: number; // accept - reject
+};
+
+export type FinalDecideResult = {
+  winner: {
+    restaurantId: string;
+    name: string;
+    address: string | null;
+    lat: number;
+    lng: number;
+    rating: number | null;
+    netScore: number;
+    approval: number;
+  } | null;
+  reason:
+    | { rule: "no-candidates" }
+    | {
+        rule:
+          | "score→distance→rating→noRepeat"
+          | "score→rating→noRepeat";
+        noRepeatLastN: number;
+        usedCenter: boolean;
+      };
+  scores: TallyRow[];       // เรียงแล้วจากดีที่สุดไปแย่สุด
+  decidedAt?: string;       // ISO string (เพิ่มให้ route ใช้ได้)
 };
 
 const NO_REPEAT_LAST_N = 5; // กันซ้ำจากประวัติห้อง N ครั้งล่าสุด
@@ -62,19 +86,26 @@ export async function tallyVotesByRoom(roomId: string): Promise<TallyRow[]> {
 export async function finalDecide(
   roomId: string,
   center?: { lat: number; lng: number }
-) {
+): Promise<FinalDecideResult> {
   // 1) รวมคะแนน
   const scores = await tallyVotesByRoom(roomId);
   if (!scores.length) {
-    return { winner: null as null, reason: { rule: "no-candidates" as const }, scores: [] };
+    return { winner: null, reason: { rule: "no-candidates" }, scores: [] };
   }
 
   // 2) ดึงข้อมูลร้านของผู้ท้าชิง
   const restaurants = await prisma.restaurant.findMany({
-    where: { id: { in: scores.map(s => s.restaurantId) } },
-    select: { id: true, name: true, address: true, lat: true, lng: true, rating: true },
+    where: { id: { in: scores.map((s) => s.restaurantId) } },
+    select: {
+      id: true,
+      name: true,
+      address: true,
+      lat: true,
+      lng: true,
+      rating: true,
+    },
   });
-  const byId = new Map(restaurants.map(r => [r.id, r]));
+  const byId = new Map(restaurants.map((r) => [r.id, r]));
 
   // 3) no-repeat set: ร้านที่ถูกเลือกไปแล้วล่าสุด N ครั้งของห้อง
   const recent = await prisma.mealHistory.findMany({
@@ -83,19 +114,28 @@ export async function finalDecide(
     take: NO_REPEAT_LAST_N,
     select: { restaurantId: true },
   });
-  const noRepeat = new Set(recent.map(x => x.restaurantId));
+  const noRepeat = new Set(recent.map((x) => x.restaurantId));
 
   // 4) จัดอันดับขั้นสุดท้าย
   const ranked = scores.slice().sort((a, b) => {
     // จากคะแนนรวม (netScore → approval → accept)
-    const base = b.netScore - a.netScore || b.approval - a.approval || b.accept - a.accept;
+    const base =
+      b.netScore - a.netScore ||
+      b.approval - a.approval ||
+      b.accept - a.accept;
     if (base !== 0) return base;
 
     const ra = byId.get(a.restaurantId);
     const rb = byId.get(b.restaurantId);
 
-    // (1) ระยะทาง (ถ้ามี center)
-    if (center && ra && rb) {
+    // (1) ระยะทาง (ถ้ามี center และร้านมีพิกัด)
+    if (
+      center &&
+      ra?.lat != null &&
+      ra?.lng != null &&
+      rb?.lat != null &&
+      rb?.lng != null
+    ) {
       const da = haversineDistance(center.lat, center.lng, ra.lat, ra.lng);
       const db = haversineDistance(center.lat, center.lng, rb.lat, rb.lng);
       if (da !== db) return da - db; // ใกล้ชนะ
@@ -117,28 +157,34 @@ export async function finalDecide(
   const top = ranked[0]!;
   const winner = byId.get(top.restaurantId)!;
 
+  const decidedAtISO = new Date().toISOString();
+
   return {
     winner: {
       restaurantId: winner.id,
       name: winner.name,
-      address: winner.address,
-      lat: winner.lat,
-      lng: winner.lng,
+      address: winner.address ?? null,
+      lat: Number(winner.lat),
+      lng: Number(winner.lng),
       rating: winner.rating ?? null,
       netScore: top.netScore,
       approval: top.approval,
     },
     reason: {
-      rule: center ? "score→distance→rating→noRepeat" as const : "score→rating→noRepeat" as const,
+      rule: center
+        ? "score→distance→rating→noRepeat"
+        : "score→rating→noRepeat",
       noRepeatLastN: NO_REPEAT_LAST_N,
       usedCenter: !!center,
     },
     scores: ranked,
+    decidedAt: decidedAtISO, // ✅ ใส่ให้ route ใช้ emit/response ได้
   };
 }
 
 /** บันทึกลงประวัติ (สำหรับสมาชิกที่มี userId) */
 export async function writeMealHistory(roomId: string, restaurantId: string) {
+  const decidedAt = new Date(); // ให้แน่ใจว่ามีค่าในตาราง
   const members = await prisma.roomParticipant.findMany({
     where: { roomId, userId: { not: null } },
     select: { userId: true },
@@ -146,9 +192,9 @@ export async function writeMealHistory(roomId: string, restaurantId: string) {
   if (!members.length) return;
 
   await prisma.$transaction(
-    members.map(m =>
+    members.map((m) =>
       prisma.mealHistory.create({
-        data: { userId: m.userId!, roomId, restaurantId },
+        data: { userId: m.userId!, roomId, restaurantId, decidedAt },
       })
     )
   );
