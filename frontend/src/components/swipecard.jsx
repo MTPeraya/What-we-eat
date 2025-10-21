@@ -33,9 +33,10 @@ const apiRequest = async (url, options = {}) => {
     });
     
     if (!response.ok) {
+      console.log(response.status);
       throw new Error(`API Error: ${response.status}`);
     }
-    
+    console.log(await response.json());
     return await response.json();
   } catch (error) {
     console.error('API Request failed:', error);
@@ -123,7 +124,8 @@ const SwipeCards = () => {
             setIsLoading(true);
             console.log('Fetching restaurants from API...');
             const response = await fetchRestaurants(1, 10);
-            console.log('API Response:', response);
+            console.log("fetchRestaurants Pass");
+
             if (response.items && response.items.length > 0) {
                 const transformedCards = transformRestaurantData(response);
                 console.log('Transformed cards:', transformedCards);
@@ -199,6 +201,7 @@ const SwipeCards = () => {
     }, [cards.length, hasMoreCards, isLoading, loadMoreCards]);
 
     const swipeLeft = () => {
+      // console.log("left")
       if (!isSwiping && cards.length > 0) {
         setIsSwiping(true);
         topCardRef.current?.swipe("left", () => {
@@ -275,6 +278,7 @@ const SwipeCards = () => {
               setCards={setCards}
               ref={topCardRef}
               name={cards[0].name}
+              onVote={handleVote}
             />
           )}
           {cards.length === 0 && (
@@ -295,7 +299,7 @@ const SwipeCards = () => {
 }
 
 
-const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0"}, ref) => {
+const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0", onVote}, ref) => {
     const x = useMotionValue(0);
 
     const opacity = useTransform(x, [-150, 0 , 150], [0, 1, 0])
@@ -309,11 +313,13 @@ const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0"}
         if (Math.abs(x.get()) > 50){
             if (x.get() > 50){
                 console.log(`Yes${id}`);
-                // Handle accept vote - this will be called by the parent component
+                // Send accept vote to API
+                onVote && onVote(id, 'accept');
             }
             if (x.get() < -50){
                 console.log(`No${id}`)
-                // Handle reject vote - this will be called by the parent component
+                // Send reject vote to API
+                onVote && onVote(id, 'reject');
             }
             removeCard();
         }
