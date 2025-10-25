@@ -9,6 +9,7 @@ const footerStyle = {
   position: "fixed",
   padding: "10px 20px",
   color: "white",
+  zIndex: '2'
 }
 
 const buttonStyle = {
