@@ -24,8 +24,13 @@ function Login() {
         e.preventDefault();
         setError("");
 
-        if (!username) { setError("Please enter username !"); return; }
-        if (!password) { setError("Please enter password !"); return; }
+        if (!username) {
+            alert("Please enter your username !");
+            return;
+        } else if (!password) {
+            alert("Please enter your password !");
+            return;
+        }
 
         // if remember
         if (remember) {
@@ -63,7 +68,7 @@ function Login() {
         <>
         <div className="background">
             <h1 className="head-name">WHAT WE EAT</h1>
-            <div className="box" style={{height: '400px'}}>
+            <div className="box" style={{height: '380px'}}>
 
                 <form onSubmit={handleLogin}>
 
@@ -108,14 +113,10 @@ function Login() {
                         style={{marginTop: '15px'}}>
                 Login</button>
 
-                {/* error text */}
-                <div style={{ minHeight: "24px", marginBottom: "10px", marginTop: "-15px", color: "red", textAlign: "center" }}>
-                {error && error}</div>
-
                 </form>
 
                 {/* register thin button */}
-                <p className="font-normal" style={{ margin: "-5px auto" }}>
+                <p className="font-normal" style={{ margin: "-8px auto" }}>
                 Don't have an Account?{" "}
                 <Link to="/register" className="thin-button">Register</Link></p>
             </div>

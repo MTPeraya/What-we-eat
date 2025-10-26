@@ -16,11 +16,17 @@ function Register() {
         e.preventDefault()
         setError("");
 
-        if (!username) { setError("Please enter username !"); return; }
-        if (!password) { setError("Please enter password !"); return; }
-        if (!rePassword) { setError("Please re-enter password !"); return; }
-        if (password.length < 4) { setError("Password must be at least 4 characters !"); return; }
-        if (password !== rePassword) { setError("Passwords do not match !"); return; }
+        if (!username) {
+            alert("Please enter your username !");
+        } else if (!password) {
+            alert("Please enter your password !");
+        } else if (password.length < 6) {
+            alert("Password must be at least 6 characters !");
+        } else if (!rePassword) {
+            alert("Please re-enter your password !");
+        } else if (password !== rePassword) {
+            alert("Passwords do not match !");
+        }
 
         // const payload = { username, password, rePassword };
 
@@ -52,7 +58,7 @@ function Register() {
         <>
         <div className="background">
             <h1 className="head-name">WHAT WE EAT</h1>
-            <div className="box" style={{ height: "460px" }}>
+            <div className="box" style={{ height: "440px" }}>
             <form className="form" onSubmit={handleRegister}>
 
             {/* username */}
@@ -82,17 +88,13 @@ function Register() {
                    className="n-container"
                    onChange={(e) => setRePassword(e.target.value)}/>
 
-            {/* error text */}
-            <div style={{ minHeight: "20px", marginBottom: "-25px", marginTop: "2px", color: "red", textAlign: "center" }}>
-            {error && error}</div>
-
             {/* register button */}
             <button className="green small-btn shadow"
                     type="submit">Register</button>
             </form>
 
             {/* login thin button */}
-            <p className="font-normal" style={{ margin: "-5px auto" }}>
+            <p className="font-normal" style={{ margin: "-8px auto" }}>
                 Already have an Account?<Link to="/login" className="thin-button">Login</Link>
             </p>
             </div>
