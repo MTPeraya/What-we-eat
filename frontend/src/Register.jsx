@@ -65,7 +65,7 @@ function Register() {
         <>
         <div className="background">
             <h1 className="head-name">WHAT WE EAT</h1>
-            <div className="box" style={{ height: "460px" }}>
+            <div className="box" style={{ height: "440px" }}>
             <form className="form" onSubmit={handleRegister}>
 
             {/* username */}
@@ -95,17 +95,13 @@ function Register() {
                    className="n-container"
                    onChange={(e) => setRePassword(e.target.value)}/>
 
-            {/* error text */}
-            <div style={{ minHeight: "20px", marginBottom: "-25px", marginTop: "2px", color: "red", textAlign: "center" }}>
-            {error && error}</div>
-
             {/* register button */}
             <button className="green small-btn shadow"
                     type="submit">Register</button>
             </form>
 
             {/* login thin button */}
-            <p className="font-normal" style={{ margin: "-5px auto" }}>
+            <p className="font-normal" style={{ margin: "-8px auto" }}>
                 Already have an Account?<Link to="/login" className="thin-button">Login</Link>
             </p>
             </div>
