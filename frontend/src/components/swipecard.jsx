@@ -10,7 +10,7 @@ const cross = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" vie
 const locationPin = <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 20 20"><path fill="white" d="M10 20S3 10.87 3 7a7 7 0 1 1 14 0c0 3.87-7 13-7 13zm0-11a2 2 0 1 0 0-4a2 2 0 0 0 0 4z"/></svg>
 
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001/src/app/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001/api';
 
 // Get room ID from props or URL params - you'll need to implement this based on your routing
 const getRoomId = () => {
@@ -33,9 +33,10 @@ const apiRequest = async (url, options = {}) => {
     });
     
     if (!response.ok) {
+      console.log(response.status);
       throw new Error(`API Error: ${response.status}`);
     }
-    
+    console.log(await response.json());
     return await response.json();
   } catch (error) {
     console.error('API Request failed:', error);
@@ -44,7 +45,7 @@ const apiRequest = async (url, options = {}) => {
 };
 
 // Fetch restaurants from backend
-const fetchRestaurants = async (page = 1, pageSize = 10) => {
+const fetchRestaurants = async () => {
   return await apiRequest(`/restaurants`);
 };
 
@@ -66,21 +67,27 @@ const checkRoomResults = async (roomId) => {
 };
 
 // Transform API restaurant data to match component format
-const transformRestaurantData = (apiRestaurants) => {
-  return apiRestaurants.map((restaurant, index) => ({
+const transformRestaurantData = (apiData) => {
+  // Extract items array from API response { count, items }
+  const restaurants = apiData.items || [];
+  return restaurants.map((restaurant, index) => ({
     id: restaurant.id,
     url: `/restaurant/restaurant${(index % 8) + 1}.jpg`, // Fallback to local images
     name: restaurant.name,
     address: restaurant.address,
     rating: restaurant.rating,
-    distance: calculateDistance(restaurant.lat, restaurant.lng), // You'll need to implement this
+    price: restaurant.price,
+    lat: restaurant.location?.lat,
+    lng: restaurant.location?.lng,
+    userRatingsTotal: restaurant.userRatingsTotal,
+    distance: calculateDistance(restaurant.location?.lat, restaurant.location?.lng),
   }));
 };
 
 // Calculate distance (placeholder - implement based on user location)
 const calculateDistance = (lat, lng) => {
   // This is a placeholder. Implement actual distance calculation based on user's location
-  return (Math.random() * 5).toFixed(1);
+  return (lat * lng * 5).toFixed(1);
 };
 
 
@@ -115,12 +122,16 @@ const SwipeCards = () => {
     const loadInitialCards = async () => {
         try {
             setIsLoading(true);
+            console.log('Fetching restaurants from API...');
             const response = await fetchRestaurants(1, 10);
-            if (response.restaurants && response.restaurants.length > 0) {
-                const transformedCards = transformRestaurantData(response.restaurants);
+            console.log("fetchRestaurants Pass");
+
+            if (response.items && response.items.length > 0) {
+                const transformedCards = transformRestaurantData(response);
+                console.log('Transformed cards:', transformedCards);
                 setCards(transformedCards);
                 setCurrentPage(1);
-                setHasMoreCards(response.restaurants.length === 10);
+                setHasMoreCards(response.items.length === 10);
             }
         } catch (error) {
             console.error('Failed to load initial cards:', error);
@@ -137,11 +148,11 @@ const SwipeCards = () => {
         try {
             const nextPage = currentPage + 1;
             const response = await fetchRestaurants(nextPage, 10);
-            if (response.restaurants && response.restaurants.length > 0) {
-                const transformedCards = transformRestaurantData(response.restaurants);
+            if (response.items && response.items.length > 0) {
+                const transformedCards = transformRestaurantData(response);
                 setCards(prev => [...prev, ...transformedCards]);
                 setCurrentPage(nextPage);
-                setHasMoreCards(response.restaurants.length === 10);
+                setHasMoreCards(response.items.length === 10);
             } else {
                 setHasMoreCards(false);
             }
@@ -190,6 +201,7 @@ const SwipeCards = () => {
     }, [cards.length, hasMoreCards, isLoading, loadMoreCards]);
 
     const swipeLeft = () => {
+      // console.log("left")
       if (!isSwiping && cards.length > 0) {
         setIsSwiping(true);
         topCardRef.current?.swipe("left", () => {
@@ -266,6 +278,7 @@ const SwipeCards = () => {
               setCards={setCards}
               ref={topCardRef}
               name={cards[0].name}
+              onVote={handleVote}
             />
           )}
           {cards.length === 0 && (
@@ -286,7 +299,7 @@ const SwipeCards = () => {
 }
 
 
-const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0"}, ref) => {
+const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0", onVote}, ref) => {
     const x = useMotionValue(0);
 
     const opacity = useTransform(x, [-150, 0 , 150], [0, 1, 0])
@@ -300,11 +313,13 @@ const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0"}
         if (Math.abs(x.get()) > 50){
             if (x.get() > 50){
                 console.log(`Yes${id}`);
-                // Handle accept vote - this will be called by the parent component
+                // Send accept vote to API
+                onVote && onVote(id, 'accept');
             }
             if (x.get() < -50){
                 console.log(`No${id}`)
-                // Handle reject vote - this will be called by the parent component
+                // Send reject vote to API
+                onVote && onVote(id, 'reject');
             }
             removeCard();
         }

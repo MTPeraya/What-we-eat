@@ -23,7 +23,7 @@ export async function OPTIONS() {
 
 const schema = z.object({
   username: z.string().trim().min(3),
-  password: z.string().min(8),
+  password: z.string().min(4),
 });
 
 export async function POST(req: NextRequest) {

@@ -1,8 +1,7 @@
-// backend/src/app/api/rooms/join/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { z, ZodError } from "zod";
-import RoomService from "@/services/RoomService";
-import type { RoomParticipant } from "@prisma/client";
+import { z } from "zod";
+import prisma from "@/lib/db";
+import { getSession } from "@/lib/session"; // อนุญาต guest เข้าห้องได้ (ไม่มี userId ก็เข้าได้)
 
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
 function withCORS(res: NextResponse) {
@@ -12,60 +11,50 @@ function withCORS(res: NextResponse) {
   res.headers.set("Access-Control-Allow-Credentials", "true");
   return res;
 }
+export async function OPTIONS() { return withCORS(new NextResponse(null, { status: 204 })); }
 
-// Preflight
-export async function OPTIONS() {
-  return withCORS(new NextResponse(null, { status: 204 }));
-}
-
-const joinSchema = z.object({
-  code: z.string().min(4),
-  userId: z.string().optional(),      // ถ้าเป็น guest ไม่ต้องส่ง
-  displayName: z.string().min(1),     // ชื่อที่แสดงในห้อง
-});
-
-function toMsg(err: unknown, fb = "Unexpected error") {
-  if (err instanceof ZodError) return err.issues?.[0]?.message ?? "Validation failed";
-  if (err instanceof Error) return err.message;
-  try { return JSON.stringify(err); } catch { return fb; }
-}
-
-const svc = new RoomService();
+const BodySchema = z.object({
+  code: z.string().min(4).max(16),
+  displayName: z.string().min(1).max(50),
+}).strict();
 
 export async function POST(req: NextRequest) {
-  const started = Date.now();
-  let status = 200;
   try {
-    const body = await req.json();
-    const input = joinSchema.parse(body);
+    const s = await getSession(req); // มีหรือไม่มีก็ได้
+    const userId = s?.user?.id ?? null;
 
-    const room = await svc.joinByCode(input);
+    let body: unknown = {};
+    try { body = await req.json(); } catch {}
+    const parsed = BodySchema.safeParse(body);
+    if (!parsed.success) {
+      return withCORS(NextResponse.json({ error: "INVALID_BODY", details: parsed.error.flatten() }, { status: 400 }));
+    }
+    const { code, displayName } = parsed.data;
 
-    return withCORS(
-      NextResponse.json(
-        {
-          id: room?.id,
-          code: room?.code,
-          status: room?.status,
-          participants: (room?.participants ?? []).map((p: RoomParticipant) => ({
-            id: p.id,
-            userId: p.userId,
-            name: p.displayName,
-            role: p.role,
-          })),
-        },
-        { status }
-      )
-    );
-  } catch (err) {
-    const m = toMsg(err);
-    if (m.includes("ROOM_NOT_FOUND")) status = 404;
-    else if (m.includes("ROOM_CLOSED") || m.includes("ROOM_EXPIRED")) status = 409;
-    else status = 400;
+    const room = await prisma.room.findUnique({ where: { code }, select: { id: true, status: true } });
+    if (!room || room.status !== "OPEN") {
+      return withCORS(NextResponse.json({ error: "ROOM_NOT_FOUND_OR_CLOSED" }, { status: 404 }));
+    }
 
-    return withCORS(NextResponse.json({ error: m }, { status }));
-  } finally {
-    const duration = Date.now() - started;
-    console.log(`[API][done] POST /api/rooms/join ${status} ${duration}ms`);
+    // หากผู้ใช้คนเดิมเข้าห้องซ้ำ ให้ return 200 เฉย ๆ
+    const existing = userId
+      ? await prisma.roomParticipant.findFirst({ where: { roomId: room.id, userId }, select: { id: true } })
+      : null;
+    if (existing) {
+      return withCORS(NextResponse.json({ ok: true, roomId: room.id }, { status: 200 }));
+    }
+
+    await prisma.roomParticipant.create({
+      data: {
+        roomId: room.id,
+        userId, // guest = null
+        displayName,
+        role: "member",
+      },
+    });
+
+    return withCORS(NextResponse.json({ ok: true, roomId: room.id }, { status: 201 }));
+  } catch (e) {
+    return withCORS(NextResponse.json({ error: "ROOM_JOIN_FAILED", details: String(e) }, { status: 500 }));
   }
 }

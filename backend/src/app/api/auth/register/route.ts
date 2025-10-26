@@ -33,7 +33,7 @@ const schema = z.object({
     .min(3)
     .max(24)
     .regex(/^[a-z0-9_]+$/i, 'username must be alphanumeric/underscore'),
-  password: z.string().min(8).max(100),
+  password: z.string().min(4).max(12),
 });
 
 // === Handler ===

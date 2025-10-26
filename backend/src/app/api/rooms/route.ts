@@ -1,7 +1,7 @@
-// backend/src/app/api/rooms/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { z, ZodError } from "zod";
-import RoomService from "@/services/RoomService";
+import { z } from "zod";
+import prisma from "@/lib/db";
+import { requireAuth } from "@/lib/session";
 
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
 function withCORS(res: NextResponse) {
@@ -11,64 +11,76 @@ function withCORS(res: NextResponse) {
   res.headers.set("Access-Control-Allow-Credentials", "true");
   return res;
 }
-
-// Preflight
 export async function OPTIONS() {
   return withCORS(new NextResponse(null, { status: 204 }));
 }
 
-const createSchema = z.object({
-  hostId: z.string().min(1),
-  expiresInMinutes: z.coerce.number().int().positive().max(60 * 24).optional(),
-  hostDisplayName: z.string().optional(),
-});
+// ข้อมูลที่ client ส่งมา: แค่ชื่อที่จะแสดงของ host ในห้อง + วันหมดอายุ (ไม่บังคับ)
+const BodySchema = z.object({
+  displayName: z.string().min(1).max(50),
+  expiresAt: z.string().datetime().optional(), // ISO string
+}).strict();
 
-function toMsg(err: unknown, fb = "Unexpected error") {
-  if (err instanceof ZodError) return err.issues?.[0]?.message ?? "Validation failed";
-  if (err instanceof Error) return err.message;
-  try { return JSON.stringify(err); } catch { return fb; }
+function genRoomCode(len = 8) {
+  const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for (let i = 0; i < len; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return out;
 }
-
-const svc = new RoomService();
 
 export async function POST(req: NextRequest) {
-  const started = Date.now();
-  let status = 201;
   try {
-    const body = await req.json();
-    const input = createSchema.parse(body);
+    const { userId } = await requireAuth(req);
 
-    const room = await svc.createRoom(input);
+    let body: unknown = {};
+    try { body = await req.json(); } catch {}
+    const parsed = BodySchema.safeParse(body);
+    if (!parsed.success) {
+      return withCORS(NextResponse.json(
+        { error: "INVALID_BODY", details: parsed.error.flatten() },
+        { status: 400 }
+      ));
+    }
+    const { displayName, expiresAt } = parsed.data;
 
-    return withCORS(
-      NextResponse.json(
-        { id: room.id, code: room.code, status: room.status, expiresAt: room.expiresAt },
-        { status }
-      )
-    );
-  } catch (err) {
-    status = 400;
-    return withCORS(
-      NextResponse.json({ error: toMsg(err, "Failed to create room") }, { status })
-    );
-  } finally {
-    const duration = Date.now() - started;
-    console.log(`[API][done] POST /api/rooms ${status} ${duration}ms`);
+    // สร้าง code ที่ unique
+    let code = genRoomCode();
+    // กันชนซ้ำ (โอกาสน้อย แต่เช็คไว้)
+    // eslint-disable-next-line no-constant-condition
+    while (await prisma.room.findUnique({ where: { code } })) {
+      code = genRoomCode();
+    }
+
+    const room = await prisma.$transaction(async (tx) => {
+      const created = await tx.room.create({
+        data: {
+          code,
+          hostId: userId,                  // << host = ผู้ใช้ปัจจุบัน
+          expiresAt: expiresAt ? new Date(expiresAt) : null,
+          status: "OPEN",
+        },
+        select: { id: true, code: true, hostId: true, status: true, expiresAt: true, createdAt: true },
+      });
+
+      // เพิ่ม host เข้าเป็นผู้เข้าร่วมทันที
+      await tx.roomParticipant.create({
+        data: {
+          roomId: created.id,
+          userId,                          // host มี userId
+          displayName,
+          role: "host",
+        },
+      });
+
+      return created;
+    });
+
+    return withCORS(NextResponse.json({ room }, { status: 201 }));
+  } catch (e) {
+    const msg = (e as Error)?.message ?? String(e);
+    if (msg === "UNAUTHENTICATED") {
+      return withCORS(NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }));
+    }
+    return withCORS(NextResponse.json({ error: "ROOM_CREATE_FAILED", details: msg }, { status: 500 }));
   }
-}
-
-/** 
- * TIP: โค้ดนี้เป็น helper ฝั่ง frontend มากกว่า 
- * แนะนำย้ายไปไว้ใน client code (เช่น src/lib/api.ts) 
- * และถ้า endpoint ต้องใช้ session cookie ให้ใส่ credentials: "include"
- */
-export async function fetchRoomTally(roomId: string) {
-  const res = await fetch(`/api/rooms/${roomId}/decide/score`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Fetch tally failed: ${res.status}`);
-  return res.json() as Promise<{
-    roomId: string;
-    generatedAt: string;
-    stats: { totalVotes: number; totalRestaurants: number };
-    scores: { restaurantId: string; accept: number; reject: number; approval: number; netScore: number }[];
-  }>;
 }

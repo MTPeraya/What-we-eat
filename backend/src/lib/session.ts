@@ -46,9 +46,10 @@ export async function createSession(
     },
   });
 
+  const secureCookie = process.env.NODE_ENV === 'production';
   res.cookies.set(COOKIE_NAME, raw, {
     httpOnly: true,
-    secure: true,
+    secure: secureCookie,
     sameSite: 'lax',
     path: '/',
     expires: expiresAt,
