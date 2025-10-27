@@ -83,7 +83,7 @@ export async function POST(
 
     // base of backend use from request
     const backendOrigin = req.nextUrl.origin;
-    const shortUrl = `${backendOrigin}/api/s/${row.code}`;
+    const shortUrl = `${backendOrigin}/api/short/${row.code}`;
 
     // create QR (data URL) for show
     const qrDataUrl = await QRCode.toDataURL(shortUrl, {
