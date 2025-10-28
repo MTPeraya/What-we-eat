@@ -31,7 +31,8 @@ export async function POST(req: NextRequest) {
     }
     const { code, displayName } = parsed.data;
 
-    const room = await prisma.room.findUnique({ where: { code }, select: { id: true, status: true } });
+    const room = await prisma.room.findUnique({ where: { code },
+       select: { id: true, status: true,  code: true  } });
     if (!room || room.status !== "OPEN") {
       return withCORS(NextResponse.json({ error: "ROOM_NOT_FOUND_OR_CLOSED" }, { status: 404 }));
     }
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
       ? await prisma.roomParticipant.findFirst({ where: { roomId: room.id, userId }, select: { id: true } })
       : null;
     if (existing) {
-      return withCORS(NextResponse.json({ ok: true, roomId: room.id }, { status: 200 }));
+      return withCORS(NextResponse.json({ ok: true, roomId: room.id , code: room.code}, { status: 200 }));
     }
 
     await prisma.roomParticipant.create({
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return withCORS(NextResponse.json({ ok: true, roomId: room.id }, { status: 201 }));
+    return withCORS(NextResponse.json({ ok: true, roomId: room.id , code: room.code}, { status: 201 }));
   } catch (e) {
     return withCORS(NextResponse.json({ error: "ROOM_JOIN_FAILED", details: String(e) }, { status: 500 }));
   }

@@ -13,7 +13,7 @@ services:
     build: ./backend
     image: mperaya/wwe-backend:latest
     ports:
-      - "4001:4000"  # backend at http://localhost:4001
+      - "4001:4001"  # backend at http://localhost:4001
     environment:
       DATABASE_URL: ${DATABASE_URL}
       
@@ -24,13 +24,8 @@ services:
       IRON_SESSION_COOKIE_NAME: ${IRON_SESSION_COOKIE_NAME}
       IRON_SESSION_PASSWORD: ${IRON_SESSION_PASSWORD}
 
-      # Upload (Photo/Review)
-      STORAGE_PROVIDER: "mock"              # or "s3"
-      S3_BUCKET: ${S3_BUCKET:-}
-      S3_REGION: ${S3_REGION:-}
-      S3_PUBLIC_BASE: ${S3_PUBLIC_BASE:-}
-      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
-      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+    volumes:
+      - ./backend/storage:/app/storage
 
     depends_on:
       db:

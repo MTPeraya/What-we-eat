@@ -46,7 +46,6 @@ export async function POST(req: NextRequest) {
     // สร้าง code ที่ unique
     let code = genRoomCode();
     // กันชนซ้ำ (โอกาสน้อย แต่เช็คไว้)
-    // eslint-disable-next-line no-constant-condition
     while (await prisma.room.findUnique({ where: { code } })) {
       code = genRoomCode();
     }

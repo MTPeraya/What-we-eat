@@ -8,10 +8,6 @@ import UserPage from './UserPage.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    {/* <App /> */}
-    {/* <Result/> */}
-    {/* <FoodTinder/> */}
-    {/* <DrawPage/> */}
-    <UserPage/>
-  </StrictMode>,
+    <App />
+  </StrictMode>
 )
