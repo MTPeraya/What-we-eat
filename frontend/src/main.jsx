@@ -4,11 +4,14 @@ import './index.css'
 import App from './App.jsx'
 import FoodTinder from './foodtinder.jsx'
 import Result from './ResultPage.jsx'
+import UserPage from './UserPage.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     {/* <App /> */}
     {/* <Result/> */}
-    <FoodTinder/>
+    {/* <FoodTinder/> */}
+    {/* <DrawPage/> */}
+    <UserPage/>
   </StrictMode>,
 )
