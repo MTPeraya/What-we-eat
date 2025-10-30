@@ -69,6 +69,8 @@ For more in-depth information, please visit our GitHub Wiki.
 
 - ([GG Doc](https://docs.google.com/document/d/1lpNJAadCo4cqqWD7-w_K0akjBc4lDBaMn1u7tO5rYpU/edit?usp=sharing))
 - ([Jira](https://ku-team-nattanan.atlassian.net/jira/software/projects/WWE/boards/38/backlog?atlOrigin=eyJpIjoiNzM0YjU2NDZlYzJkNDgyY2FmN2QzNGIyMjljZWJlNDEiLCJwIjoiaiJ9))
+- ([New Jira Link](https://whatweeat.atlassian.net/jira/software/projects/SCRUM/boards/1/backlog?atlOrigin=eyJpIjoiZjAxM2M3MDRlNDgzNGFiYTkwNTM3ZmFmZjMwMzI3OGEiLCJwIjoiaiJ9))
+
 
 - Sprint VDO
     - [sprint 1](https://youtu.be/OVbAiq7yjBQ?feature=shared)
