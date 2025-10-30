@@ -32,10 +32,29 @@ function CreateRoom() {
 
     const fetchParticipants = async () => {
       try {
-        const res = await fetch(`${API_BASE}/${roomId}`);
-        if (!res.ok) return;
+        console.log("eiei");
+        
+        
+        
+        // const res = await fetch(`${API_BASE}/${roomId}`);
+        const res = await fetch(`${API_BASE}/${roomId}?t=${Date.now()}`, {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+        });
+        if (!res.ok) {
+          console.log("[rooms GET]", res.status, "roomId=", roomId);
+          return;
+        }
         const data = await res.json();
-        setParticipants(data.participants || []);
+        const raw = data.participants || data.members || [];
+        const normalized = raw.map((m) => ({
+          id: m.id ?? m.userId ?? m.uid,
+          displayName: m.displayName ?? m.name ?? "Anonymous",
+          role: m.role ?? (m.userId && data.hostId && m.userId === data.hostId ? "host" : "member"),
+        }));
+        setParticipants(normalized);
       } catch (err) {
         console.error("Failed to fetch participants:", err);
       }
@@ -86,6 +105,7 @@ function CreateRoom() {
         </div>
 
         <div className="right">
+          {JSON.stringify(participants.length)}
           <div className="scroll">
             {participants.map((p) => (
               <div key={p.id} className="member-box">

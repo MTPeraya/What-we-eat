@@ -28,6 +28,7 @@ function EnterCode() {
       }
 
       const data = await res.json();
+      console.log("[JOIN OK] response =", data);
       // Navigate with both roomId (for API) and code (for sharing)
       navigate(`/create-room?roomId=${data.roomId}&code=${data.code}`);
     } catch (err) {
