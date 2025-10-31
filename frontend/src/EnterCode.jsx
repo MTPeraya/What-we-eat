@@ -1,13 +1,27 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 import { useNavigate } from "react-router-dom";
 
 function EnterCode() {
   const navigate = useNavigate();
   const [code, setCode] = useState("");
-  const [displayName] = useState("Guest"); // replace with actual user display name
+  const [displayName, setDisplayName] = useState("Guest");
 
   const API_BASE = "http://localhost:4001/api/rooms";
+  const AUTH_BASE = "http://localhost:4001/api/auth";
+
+  // Load current user to use username as displayName
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${AUTH_BASE}/me`, { credentials: "include" });
+        if (!res.ok) return;
+        const data = await res.json();
+        const username = data?.user?.username;
+        if (username) setDisplayName(username);
+      } catch {}
+    })();
+  }, []);
 
   // --- JOIN ROOM ---
   const handleJoin = async () => {

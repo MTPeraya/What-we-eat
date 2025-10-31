@@ -12,15 +12,6 @@ const locationPin = <svg xmlns="http://www.w3.org/2000/svg" width="18" height="1
 // API Configuration
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001/api';
 
-// Get room ID from props or URL params - you'll need to implement this based on your routing
-const getRoomId = () => {
-  // This should be implemented based on how you pass room ID to this component
-  // For now, using a placeholder
-  return "123456";
-};
-
-const RoomID = getRoomId();
-
 // API Functions
 const apiRequest = async (url, options = {}) => {
   try {
@@ -29,14 +20,13 @@ const apiRequest = async (url, options = {}) => {
         'Content-Type': 'application/json',
         ...options.headers,
       },
+      credentials: 'include',
       ...options,
     });
     
     if (!response.ok) {
-      console.log(response.status);
       throw new Error(`API Error: ${response.status}`);
     }
-    console.log(await response.json());
     return await response.json();
   } catch (error) {
     console.error('API Request failed:', error);
@@ -45,8 +35,9 @@ const apiRequest = async (url, options = {}) => {
 };
 
 // Fetch restaurants from backend
-const fetchRestaurants = async () => {
-  return await apiRequest(`/restaurants`);
+const fetchRestaurants = async (center) => {
+  const qs = center?.lat && center?.lng ? `?lat=${encodeURIComponent(center.lat)}&lng=${encodeURIComponent(center.lng)}` : '';
+  return await apiRequest(`/restaurants${qs}`);
 };
 
 // Send vote to backend
@@ -67,7 +58,7 @@ const checkRoomResults = async (roomId) => {
 };
 
 // Transform API restaurant data to match component format
-const transformRestaurantData = (apiData) => {
+const transformRestaurantData = (apiData, center) => {
   // Extract items array from API response { count, items }
   const restaurants = apiData.items || [];
   return restaurants.map((restaurant, index) => ({
@@ -80,30 +71,27 @@ const transformRestaurantData = (apiData) => {
     lat: restaurant.location?.lat,
     lng: restaurant.location?.lng,
     userRatingsTotal: restaurant.userRatingsTotal,
-    distance: calculateDistance(restaurant.location?.lat, restaurant.location?.lng),
+    distance: calculateDistance(center, { lat: restaurant.location?.lat, lng: restaurant.location?.lng }),
   }));
 };
 
 // Calculate distance (placeholder - implement based on user location)
-const calculateDistance = (lat, lng) => {
-  // This is a placeholder. Implement actual distance calculation based on user's location
-  return (lat * lng * 5).toFixed(1);
+const calculateDistance = (from, to) => {
+  if (!from?.lat || !from?.lng || !to?.lat || !to?.lng) return null;
+  const R = 6371; // km
+  const dLat = ((to.lat - from.lat) * Math.PI) / 180;
+  const dLng = ((to.lng - from.lng) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((from.lat * Math.PI) / 180) *
+      Math.cos((to.lat * Math.PI) / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return +(R * c).toFixed(1);
 };
 
 
-const RoomIDContainer = () =>{
-    return(<div 
-        className="brown button fw-bold"
-        style={{
-            textAlign: 'center',
-            margin: "10px",
-            padding: "5px"
-        }}>
-        {RoomID}
-    </div>)
-}
-
-const SwipeCards = () => {
+const SwipeCards = ({ roomId, userCenter }) => {
     const [cards, setCards] = useState([]);
     const [isSwiping, setIsSwiping] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -123,11 +111,11 @@ const SwipeCards = () => {
         try {
             setIsLoading(true);
             console.log('Fetching restaurants from API...');
-            const response = await fetchRestaurants(1, 10);
+            const response = await fetchRestaurants(userCenter);
             console.log("fetchRestaurants Pass");
 
             if (response.items && response.items.length > 0) {
-                const transformedCards = transformRestaurantData(response);
+                const transformedCards = transformRestaurantData(response, userCenter);
                 console.log('Transformed cards:', transformedCards);
                 setCards(transformedCards);
                 setCurrentPage(1);
@@ -147,9 +135,9 @@ const SwipeCards = () => {
         
         try {
             const nextPage = currentPage + 1;
-            const response = await fetchRestaurants(nextPage, 10);
+            const response = await fetchRestaurants(userCenter);
             if (response.items && response.items.length > 0) {
-                const transformedCards = transformRestaurantData(response);
+                const transformedCards = transformRestaurantData(response, userCenter);
                 setCards(prev => [...prev, ...transformedCards]);
                 setCurrentPage(nextPage);
                 setHasMoreCards(response.items.length === 10);
@@ -164,7 +152,7 @@ const SwipeCards = () => {
 
     const handleVote = async (restaurantId, value) => {
         try {
-            await submitVote(RoomID, restaurantId, value);
+            await submitVote(roomId, restaurantId, value);
             console.log(`Vote submitted: ${value} for restaurant ${restaurantId}`);
             
             // Check if results are ready after each vote
@@ -177,7 +165,8 @@ const SwipeCards = () => {
 
     const checkResults = async () => {
         try {
-            const roomResults = await checkRoomResults(RoomID);
+            if (!roomId) return;
+            const roomResults = await checkRoomResults(roomId);
             
             // Check if we have enough data to show results
             // You can customize this logic based on your requirements
