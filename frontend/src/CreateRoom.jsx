@@ -152,6 +152,7 @@ function CreateRoom() {
             className="location-box"
             onClick={() => setIsLocationModalOpen(true)}
             style={{ cursor: "pointer" }}
+            disabled={!isHost}
           >
             <div>
               <span className="pin">📍</span>
