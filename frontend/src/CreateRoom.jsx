@@ -17,6 +17,7 @@ function CreateRoom() {
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [selectedCenter, setSelectedCenter] = useState(null); // { lat, lng }
   const [tempCenter, setTempCenter] = useState(null); // working selection in modal
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null); // track room updates to detect start
 
   const API_BASE = "http://localhost:4001/api/rooms";
   const AUTH_BASE = "http://localhost:4001/api/auth";
@@ -36,7 +37,9 @@ function CreateRoom() {
         const uname = data?.user?.username;
         if (uid) setMeUserId(uid);
         if (uname) setYourUsername(uname);
-      } catch {}
+      } catch {
+        console.log("Error");
+      }
     })();
   }, []);
 
@@ -73,6 +76,33 @@ function CreateRoom() {
         }));
         setParticipants(normalized);
         if (data.hostId) setHostId(data.hostId);
+        
+        // Check if room was just started (updatedAt changed recently)
+        // Only check if user is not the host
+        const currentIsHost = data.hostId && meUserId && data.hostId === meUserId;
+        if (data.updatedAt && !currentIsHost) {
+          const updatedAt = new Date(data.updatedAt).getTime();
+          const now = Date.now();
+          const timeDiff = now - updatedAt;
+          
+          // If room was updated within last 5 seconds, consider it started
+          if (timeDiff < 5000 && lastUpdatedAt && updatedAt > new Date(lastUpdatedAt).getTime()) {
+            // Room was just started, navigate to game
+            const qp = new URLSearchParams({ roomId });
+            if (selectedCenter?.lat && selectedCenter?.lng) {
+              qp.set("lat", String(selectedCenter.lat));
+              qp.set("lng", String(selectedCenter.lng));
+            } else {
+              // Use default location if no center selected
+              qp.set("lat", "13.7563");
+              qp.set("lng", "100.5018");
+            }
+            navigate(`/foodtinder?${qp.toString()}`);
+          }
+          setLastUpdatedAt(data.updatedAt);
+        } else if (data.updatedAt) {
+          setLastUpdatedAt(data.updatedAt);
+        }
       } catch (err) {
         console.error("Failed to fetch participants:", err);
       }
@@ -80,7 +110,7 @@ function CreateRoom() {
     fetchParticipants();
     const interval = setInterval(fetchParticipants, 3000);
     return () => clearInterval(interval);
-  }, [roomId]);
+  }, [roomId, meUserId, selectedCenter, lastUpdatedAt, navigate]);
 
   useEffect(() => {
     if (!roomCode) return;
@@ -92,14 +122,40 @@ function CreateRoom() {
 
   const isHost = hostId && meUserId && hostId === meUserId;
 
-  const handleStart = () => {
-    if (!isHost) return;
-    const qp = new URLSearchParams({ roomId });
-    if (selectedCenter?.lat && selectedCenter?.lng) {
-      qp.set("lat", String(selectedCenter.lat));
-      qp.set("lng", String(selectedCenter.lng));
+  const handleStart = async () => {
+    if (!isHost || !selectedCenter) return;
+    
+    try {
+      // Call start API to mark room as started
+      const startRes = await fetch(`${API_BASE}/${roomId}/start`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      
+      if (!startRes.ok) {
+        console.error("Failed to start room:", await startRes.text());
+        // Still navigate even if API call fails
+      }
+      
+      // Navigate host to game
+      const qp = new URLSearchParams({ roomId });
+      if (selectedCenter?.lat && selectedCenter?.lng) {
+        qp.set("lat", String(selectedCenter.lat));
+        qp.set("lng", String(selectedCenter.lng));
+      }
+      const url = `/foodtinder?${qp.toString()}`;
+      navigate(url);
+    } catch (err) {
+      console.error("Error starting room:", err);
+      // Still navigate even on error
+      const qp = new URLSearchParams({ roomId });
+      if (selectedCenter?.lat && selectedCenter?.lng) {
+        qp.set("lat", String(selectedCenter.lat));
+        qp.set("lng", String(selectedCenter.lng));
+      }
+      navigate(`/foodtinder?${qp.toString()}`);
     }
-    navigate(`/foodtinder?${qp.toString()}`);
   };
 
   const handleCancel = async () => {
@@ -187,6 +243,7 @@ function CreateRoom() {
                   className="green small-btn shadow"
                   style={{ width: "200px" }}
                   onClick={handleStart}
+                  disabled={!selectedCenter}
                 >
                   Start
                 </button>
@@ -245,7 +302,7 @@ function CreateRoom() {
 function LocationModal({
   initial,
   tempCenter,
-  onUseMyLocation,
+  // onUseMyLocation,
   onPick,
   onConfirm,
   onCancel,
@@ -285,6 +342,20 @@ function LocationModal({
       const L = window.L;
       if (!L) return;
 
+      // Check if map div is available
+      if (!mapDivRef.current) return;
+
+      // Clean up existing map if any
+      if (mapRef.current) {
+        try {
+          mapRef.current.remove();
+          mapRef.current = null;
+          markerRef.current = null;
+        } catch (e) {
+          console.error("Error cleaning up existing map:", e);
+        }
+      }
+
       // default center (Bangkok) if nothing selected yet
       const start = tempCenter || initial || { lat: 13.7563, lng: 100.5018 };
 
@@ -310,21 +381,30 @@ function LocationModal({
       // click to move marker
       mapRef.current.on("click", (e) => {
         const { lat, lng } = e.latlng;
-        markerRef.current.setLatLng([lat, lng]);
-        onPick(lat, lng);
+        if (markerRef.current) {
+          markerRef.current.setLatLng([lat, lng]);
+          onPick(lat, lng);
+        }
       });
     })();
 
     return () => {
       cancelled = true;
       try {
+        if (markerRef.current) {
+          markerRef.current.remove();
+          markerRef.current = null;
+        }
         if (mapRef.current) {
+          mapRef.current.off();
           mapRef.current.remove();
           mapRef.current = null;
         }
-      } catch {}
+      } catch (e) {
+        console.error("Error during map cleanup:", e);
+      }
     };
-  }, []); // mount once
+  }, []); // mount once - empty dependency array ensures this runs only once
 
   // when tempCenter changes from parent (e.g., Use my location), move marker & pan
   useEffect(() => {

@@ -15,7 +15,7 @@ export async function GET(
 
     const room = await prisma.room.findUnique({
       where: { id: roomId },
-      select: { id: true, hostId: true },
+      select: { id: true, hostId: true, updatedAt: true },
     });
     if (!room) {
       const res = NextResponse.json({ error: "ROOM_NOT_FOUND" }, { status: 404 });
@@ -29,7 +29,15 @@ export async function GET(
       orderBy: { joinedAt: "asc" },
     });
 
-    const res = NextResponse.json({ id: room.id, hostId: room.hostId, participants }, { status: 200 });
+    const res = NextResponse.json(
+      {
+        id: room.id,
+        hostId: room.hostId,
+        participants,
+        updatedAt: room.updatedAt.toISOString(),
+      },
+      { status: 200 }
+    );
     res.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
     return withCORS(res);
   } catch (e) {

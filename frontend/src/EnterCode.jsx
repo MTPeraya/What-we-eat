@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import "./App.css";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 function EnterCode() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [code, setCode] = useState("");
   const [displayName, setDisplayName] = useState("Guest");
 
@@ -24,9 +25,12 @@ function EnterCode() {
   }, []);
 
   // --- JOIN ROOM ---
-  const handleJoin = async () => {
-    const trimmed = code.trim().toUpperCase();
-    if (!trimmed) return alert("Please enter a room code!");
+  const handleJoin = useCallback(async (codeToJoin = null) => {
+    const trimmed = codeToJoin || code.trim().toUpperCase();
+    if (!trimmed) {
+      if (!codeToJoin) alert("Please enter a room code!");
+      return;
+    }
 
     try {
       const res = await fetch(`${API_BASE}/join`, {
@@ -38,7 +42,8 @@ function EnterCode() {
 
       if (!res.ok) {
         const err = await res.json();
-        return alert(err.error || "Room not found or closed");
+        if (!codeToJoin) alert(err.error || "Room not found or closed");
+        return;
       }
 
       const data = await res.json();
@@ -47,9 +52,22 @@ function EnterCode() {
       navigate(`/create-room?roomId=${data.roomId}&code=${data.code}`);
     } catch (err) {
       console.error(err);
-      alert("Error connecting to server");
+      if (!codeToJoin) alert("Error connecting to server");
     }
-  };
+  }, [code, displayName, navigate]);
+
+  // Auto-read code from URL params and auto-join if provided
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const codeFromUrl = params.get("code");
+    if (codeFromUrl) {
+      setCode(codeFromUrl.trim().toUpperCase());
+      // Auto-join after a short delay to allow displayName to load
+      setTimeout(() => {
+        handleJoin(codeFromUrl.trim().toUpperCase());
+      }, 500);
+    }
+  }, [location, handleJoin]);
 
   // --- CREATE ROOM ---
   const handleCreateRoom = async () => {

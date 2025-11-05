@@ -13,6 +13,8 @@ import Register from "./Register"
 import Login from "./Login"
 import EnterCode from "./EnterCode"
 import CreateRoom from "./CreateRoom"
+import FoodTinder from "./foodtinder";
+import ResultPage from "./ResultPage";
 
 function App() {
 
@@ -32,6 +34,8 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/enter-code" element={<EnterCode />} />
         <Route path="/create-room" element={<CreateRoom />} />
+        <Route path="/foodtinder" element={<FoodTinder />} />
+        <Route path="/result" element={<ResultPage />} />
       </Routes>
     </Router>
   );
