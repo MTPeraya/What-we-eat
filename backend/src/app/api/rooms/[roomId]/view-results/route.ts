@@ -48,8 +48,8 @@ export async function POST(
     );
     res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
     return withCORS(res);
-  } catch (e: any) {
-    const msg = e?.message ?? String(e);
+  } catch (e: unknown) {
+    const msg = (e as Error)?.message ?? String(e);
     if (msg === "UNAUTHENTICATED") {
       const res = NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
       res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
