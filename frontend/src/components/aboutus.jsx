@@ -21,8 +21,8 @@ const ProblemSection = () => {
                 marginLeft: "50px",
             }}>
             <ul>
-            {problems.map((item) => (
-                <li style={{marginBottom: "15px"}}><h2>{item}</h2></li>
+            {problems.map((item, idx) => (
+                <li key={idx} style={{marginBottom: "15px"}}><h2>{item}</h2></li>
             ))}
             </ul>
             <h1 className="fw-bold"

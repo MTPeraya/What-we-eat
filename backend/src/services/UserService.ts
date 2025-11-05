@@ -50,20 +50,20 @@ function isUniqueError(e: unknown): e is Prisma.PrismaClientKnownRequestError {
 export class UserService {
   constructor(private readonly db: PrismaClient) {}
 
-  /** ดึงผู้ใช้โดย id (ไม่ส่ง password กลับ) */
+  /** Get user by id (excludes password) */
   async getById(id: string): Promise<PublicUser | null> {
     if (!id) return null;
     return this.db.user.findUnique({ where: { id }, select: SELECT_PUBLIC });
   }
 
-  /** ดึงผู้ใช้โดย username (ไม่ส่ง password กลับ) */
+  /** Get user by username (excludes password) */
   async getByUsername(username: string): Promise<PublicUser | null> {
     const u = sanitizeUsername(username);
     if (!u) return null;
     return this.db.user.findUnique({ where: { username: u }, select: SELECT_PUBLIC });
   }
 
-  /** สมัครผู้ใช้ใหม่ (argon2 hash) */
+  /** Create new user (argon2 hash) */
   async create(input: { username: string; password: string; role?: Role }): Promise<PublicUser> {
     const username = ensureUsername(input.username);
     const password = ensurePassword(input.password);
@@ -81,7 +81,7 @@ export class UserService {
     }
   }
 
-  /** ตรวจ credentials (คืน PublicUser ถ้าถูกต้อง, ไม่งั้น null) */
+  /** Verify credentials (returns PublicUser if valid, null otherwise) */
   async verifyCredentials(username: string, password: string): Promise<PublicUser | null> {
     const u = ensureUsername(username);
     const pw = ensurePassword(password);
@@ -99,7 +99,7 @@ export class UserService {
     return { id, username: user.username, role };
   }
 
-  /** เปลี่ยนรหัสผ่าน (ตรวจรหัสเดิมก่อน) + เลือกลบ session เก่าทั้งหมด (default = true) */
+  /** Change password (validates old password first) + optionally delete all old sessions (default = true) */
   async changePassword(
     userId: string,
     oldPassword: string,
@@ -131,12 +131,12 @@ export class UserService {
     return { ok: true };
   }
 
-  /** เปลี่ยน role (ตรวจสิทธิ์นอก service) */
+  /** Change role (permission check done outside service) */
   async setRole(userId: string, role: Role): Promise<PublicUser> {
     return this.db.user.update({ where: { id: userId }, data: { role }, select: SELECT_PUBLIC });
   }
 
-  /** ลิสต์ผู้ใช้แบบแบ่งหน้า + ค้นหาชื่อ (สำหรับหน้าแอดมิน) */
+  /** List users with pagination + search by name (for admin page) */
   async list(params?: {
     page?: number;
     limit?: number;
@@ -161,7 +161,7 @@ export class UserService {
     return { items, total, page, limit };
   }
 
-  /** สร้างผู้ใช้ guest (สุ่ม username + ตั้งรหัสสุ่ม) */
+  /** Create guest user (random username + random password) */
   async createGuest(displayName?: string): Promise<PublicUser> {
     const base = (displayName?.trim().replace(/\s+/g, '-') || 'guest').toLowerCase().slice(0, 16);
     let username = `${base}-${Math.random().toString(36).slice(2, 7)}`;
@@ -185,5 +185,5 @@ export class UserService {
   }
 }
 
-// สะดวกใช้แบบ singleton ทั่วโปรเจกต์
+// Singleton instance for use across project
 export const userService = new UserService(prisma);

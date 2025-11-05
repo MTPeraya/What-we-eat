@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 import * as restaurantsRoute from "../../app/api/restaurants/route";
 
-// helper: สร้าง NextRequest พร้อม header จาก middleware
+// helper: Create NextRequest with headers from middleware
 const makeReq = (qs = "") =>
   new NextRequest(`http://localhost/api/restaurants${qs}`, {
     headers: new Headers([["x-request-start", String(Date.now())]]),
@@ -14,8 +14,8 @@ afterEach(() => {
 });
 
 describe("GET /api/restaurants", () => {
-  it("query ถูกต้อง → คืน count > 0", async () => {
-    // mock Google Places มีข้อมูล
+  it("valid query → returns count > 0", async () => {
+    // mock Google Places with data
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({
@@ -43,8 +43,8 @@ describe("GET /api/restaurants", () => {
     expect(body.count).toBeGreaterThan(0);
   });
 
-  it("query แปลก ๆ → คืน count = 0", async () => {
-    // mock Google Places ว่าง
+  it("weird query → returns count = 0", async () => {
+    // mock Google Places empty
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({
@@ -60,8 +60,8 @@ describe("GET /api/restaurants", () => {
     expect(body.count).toBe(0);
   });
 
-  it("API key ผิด → คืน 500", async () => {
-    // mock ให้ Google ตอบ error (เช่น invalid key → 403)
+  it("invalid API key → returns 500", async () => {
+    // mock Google returning error (e.g. invalid key → 403)
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({

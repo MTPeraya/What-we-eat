@@ -2,10 +2,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 
-// ✅ origin ของ frontend (Vite หรือ Next.js dev server)
+// ✅ frontend origin (Vite or Next.js dev server)
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
 
-// ✅ helper ใส่ CORS headers
+// ✅ helper to add CORS headers
 function withCORS(res: NextResponse) {
   res.headers.set("Access-Control-Allow-Origin", FRONTEND_ORIGIN);
   res.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, DELETE");
@@ -14,12 +14,12 @@ function withCORS(res: NextResponse) {
   return res;
 }
 
-// ✅ รองรับ preflight (OPTIONS)
+// ✅ Support preflight (OPTIONS)
 export async function OPTIONS() {
   return withCORS(new NextResponse(null, { status: 204 }));
 }
 
-// ✅ ดึงข้อมูล user จาก session
+// ✅ Get user info from session
 export async function GET(req: NextRequest) {
   const s = await getSession(req);
 
