@@ -35,7 +35,7 @@ export async function POST(
     const { roomId } = await ctx.params;
     const { userId } = await requireAuth(req);
 
-    // ต้องเป็นสมาชิกห้อง
+    // Must be room member
     const isMember = await prisma.roomParticipant.findFirst({
       where: { roomId, userId },
       select: { id: true },
@@ -54,15 +54,15 @@ export async function POST(
     }
     const { restaurantId, value } = parsed.data;
 
-    // upsert โหวต (unique: roomId+userId+restaurantId)
+    // Upsert vote (unique: roomId+userId+restaurantId)
     const vote = await prisma.vote.upsert({
       where: { roomId_userId_restaurantId: { roomId, userId, restaurantId } },
-      update: { value }, // ถ้ามีอยู่แล้ว เปลี่ยนค่า
+      update: { value }, // If exists, update value
       create: { roomId, userId, restaurantId, value },
       select: { id: true, value: true, createdAt: true },
     });
 
-    // tally เฉพาะร้านนี้ในห้องนี้
+    // Tally votes for this restaurant in this room
     const grouped = await prisma.vote.groupBy({
       by: ["value"],
       where: { roomId, restaurantId },
@@ -90,7 +90,7 @@ export async function POST(
   }
 }
 
-// ===== DELETE /api/rooms/:roomId/votes  (ยกเลิกโหวตของตัวเองสำหรับร้านหนึ่ง) =====
+// ===== DELETE /api/rooms/:roomId/votes  (Cancel own vote for a restaurant) =====
 export async function DELETE(
   req: NextRequest,
   ctx: { params: Promise<{ roomId: string }> }
@@ -99,7 +99,7 @@ export async function DELETE(
     const { roomId } = await ctx.params;
     const { userId } = await requireAuth(req);
 
-    // สมาชิกเท่านั้น
+    // Must be room member
     const isMember = await prisma.roomParticipant.findFirst({
       where: { roomId, userId },
       select: { id: true },
@@ -120,7 +120,7 @@ export async function DELETE(
 
     await prisma.vote.delete({
       where: { roomId_userId_restaurantId: { roomId, userId, restaurantId } },
-    }).catch(() => undefined); // ถ้าไม่มีอยู่ก็เงียบๆ
+    }).catch(() => undefined); // Silently ignore if not exists
 
     return withCORS(NextResponse.json({ ok: true }, { status: 200 }));
   } catch (e) {

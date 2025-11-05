@@ -105,7 +105,7 @@ const calculateDistance = (from, to) => {
 };
 
 
-const SwipeCards = ({ roomId, userCenter }) => {
+const SwipeCards = ({ roomId, userCenter, isHost }) => {
     const navigate = useNavigate();
     const [cards, setCards] = useState([]);
     const [isSwiping, setIsSwiping] = useState(false);
@@ -115,6 +115,7 @@ const SwipeCards = ({ roomId, userCenter }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [hasMoreCards, setHasMoreCards] = useState(true);
     const [totalRestaurants, setTotalRestaurants] = useState(0); // Track total for progress
+    const [allCardsCompleted, setAllCardsCompleted] = useState(false); // Track if swiped all 20
     const MAX_RESTAURANTS = 20; // Limit to 20 restaurants
 
     const topCardRef = useRef(null); // ref to call programmatic swipe
@@ -194,7 +195,13 @@ const SwipeCards = ({ roomId, userCenter }) => {
             await submitVote(roomId, restaurantId, value);
             console.log(`Vote submitted: ${value} for restaurant ${restaurantId}`);
             
-            // Check if results are ready after each vote
+            // Check if this was the last card (swiped all 20)
+            if (cards.length === 1) {
+                // Mark as completed - this will show button for host
+                setAllCardsCompleted(true);
+            }
+            
+            // Always check if results are ready (for multi-user scenario)
             await checkResults();
             
         } catch (error) {
@@ -225,6 +232,30 @@ const SwipeCards = ({ roomId, userCenter }) => {
             }
         } catch (error) {
             console.error('Failed to check results:', error);
+        }
+    };
+
+    const handleShowResults = async () => {
+        try {
+            if (!roomId) return;
+            
+            // Call API to mark room as "viewing results"
+            const API_BASE = 'http://localhost:4001/api';
+            await fetch(`${API_BASE}/rooms/${roomId}/view-results`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            
+            // Fetch and show results
+            const roomResults = await checkRoomResults(roomId);
+            
+            if (roomResults.scores && roomResults.scores.length > 0) {
+                setResults(roomResults);
+                setShowResults(true);
+            }
+        } catch (error) {
+            console.error('Failed to show results:', error);
         }
     };
 
@@ -318,9 +349,40 @@ const SwipeCards = ({ roomId, userCenter }) => {
               onVote={handleVote}
             />
           )}
-          {cards.length === 0 && (
-            <div style={{fontSize: "2rem", color: "#888", maxHeight: "520px",height: "60vh", }}>No more cards</div>
-          )}
+           {cards.length === 0 && allCardsCompleted && (
+             <div style={{
+               fontSize: "1.5rem", 
+               color: "#801F08", 
+               maxHeight: "520px",
+               height: "60vh",
+               display: "flex",
+               flexDirection: "column",
+               alignItems: "center",
+               justifyContent: "center",
+               textAlign: "center",
+               padding: "20px"
+             }}>
+               <div style={{marginBottom: "20px"}}>🎉</div>
+               <div style={{fontWeight: "bold", marginBottom: "10px"}}>All Done!</div>
+               {isHost ? (
+                 <div style={{marginTop: "20px"}}>
+                   <button 
+                     className="green button"
+                     onClick={handleShowResults}
+                     style={{
+                       padding: "15px 30px",
+                       fontSize: "1.2rem",
+                       cursor: "pointer"
+                     }}
+                   >
+                     View Results
+                   </button>
+                 </div>
+               ) : (
+                 <div style={{fontSize: "1rem", color: "#666"}}>Waiting for host to view results...</div>
+               )}
+             </div>
+           )}
         </div>
 
         <div style={{

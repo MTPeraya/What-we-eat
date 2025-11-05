@@ -17,6 +17,13 @@ function CreateRoom() {
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [selectedCenter, setSelectedCenter] = useState(null); // { lat, lng }
   const [tempCenter, setTempCenter] = useState(null); // working selection in modal
+  
+  // Initialize tempCenter when modal opens
+  useEffect(() => {
+    if (isLocationModalOpen) {
+      setTempCenter(selectedCenter);
+    }
+  }, [isLocationModalOpen, selectedCenter]);
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null); // track room updates to detect start
 
   const API_BASE = "http://localhost:4001/api/rooms";
@@ -274,12 +281,23 @@ function CreateRoom() {
             if (!navigator.geolocation)
               return alert("Geolocation not supported");
             navigator.geolocation.getCurrentPosition(
-              (pos) =>
-                setTempCenter({
+              (pos) => {
+                const newCenter = {
                   lat: pos.coords.latitude,
                   lng: pos.coords.longitude,
-                }),
-              () => alert("Cannot get current location")
+                };
+                setTempCenter(newCenter);
+                console.log("Got location:", newCenter);
+              },
+              (error) => {
+                console.error("Geolocation error:", error);
+                alert("Cannot get current location: " + error.message);
+              },
+              { 
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0 
+              }
             );
           }}
           onPick={(lat, lng) => setTempCenter({ lat, lng })}

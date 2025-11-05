@@ -17,7 +17,7 @@ export async function OPTIONS() {
 
 export async function POST(req: NextRequest) {
   try {
-    const s = await getSession(req); // อนุญาต guest (userId = null)
+    const s = await getSession(req); // Allow guest (userId = null)
     const userId = s?.user?.id ?? null;
 
     let body: unknown = {};
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       return withCORS(res);
     }
 
-    // ถ้า user เดิมเข้าห้องเดิมซ้ำ
+    // If existing user rejoining same room
     if (userId) {
       const existing = await prisma.roomParticipant.findFirst({
         where: { roomId: room.id, userId },

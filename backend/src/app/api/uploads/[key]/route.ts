@@ -21,8 +21,8 @@ export async function PUT(
   ctx: { params: { key: string } }
 ) {
   try {
-    const rawKey = ctx.params.key;                 // key ถูก encodeURIComponent มาก่อน
-    const key = decodeURIComponent(rawKey);        // ถอดกลับให้เป็น path เต็ม
+    const rawKey = ctx.params.key;                 // key was encodeURIComponent'd
+    const key = decodeURIComponent(rawKey);        // decode back to full path
     const contentType = req.headers.get("content-type") ?? "application/octet-stream";
 
     const ab = await req.arrayBuffer();

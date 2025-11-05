@@ -16,7 +16,7 @@ export async function OPTIONS() {
 
 export async function POST(
   req: NextRequest,
-  ctx: { params: { roomId: string } } // ชื่อต้องตรงกับชื่อโฟลเดอร์ [roomId]
+  ctx: { params: { roomId: string } } // Name must match folder name [roomId]
 ) {
   try {
     const { roomId } = ctx.params;

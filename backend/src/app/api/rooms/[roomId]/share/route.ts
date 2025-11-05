@@ -69,7 +69,7 @@ export async function POST(
       );
     }
 
-    // target = Result ฝั่ง FE (set path same as web)
+    // target = Frontend Result page (set path same as web)
     // ex: https://frontend/result/ROOM_ID
     const targetUrl = `${FRONTEND_ORIGIN}/result/${encodeURIComponent(roomId)}`;
 
@@ -78,7 +78,7 @@ export async function POST(
       targetUrl,
       roomId,
       createdBy: userId,
-      ttlMinutes: parsed.data.ttlMinutes ?? 60 * 24, // default 24 ชม.
+      ttlMinutes: parsed.data.ttlMinutes ?? 60 * 24, // default 24 hours
     });
 
     // base of backend use from request

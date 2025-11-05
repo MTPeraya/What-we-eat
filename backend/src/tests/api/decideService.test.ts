@@ -14,7 +14,7 @@ const { prismaMock } = vi.hoisted(() => {
 
 vi.mock('@/lib/db', () => ({ default: prismaMock }));
 
-// ---------- IMPORTS *หลัง* mock ----------
+// ---------- IMPORTS *AFTER* mock ----------
 import { tallyVotesByRoom, finalDecide } from '../../services/decideService';
 
 beforeEach(() => {
@@ -22,7 +22,7 @@ beforeEach(() => {
 });
 
 describe('tallyVotesByRoom', () => {
-  it('รวม accept/reject และคำนวณ approval, netScore ถูกต้อง', async () => {
+  it('tallies accept/reject and calculates approval, netScore correctly', async () => {
     prismaMock.vote.findMany.mockResolvedValue([
       { restaurantId: 'A', value: 'ACCEPT' },
       { restaurantId: 'A', value: 'REJECT' },
@@ -47,7 +47,7 @@ describe('tallyVotesByRoom', () => {
     expect(B.approval).toBeCloseTo(1 / 3);
   });
 
-  it('คืนลิสต์ว่างเมื่อยังไม่มีโหวต', async () => {
+  it('returns empty list when no votes yet', async () => {
     prismaMock.vote.findMany.mockResolvedValue([]);
     const rows = await tallyVotesByRoom('room-1');
     expect(rows).toEqual([]);
@@ -55,7 +55,7 @@ describe('tallyVotesByRoom', () => {
 });
 
 describe('finalDecide (tie-breakers)', () => {
-  it('คะแนนเท่ากัน + มี center → เลือกร้านที่ใกล้กว่า', async () => {
+  it('same score + has center → picks closer restaurant', async () => {
     prismaMock.vote.findMany.mockResolvedValue([
       { restaurantId: 'A', value: 'ACCEPT' },
       { restaurantId: 'B', value: 'ACCEPT' },
@@ -69,11 +69,11 @@ describe('finalDecide (tie-breakers)', () => {
     const result = await finalDecide('room-1', { lat: 13.7361, lng: 100.5321 });
 
     expect(result.winner).not.toBeNull();
-    expect(result.winner!.restaurantId).toBe('A'); // ใกล้กว่า
+    expect(result.winner!.restaurantId).toBe('A'); // Closer
     expect(result.reason.usedCenter).toBe(true);
   });
 
-  it('ไม่มี center → ใช้ rating สูงกว่า', async () => {
+  it('no center → uses higher rating', async () => {
     prismaMock.vote.findMany.mockResolvedValue([
       { restaurantId: 'A', value: 'ACCEPT' },
       { restaurantId: 'B', value: 'ACCEPT' },
@@ -91,7 +91,7 @@ describe('finalDecide (tie-breakers)', () => {
     expect(result.reason.usedCenter).toBe(false);
   });
 
-  it('rating เท่ากัน → ตัดร้านที่ซ้ำใน history ล่าสุด', async () => {
+  it('same rating → excludes restaurant in recent history', async () => {
     prismaMock.vote.findMany.mockResolvedValue([
       { restaurantId: 'A', value: 'ACCEPT' },
       { restaurantId: 'B', value: 'ACCEPT' },
@@ -108,7 +108,7 @@ describe('finalDecide (tie-breakers)', () => {
     expect(result.winner!.restaurantId).toBe('A');
   });
 
-  it('ไม่มีโหวต → winner = null', async () => {
+  it('no votes → winner = null', async () => {
     prismaMock.vote.findMany.mockResolvedValue([]);
     const result = await finalDecide('room-1');
     expect(result.winner).toBeNull();

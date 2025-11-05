@@ -21,7 +21,7 @@ export async function OPTIONS() {
 
 export async function GET(
   _req: NextRequest,
-  context: { params: Promise<{ roomId: string }> } // v15: params เป็น Promise
+  context: { params: Promise<{ roomId: string }> } // v15: params is a Promise
 ) {
   try {
     const { roomId } = await context.params;

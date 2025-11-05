@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z, ZodError } from 'zod';
 import argon2 from 'argon2';
-// NOTE: ให้ใช้ตามโปรเจกต์จริงของคุณ (default export หรือ named export)
+// NOTE: Use according to your project (default export or named export)
 import { prisma } from '@/lib/db';
 import { createSession } from '@/lib/session';
 
@@ -12,11 +12,11 @@ function withCORS(res: NextResponse) {
   res.headers.set('Access-Control-Allow-Origin', FRONTEND_ORIGIN);
   res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.headers.set('Access-Control-Allow-Credentials', 'true'); // ถ้าจะส่ง cookie
+  res.headers.set('Access-Control-Allow-Credentials', 'true'); // For sending cookies
   return res;
 }
 
-// รองรับ preflight
+// Support preflight
 export async function OPTIONS() {
   return withCORS(new NextResponse(null, { status: 204 }));
 }
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       return withCORS(NextResponse.json({ error: 'INVALID_CREDENTIALS' }, { status: 401 }));
     }
 
-    // สร้าง response ก่อน แล้วให้ createSession เซ็ต HttpOnly cookie ลงไป
+    // Create response first, then let createSession set HttpOnly cookie
     const res = withCORS(
       NextResponse.json(
         { user: { id: user.id, username: user.username, role: user.role } },
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       )
     );
 
-    await createSession(res, user.id, req); // ควรตั้ง cookie เป็น SameSite=None; Secure ถ้าจะ cross-site
+    await createSession(res, user.id, req); // Should set SameSite=None; Secure for cross-site
 
     return res;
   } catch (err) {

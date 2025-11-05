@@ -1,19 +1,19 @@
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 
-// ตั้งชื่อ cookie + อายุ
+// Cookie name + expiration
 export const COOKIE = "wwe_session";
-const maxAgeSec = 60 * 60 * 24 * 30; // 30 วัน
+const maxAgeSec = 60 * 60 * 24 * 30; // 30 days
 const secret = new TextEncoder().encode(process.env.AUTH_JWT_SECRET ?? "dev-secret");
 
-// payload ที่เราใช้
+// Payload we use
 export type AuthToken = {
   sub: string;          // user id
   username: string;
   role: "USER" | "ADMIN";
 } & JWTPayload;
 
-// สร้าง session แล้ว set cookie (สังเกตว่า cookies() เป็น async ใน Next 15)
+// Create session and set cookie (note: cookies() is async in Next 15)
 export async function createSession(user: { id: string; username: string; role: "USER" | "ADMIN" }) {
   const token = await new SignJWT({
     sub: user.id,

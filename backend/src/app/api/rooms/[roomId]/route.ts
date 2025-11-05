@@ -29,12 +29,19 @@ export async function GET(
       orderBy: { joinedAt: "asc" },
     });
 
+    // Check if room was recently updated (within last 3 seconds) - indicates viewing results
+    const now = Date.now();
+    const updatedTime = new Date(room.updatedAt).getTime();
+    const timeDiff = now - updatedTime;
+    const viewingResults = timeDiff < 3000; // Within 3 seconds = viewing results
+
     const res = NextResponse.json(
       {
         id: room.id,
         hostId: room.hostId,
         participants,
         updatedAt: room.updatedAt.toISOString(),
+        viewingResults,
       },
       { status: 200 }
     );
