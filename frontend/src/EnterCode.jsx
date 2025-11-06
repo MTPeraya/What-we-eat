@@ -1,6 +1,7 @@
 import { useState } from "react";
 import "./App.css";
 import { useNavigate } from "react-router-dom";
+import Header from './header.jsx'
 
 function EnterCode() {
   const navigate = useNavigate();
@@ -71,6 +72,8 @@ function EnterCode() {
   };
 
   return (
+    <>
+    <Header/>
     <div className="background">
       <h1 className="head-name">WHAT WE EAT</h1>
 
@@ -101,6 +104,7 @@ function EnterCode() {
         Create Room
       </button>
     </div>
+    </>
   );
 }
 

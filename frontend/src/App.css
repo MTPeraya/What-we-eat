@@ -87,13 +87,17 @@ body {
 
 /* header */
 
-.header{
-
-  background-color: #BB3D25;
+.header {
+  z-index: 20;
+  position: relative;
+  overflow: visible;
   width: 100vw;
   height: 10vh;
   display: flex;
-  justify-content: space-between;
+  justify-content: space-between; 
+  align-items: center;
+  padding: 1vh 2vh;
+  background-color: #BB3D25; 
 
 }
 
@@ -106,6 +110,115 @@ body {
 
 .Margin1vh{
   margin:1vh;
+}
+
+/* Menu button and dropdown (simple CSS to replace Tailwind usage) */
+.menu-container {
+  position: relative; /* dropdown positioned relative to this */
+  display: flex;
+  align-items: center;
+}
+
+.menu-button {
+  background: transparent;
+  border: none;
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-button:focus {
+  outline: 2px solid rgba(255,255,255,0.25);
+}
+
+.menu-dropdown {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: auto;
+  width: 300px; 
+  height: 100vh;
+  
+  /* CHANGE: Frosted Glass Background */
+  /* Use a slightly darker base color with transparency */
+  background: rgba(32, 33, 36, 0.9); /* Dark grey with 90% opacity */
+  /* Reintroduce backdrop-filter */
+  backdrop-filter: blur(8px); /* Adjust blur amount as desired */
+  
+  color: white; /* Keep text white for contrast */
+  
+  border-radius: 0; 
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5); 
+  padding: 20px 0; 
+  
+  transform: translateX(-100%); 
+  opacity: 1; /* Keep opacity at 1 for the slide effect */
+  transition: transform 300ms ease; 
+  
+  pointer-events: auto; 
+  z-index: 1000;
+  
+  display: flex;
+  flex-direction: column;
+}
+
+/* The drawer-overlay is still useful for darkening the rest of the screen */
+.drawer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4); /* A slightly darker overlay */
+    z-index: 999;
+    display: none;
+}
+.menu-dropdown.open + .drawer-overlay {
+    display: block;
+}
+
+.menu-dropdown.open {
+  /* Bring it into view */
+  transform: translateX(0); 
+  /* pointer-events: auto; (already set above, but good practice) */
+}
+
+.menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  /* Use gap for item spacing */
+  gap: 8px; 
+  /* Allow the list content to grow, but don't force equal height unless necessary */
+  /* Remove flex-grow: 1 from here */
+}
+
+.menu-list a {
+  /* Use generous padding for the full-width drawer experience */
+  display: flex;
+  align-items: center; 
+  padding: 12px 20px; /* Increased vertical and horizontal padding */
+  color: inherit;
+  text-decoration: none;
+  border-radius: 0; /* No corner radius since it's full-width */
+  font-weight: normal; /* Often normal font weight in drawers */
+  /* Remove flex-grow: 1 from here, as equal division is usually not desired in a long drawer list */
+}
+
+.menu-list a:hover {
+  background: rgba#BB3D25; /* Subtle white highlight on hover */
+}
+
+.menu-list .divider {
+  height: 1px;
+  background: rgba(255,255,255,0.12);
+  margin: 6px 0;
 }
 
 /* preference page */
@@ -397,3 +510,4 @@ input::placeholder {
   font-weight: bold;
   font-size: 20px;
 }
+

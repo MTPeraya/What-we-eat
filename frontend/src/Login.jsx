@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import "./App.css";
 import { Link, useNavigate } from "react-router-dom";
+import Header from './header.jsx'
 
 
 function Login() {
@@ -66,6 +67,7 @@ function Login() {
 
     return (
         <>
+        <Header/>
         <div className="background">
             <h1 className="head-name">WHAT WE EAT</h1>
             <div className="box" style={{height: '380px'}}>
