@@ -274,7 +274,7 @@ function ProfilePictureCropper({
         const croppedBlob = await cropImage();
         if (croppedBlob) {
             const croppedUrl = URL.createObjectURL(croppedBlob);
-            onSave(croppedUrl);
+            onSave(croppedUrl, croppedBlob); // Pass both URL and blob
         }
         onClose();
     };
