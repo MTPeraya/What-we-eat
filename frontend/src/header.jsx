@@ -17,7 +17,7 @@ function MenuIcon(){
 
 function Header() {
 
-  const navigate = useNavigate();
+  // const navigate = useNavigate();s
 
   return (
     <div className='header'>
