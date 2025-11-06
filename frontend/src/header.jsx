@@ -5,7 +5,6 @@ import { Link, useNavigate } from "react-router-dom";
 function Profile({ displayName }) {
   return (
     <div className='profile-s Margin1vh'>
-      <span className="profile-name">{displayName || "Guest"}</span>
     </div>
   );
 }
@@ -79,7 +78,7 @@ function Header() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [displayName, setDisplayName] = useState("Guest");
 
-  const AUTH_BASE = "http://localhost:4001/api/auth";
+  const AUTH_BASE = `${BACKEND_URL}/api/auth`;
 
   useEffect(() => {
   (async () => {
@@ -97,12 +96,6 @@ function Header() {
     }
   })();
 }, []);
-
-      } catch (err) {
-        console.error("Error verifying user:", err);
-      }
-    })();
-  }, []);
 
   return (
     <div className='header'>
