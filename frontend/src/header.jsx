@@ -82,16 +82,22 @@ function Header() {
   const AUTH_BASE = "http://localhost:4001/api/auth";
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(`${AUTH_BASE}/me`, { credentials: "include" });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data?.user) {
-          setIsLoggedIn(true);
-          setDisplayName(data.user.username || "User");
-          setIsAdmin(!!data.user.isAdmin); // assuming backend sends isAdmin
-        }
+  (async () => {
+    try {
+      const res = await fetch(`${AUTH_BASE}/me`, { credentials: "include" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data?.user) {
+        setIsLoggedIn(true);
+        setDisplayName(data.user.username || "User");
+        setIsAdmin(data.user.role === "ADMIN");
+      }
+    } catch (err) {
+      console.error("Error verifying user:", err);
+    }
+  })();
+}, []);
+
       } catch (err) {
         console.error("Error verifying user:", err);
       }
