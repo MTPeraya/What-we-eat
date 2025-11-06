@@ -3,6 +3,7 @@ import "./App.css";
 import Header from "./header";
 import QRCode from "qrcode";
 import { useNavigate, useLocation } from "react-router-dom";
+import { config } from './config';
 
 function CreateRoom() {
   const navigate = useNavigate();
@@ -26,18 +27,15 @@ function CreateRoom() {
   }, [isLocationModalOpen, selectedCenter]);
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null); // track room updates to detect start
 
-  const API_BASE = `${import.meta.env.VITE_BACKEND_URL}/api/rooms`;
-  const AUTH_BASE = `${import.meta.env.VITE_BACKEND_URL}/api/auth`;
-  const LEAVE_ROOM_API = `${import.meta.env.VITE_BACKEND_URL}/api/rooms/${roomId}/leave`;
   const leaveRoom = async () => {
-    await fetch(LEAVE_ROOM_API, { method: "POST", credentials: "include" });
+    await fetch(`${config.endpoints.rooms}/${roomId}/leave`, { method: "POST", credentials: "include" });
   };
 
   // Fetch username and userId (for host check)
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${AUTH_BASE}/me`, { credentials: "include" });
+        const res = await fetch(`${config.endpoints.auth}/me`, { credentials: "include" });
         if (!res.ok) return;
         const data = await res.json();
         const uid = data?.user?.id;
@@ -64,7 +62,7 @@ function CreateRoom() {
     if (!roomId) return;
     const fetchParticipants = async () => {
       try {
-        const res = await fetch(`${API_BASE}/${roomId}?t=${Date.now()}`, {
+        const res = await fetch(`${config.endpoints.rooms}/${roomId}?t=${Date.now()}`, {
           method: "GET",
           credentials: "include",
           cache: "no-store",
@@ -134,7 +132,7 @@ function CreateRoom() {
     
     try {
       // Call start API to mark room as started
-      const startRes = await fetch(`${API_BASE}/${roomId}/start`, {
+      const startRes = await fetch(`${config.endpoints.rooms}/${roomId}/start`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

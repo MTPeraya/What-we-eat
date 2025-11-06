@@ -2,32 +2,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getSession } from "@/lib/session";
+import { withCORS, preflight } from "@/lib/cors";
 
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
-function withCORS(res: NextResponse) {
-  res.headers.set("Access-Control-Allow-Origin", FRONTEND_ORIGIN);
-  res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.headers.set("Access-Control-Allow-Credentials", "true");
-  return res;
-}
-
-export async function OPTIONS() {
-  return withCORS(new NextResponse(null, { status: 204 }));
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  return preflight('POST, OPTIONS', origin);
 }
 
 export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ ratingId: string }> }
 ) {
+  const origin = req.headers.get('origin');
+  
   try {
     // Use getSession to check role
     const s = await getSession(req);
     if (!s) {
-      return withCORS(NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }));
+      return withCORS(NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }), origin);
     }
     if (s.user.role !== "ADMIN") {
-      return withCORS(NextResponse.json({ error: "FORBIDDEN" }, { status: 403 }));
+      return withCORS(NextResponse.json({ error: "FORBIDDEN" }, { status: 403 }), origin);
     }
 
     const { ratingId } = await ctx.params;
@@ -48,11 +43,12 @@ export async function POST(
       // });
     });
 
-    return withCORS(NextResponse.json({ ok: true }, { status: 200 }));
+    return withCORS(NextResponse.json({ ok: true }, { status: 200 }), origin);
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
     return withCORS(
-      NextResponse.json({ error: "APPROVE_FAILED", details: msg }, { status: 500 })
+      NextResponse.json({ error: "APPROVE_FAILED", details: msg }, { status: 500 }),
+      origin
     );
   }
 }

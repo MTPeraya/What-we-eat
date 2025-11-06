@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import "./App.css";
 import { Link, useNavigate } from "react-router-dom";
 import Header from './header.jsx'
+import { config } from './config';
 
 
 function Login() {
@@ -41,7 +42,7 @@ function Login() {
         }
 
         try {
-            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/login`, {
+            const res = await fetch(`${config.endpoints.auth}/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include", // receive HttpOnly session cookie

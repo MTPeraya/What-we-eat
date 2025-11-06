@@ -1,22 +1,11 @@
 // backend/src/lib/admin.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
+import { withCORS as corsWithCORS } from "@/lib/cors";
 
-export const FRONTEND_ORIGIN =
-  process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
-
-// CORS helper
-export function withCORS<T extends NextResponse>(res: T): T {
-  res.headers.set("Access-Control-Allow-Origin", FRONTEND_ORIGIN);
-  res.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.headers.set("Access-Control-Allow-Credentials", "true");
-  return res;
-}
-
-// OPTIONS (preflight)
-export async function OPTIONS() {
-  return withCORS(new NextResponse(null, { status: 204 }));
+// CORS helper wrapper (for backward compatibility with admin routes)
+export function withCORS<T extends NextResponse>(res: T, origin?: string | null): T {
+  return corsWithCORS(res, origin) as T;
 }
 
 // Require ADMIN role only
