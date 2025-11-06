@@ -8,8 +8,8 @@ function EnterCode() {
   const [code, setCode] = useState("");
   const [displayName, setDisplayName] = useState("Guest");
 
-  const API_BASE = "http://localhost:4001/api/rooms";
-  const AUTH_BASE = "http://localhost:4001/api/auth";
+  const API_BASE = `${import.meta.env.VITE_BACKEND_URL}/api/rooms`;
+  const AUTH_BASE = `${import.meta.env.VITE_BACKEND_URL}/api/auth`;
 
   // Load current user to use username as displayName
   useEffect(() => {

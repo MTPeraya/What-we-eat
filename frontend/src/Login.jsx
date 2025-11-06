@@ -41,7 +41,7 @@ function Login() {
         }
 
         try {
-            const res = await fetch("http://localhost:4001/api/auth/login", {
+            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include", // receive HttpOnly session cookie
@@ -54,13 +54,13 @@ function Login() {
                 if (remember) {
                     localStorage.setItem("WhatWeEatUsername", username);
                 }
-                setMessage("✅ เข้าสู่ระบบสำเร็จ!");
+                setMessage("✅ Login successfully!");
                 navigate("/enter-code");
             } else {
-                setMessage(`❌ ${data.error || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"}`);
+                setMessage(`❌ ${data.error || "password or username incorrect"}`);
             }
         } catch (err) {
-            setMessage("🚨 ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+            setMessage("Cannot connect to server");
             }
 
         // console.log({ username, password, remember });

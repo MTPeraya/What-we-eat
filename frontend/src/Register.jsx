@@ -31,7 +31,7 @@ function Register() {
         // const payload = { username, password, rePassword };
 
         try {
-            const res = await fetch("http://localhost:4001/api/auth/register", {
+            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/register`, {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 credentials: 'include',
@@ -60,7 +60,7 @@ function Register() {
             }
         } catch (err) {
             console.log("err", err);
-            setMessage("🚨 ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+            setMessage("Cannot connect to server");
         }
 
     // navigate("/create-room");
