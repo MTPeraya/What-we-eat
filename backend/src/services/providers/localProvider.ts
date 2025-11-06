@@ -18,7 +18,7 @@ export async function fetchNearbyRestaurants(params: {
 }): Promise<ProviderRestaurant[]> {
   const limit = params.limit ?? 80;
 
-  // ดึงหลาย ๆ ร้านเรียงโดย rating (แทนการ query ระยะทาง)
+  // Fetch multiple restaurants sorted by rating (instead of distance query)
   const rows = await prisma.restaurant.findMany({
     take: limit,
     orderBy: [{ rating: "desc" }, { userRatingsTotal: "desc" }],
@@ -34,7 +34,7 @@ export async function fetchNearbyRestaurants(params: {
     },
   });
 
-  // normalize (พร้อม fallback)
+  // normalize (with fallback)
   return rows.map((r) => ({
     id: r.id,
     name: r.name,

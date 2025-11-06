@@ -21,7 +21,7 @@ export async function POST(
   ctx: { params: Promise<{ ratingId: string }> }
 ) {
   try {
-    // ใช้ getSession เพื่อเช็ค role
+    // Use getSession to check role
     const s = await getSession(req);
     if (!s) {
       return withCORS(NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }));
@@ -33,14 +33,14 @@ export async function POST(
     const { ratingId } = await ctx.params;
 
     await prisma.$transaction(async (tx) => {
-      // อนุมัติรีวิว
+      // Approve rating
       await tx.rating.update({
         where: { id: ratingId },
         data: { status: "approved" },
       });
 
-      // หมายเหตุ: ในสคีมาปัจจุบันของคุณ RatingPhoto ยังไม่มีฟิลด์ status
-      // ถ้าอนาคตเพิ่ม status ให้รูป ค่อยเปิดใช้ตามนี้:
+      // Note: Current schema's RatingPhoto doesn't have status field
+      // If adding status to photos in future, enable this:
       //
       // await tx.ratingPhoto.updateMany({
       //   where: { ratingId },
