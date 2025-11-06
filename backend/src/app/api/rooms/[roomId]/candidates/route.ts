@@ -36,7 +36,7 @@ export async function POST(
     const { roomId } = await ctx.params;
     const { userId } = await requireAuth(req);
 
-    // ต้องเป็นสมาชิกห้อง
+    // Must be room member
     const isMember = await prisma.roomParticipant.findFirst({
       where: { roomId, userId },
       select: { id: true },
@@ -63,7 +63,7 @@ export async function POST(
     });
     const tookMs = Date.now() - started;
 
-    // metrics เบื้องต้น
+    // Basic metrics
     console.log("[reco] candidates", {
       roomId,
       count: cands.length,

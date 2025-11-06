@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db"; // ปรับ path ให้ตรงโปรเจกต์ของคุณ
+import { prisma } from "@/lib/db";
 
 export type VoteTallyRow = {
   restaurantId: string;
@@ -9,13 +9,13 @@ export type VoteTallyRow = {
 };
 
 export async function tallyVotesByRoom(roomId: string): Promise<VoteTallyRow[]> {
-  // ถ้า schema ใหม่: restaurantId เป็น string (ไม่ null) + มี value แน่นอน
+  // For new schema: restaurantId is string (non-null) with guaranteed value
   const votes = await prisma.vote.findMany({
     where: { roomId },
     select: { restaurantId: true, value: true },
   });
-  // 👉 หากคุณยังไม่ reset DB และ restaurantId ยังมีสิทธิ์เป็น null อยู่
-  // ให้เปิดคอมเมนต์บรรทัดล่างแทน:
+  // 👉 If you haven't reset DB and restaurantId can still be null:
+  // Uncomment below instead:
   // const votes = await prisma.vote.findMany({
   //   where: { roomId, restaurantId: { not: null } },
   //   select: { restaurantId: true, value: true },
@@ -24,7 +24,7 @@ export async function tallyVotesByRoom(roomId: string): Promise<VoteTallyRow[]> 
   const map = new Map<string, { accept: number; reject: number }>();
 
   for (const v of votes) {
-    const key = v.restaurantId; // เป็น string แน่นอนถ้า schema ใหม่
+    const key = v.restaurantId; // Guaranteed to be string in new schema
     if (!map.has(key)) map.set(key, { accept: 0, reject: 0 });
     const agg = map.get(key)!;
     if (v.value === "ACCEPT") agg.accept += 1;
@@ -43,7 +43,7 @@ export async function tallyVotesByRoom(roomId: string): Promise<VoteTallyRow[]> 
     });
   }
 
-  // เรียงลำดับ: netScore > approval > accept
+  // Sort order: netScore > approval > accept
   rows.sort(
     (a, b) =>
       b.netScore - a.netScore ||

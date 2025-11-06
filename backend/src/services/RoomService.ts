@@ -2,7 +2,7 @@
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
 
-/** สุ่มโค้ดห้อง (ตัดตัวที่สับสนอย่าง 0/O/I/1) */
+/** Generate random room code (excluding confusing characters like 0/O/I/1) */
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 function genCode(len = 6) {
   let s = "";
@@ -12,30 +12,30 @@ function genCode(len = 6) {
   return s;
 }
 
-/** payload types (ให้ TS รู้ว่ามี participants ติดมาด้วย) */
+/** Payload types (includes participants relation) */
 export type RoomWithParticipants = Prisma.RoomGetPayload<{
   include: { participants: true };
 }>;
 
 export type CreateRoomInput = {
   hostId: string;
-  /** ไม่ใส่ = ไม่หมดอายุ */
+  /** Optional - if not set, room never expires */
   expiresInMinutes?: number;
-  /** ชื่อ host ที่จะแสดงใน participants (default: "Host") */
+  /** Host display name in participants list (default: "Host") */
   hostDisplayName?: string;
 };
 
 export type JoinByCodeInput = {
   code: string;
-  /** ถ้าเป็น guest ให้เว้นไว้ */
+  /** Optional - leave empty for guest users */
   userId?: string;
-  /** ชื่อที่จะแสดงในห้อง */
+  /** Display name shown in room */
   displayName: string;
 };
 
 export class RoomService {
   /**
-   * ดึงห้องด้วย code พร้อม participants (ถ้าไม่เจอ → null)
+   * Get room by code with participants (returns null if not found)
    */
   async getByCodeWithParticipants(code: string): Promise<RoomWithParticipants | null> {
     return prisma.room.findUnique({
@@ -45,15 +45,15 @@ export class RoomService {
   }
 
   /**
-   * สร้างห้อง + โค้ด + เพิ่ม host เป็น participant(role=host)
-   * - เช็คว่า host มีอยู่จริง (กัน FK error)
-   * - โค้ดไม่ซ้ำ (ลองสุ่มใหม่สูงสุด 10 ครั้ง)
+   * Create room + code + add host as participant (role=host)
+   * - Validates host exists (prevents FK error)
+   * - Ensures unique code (retries up to 10 times)
    */
   async createRoom(input: CreateRoomInput): Promise<RoomWithParticipants> {
     const host = await prisma.user.findUnique({ where: { id: input.hostId } });
     if (!host) throw new Error("HOST_NOT_FOUND");
 
-    // สร้างโค้ดไม่ซ้ำ
+    // Generate unique code
     let code = genCode();
     for (let i = 0; i < 10; i++) {
       const exists = await prisma.room.findUnique({ where: { code } });
@@ -87,10 +87,10 @@ export class RoomService {
   }
 
   /**
-   * เข้าห้องด้วย code (guest/registered)
-   * - ห้องต้อง OPEN และไม่หมดอายุ
-   * - ถ้า userId มีอยู่เดิมในห้อง → ไม่สร้างซ้ำ (คืนสถานะห้องเดิม)
-   * - ถ้า guest → สร้าง participant ใหม่ (userId=null)
+   * Join room by code (guest/registered user)
+   * - Room must be OPEN and not expired
+   * - If userId already in room → return existing room state (no duplicate)
+   * - If guest → create new participant (userId=null)
    */
   async joinByCode(input: JoinByCodeInput): Promise<RoomWithParticipants> {
     const room = await prisma.room.findUnique({
@@ -103,10 +103,10 @@ export class RoomService {
       throw new Error("ROOM_EXPIRED");
     }
 
-    // ถ้าเป็นผู้ใช้ที่ล็อกอินและเคยเข้าห้องแล้ว -> คืนสถานะห้องเลย (ไม่สร้างซ้ำ)
+    // If logged-in user already in room → return existing room state (no duplicate)
     if (input.userId) {
       const existed = await prisma.roomParticipant.findUnique({
-        // จาก @@unique([roomId, userId]) → composite key ชื่อ roomId_userId
+        // From @@unique([roomId, userId]) → composite key named roomId_userId
         where: { roomId_userId: { roomId: room.id, userId: input.userId } },
       });
       if (existed) {
@@ -117,7 +117,7 @@ export class RoomService {
       }
     }
 
-    // เพิ่มผู้เข้าร่วมใหม่ (guest/registered)
+    // Add new participant (guest/registered)
     await prisma.roomParticipant.create({
       data: {
         roomId: room.id,
@@ -134,7 +134,7 @@ export class RoomService {
   }
 
   /**
-   * (ตัวเลือก) ปิดห้อง
+   * Close room (optional)
    */
   async closeRoom(roomId: string): Promise<RoomWithParticipants> {
     return prisma.room.update({

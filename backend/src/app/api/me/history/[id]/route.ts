@@ -22,7 +22,7 @@ export async function DELETE(
     const { userId } = await requireAuth(req);
     const { id } = await ctx.params;
 
-    // ลบเฉพาะของเจ้าของเท่านั้น
+    // Delete only if owner
     const row = await prisma.mealHistory.findUnique({ where: { id } });
     if (!row || row.userId !== userId) {
       return withCORS(NextResponse.json({ error: "NOT_FOUND_OR_FORBIDDEN" }, { status: 404 }));

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { extname } from "node:path";
 import storage from "@/lib/storage";
 
-export const runtime = "nodejs"; // กัน edge runtime
+export const runtime = "nodejs"; // Prevent edge runtime
 
 function mimeFromExt(ext: string) {
   const t = ext.toLowerCase();
@@ -25,7 +25,7 @@ export async function GET(
   }
 
   const buf = await storage.getBuffer(key);      // Buffer
-  const body = new Uint8Array(buf);              // ✅ แปลงให้ชัดเป็น Uint8Array
+  const body = new Uint8Array(buf);              // ✅ Convert explicitly to Uint8Array
 
   const ext = extname(key);
   return new NextResponse(body, {

@@ -20,7 +20,7 @@ export async function OPTIONS() {
 // ---------- Validation ----------
 const MAX_SIZE = Number(process.env.RATING_PHOTO_MAX_BYTES ?? 5_000_000); // 5MB
 
-// รับอย่างใดอย่างหนึ่ง: restaurantId หรือ placeId
+// Accept either: restaurantId or placeId
 const BodySchema = z.object({
   roomId: z.string().optional(),
   restaurantId: z.string().optional(),
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     const { roomId, restaurantId, placeId, score, tags, comment, photos = [] } =
       parsed.data;
 
-    // แปลง placeId -> restaurantId ถ้าจำเป็น
+    // Convert placeId -> restaurantId if needed
     let resolvedRestaurantId = restaurantId ?? null;
     if (!resolvedRestaurantId && placeId) {
       const r = await prisma.restaurant.findUnique({
@@ -82,13 +82,13 @@ export async function POST(req: NextRequest) {
       resolvedRestaurantId = r.id;
     }
 
-    // สร้าง rating + photos (status default = pending)
+    // Create rating + photos (status default = pending)
     const createdId = await prisma.$transaction(async (tx) => {
       const created = await tx.rating.create({
         data: {
           roomId: roomId ?? null,
           userId,
-          restaurantId: resolvedRestaurantId!, // ได้ค่าที่ resolve แล้วแน่ ๆ
+          restaurantId: resolvedRestaurantId!, // Resolved value guaranteed
           score,
           tags: tags ? (tags as unknown as Prisma.InputJsonValue) : undefined,
           comment: comment ?? null,

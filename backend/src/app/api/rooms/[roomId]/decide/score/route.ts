@@ -21,7 +21,7 @@ export async function OPTIONS() {
 
 export async function GET(
   _req: NextRequest,
-  context: { params: Promise<{ roomId: string }> } // v15: params เป็น Promise
+  context: { params: Promise<{ roomId: string }> } // v15: params is a Promise
 ) {
   try {
     const { roomId } = await context.params;
@@ -36,12 +36,43 @@ export async function GET(
       prisma.vote.count({ where: { roomId } }),
     ]);
 
+    // Enrich scores with restaurant details
+    const restaurantIds = scores.map(s => s.restaurantId);
+    const restaurants = await prisma.restaurant.findMany({
+      where: { id: { in: restaurantIds } },
+      select: {
+        id: true,
+        placeId: true,
+        name: true,
+        address: true,
+        lat: true,
+        lng: true,
+        rating: true,
+      }
+    });
+
+    const restaurantMap = new Map(restaurants.map(r => [r.id, r]));
+    
+    const enrichedScores = scores.map(score => {
+      const restaurant = restaurantMap.get(score.restaurantId);
+      return {
+        ...score,
+        placeId: restaurant?.placeId || null,
+        name: restaurant?.name || null,
+        address: restaurant?.address || null,
+        location: restaurant?.lat && restaurant?.lng 
+          ? { lat: restaurant.lat, lng: restaurant.lng }
+          : null,
+        rating: restaurant?.rating || null,
+      };
+    });
+
     return withCORS(
       NextResponse.json({
         roomId,
         generatedAt: new Date().toISOString(),
         stats: { totalVotes, totalRestaurants: scores.length },
-        scores,
+        scores: enrichedScores,
       })
     );
   } catch (e) {

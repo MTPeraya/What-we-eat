@@ -19,12 +19,12 @@ const { prismaMock, authMock, decideMock } = vi.hoisted(() => {
 
 // prisma
 vi.mock('@/lib/db', () => ({ default: prismaMock }));
-// ⚠️ ให้ดู route จริงของคุณว่า import จาก '@/lib/session' หรือ '@/lib/auth'
+// ⚠️ Check your actual route to see if it imports from '@/lib/session' or '@/lib/auth'
 vi.mock('@/lib/session', () => authMock);
 // decide service
 vi.mock('@/services/decideService', () => decideMock);
 
-// ---------- IMPORTS *หลัง* mock ----------
+// ---------- IMPORTS *AFTER* mock ----------
 import { POST, GET } from '../../app/api/rooms/[roomId]/decide/final/route';
 
 const ctx = (roomId: string): { params: Promise<{ roomId: string }> } => ({
@@ -36,7 +36,7 @@ beforeEach(() => {
 });
 
 describe('POST /api/rooms/[roomId]/decide/final', () => {
-  it('200 เมื่อเป็นสมาชิกห้อง และเรียก writeMealHistory', async () => {
+  it('200 when user is room member and calls writeMealHistory', async () => {
     authMock.requireAuth.mockResolvedValue({ userId: 'u1' });
     prismaMock.roomParticipant.findFirst.mockResolvedValue({ id: 'p1' });
     decideMock.finalDecide.mockResolvedValue({
@@ -67,7 +67,7 @@ describe('POST /api/rooms/[roomId]/decide/final', () => {
     expect(decideMock.writeMealHistory).toHaveBeenCalledWith('r1', 'A');
   });
 
-  it('403 เมื่อไม่เป็นสมาชิก', async () => {
+  it('403 when not a room member', async () => {
     authMock.requireAuth.mockResolvedValue({ userId: 'u1' });
     prismaMock.roomParticipant.findFirst.mockResolvedValue(null);
 
@@ -81,7 +81,7 @@ describe('POST /api/rooms/[roomId]/decide/final', () => {
     expect((await res.json()).error).toBe('FORBIDDEN_NOT_MEMBER');
   });
 
-  it('401 เมื่อไม่ได้ล็อกอิน', async () => {
+  it('401 when not logged in', async () => {
     authMock.requireAuth.mockImplementation(() => {
       throw new Error('UNAUTHENTICATED');
     });
@@ -98,7 +98,7 @@ describe('POST /api/rooms/[roomId]/decide/final', () => {
 });
 
 describe('GET /api/rooms/[roomId]/decide/final', () => {
-  it('คืน winner ล่าสุดของห้อง', async () => {
+  it('returns latest winner for room', async () => {
     const decidedAt = new Date();
     prismaMock.mealHistory.findFirst.mockResolvedValue({ restaurantId: 'A', decidedAt });
     prismaMock.restaurant.findUnique.mockResolvedValue({
@@ -117,7 +117,7 @@ describe('GET /api/rooms/[roomId]/decide/final', () => {
     expect(new Date(json.decidedAt).getTime()).toBe(decidedAt.getTime());
   });
 
-  it('ถ้าไม่มีประวัติ → winner = null', async () => {
+  it('if no history → winner = null', async () => {
     prismaMock.mealHistory.findFirst.mockResolvedValue(null);
 
     const res = await GET(new Request('http://test.local') as unknown as NextRequest, ctx('r1'));

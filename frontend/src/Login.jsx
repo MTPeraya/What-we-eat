@@ -43,16 +43,19 @@ function Login() {
         try {
             const res = await fetch("http://localhost:4001/api/auth/login", {
                 method: "POST",
-                headers: {"Content-Type": "application/json",},
+                headers: { "Content-Type": "application/json" },
+                credentials: "include", // receive HttpOnly session cookie
                 body: JSON.stringify({ username, password }),
             });
 
             const data = await res.json();
             if (res.ok) {
-                // สมมติ backend ส่ง token กลับมา
-                localStorage.setItem("token", data.token);
+                // Backend issues a session cookie; no token to store
+                if (remember) {
+                    localStorage.setItem("WhatWeEatUsername", username);
+                }
                 setMessage("✅ เข้าสู่ระบบสำเร็จ!");
-                navigate("/create-room")
+                navigate("/enter-code");
             } else {
                 setMessage(`❌ ${data.error || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"}`);
             }

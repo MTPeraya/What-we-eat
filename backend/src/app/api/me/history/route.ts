@@ -26,7 +26,7 @@ const QuerySchema = z.object({
     .regex(/^\d+$/)
     .transform((v) => Number(v))
     .optional(),
-  cursor: z.string().optional(), // ใช้ id ของ MealHistory
+  cursor: z.string().optional(), // Using MealHistory id
 });
 
 // ---------- GET /api/me/history ----------
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
 
     const { from, to, limit = 20, cursor } = parsed.data;
 
-    // ใช้ Prisma types แทน any
+    // Use Prisma types instead of any
     const where: Prisma.MealHistoryWhereInput = { userId };
 
     if (from || to) {

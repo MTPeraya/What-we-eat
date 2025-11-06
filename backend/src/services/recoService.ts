@@ -50,8 +50,8 @@ export type Candidate = ProviderRestaurant & {
 export async function buildCandidates(params: {
   roomId: string;
   center?: { lat: number; lng: number };
-  limit?: number;            // จำนวนที่ต้องการส่งกลับ
-  providerLimit?: number;    // จำนวนที่ไปดึงจาก provider
+  limit?: number;            // Number to return
+  providerLimit?: number;    // Number to fetch from provider
   cacheTtlMs?: number;
 }): Promise<Candidate[]> {
   const { roomId, center, limit = 30, providerLimit = 120, cacheTtlMs } = params;
@@ -63,7 +63,7 @@ export async function buildCandidates(params: {
     setCached(roomId, list, cacheTtlMs ?? TTL_MS_DEFAULT);
   }
 
-  // 2) เตรียมข้อมูลสำหรับ penalty/กันซ้ำ
+  // 2) Prepare data for penalty/no-repeat logic
   const members = await prisma.roomParticipant.findMany({
     where: { roomId, userId: { not: null } },
     select: { userId: true },
@@ -79,7 +79,7 @@ export async function buildCandidates(params: {
       })
     : [];
 
-  // กันซ้ำใน session (ร้านที่เสนอไปแล้วในห้องนี้)
+  // No-repeat within session (restaurants already suggested in this room)
   const seen = await prisma.roomSuggestionHistory.findMany({
     where: { roomId },
     take: 200,
@@ -97,30 +97,30 @@ export async function buildCandidates(params: {
     const rating = r.rating ?? 3.5;
     score += rating * 10;               // weight rating
 
-    // distance (ยิ่งใกล้ยิ่งดี)
+    // distance (closer is better)
     let dist = 0;
     if (center) {
       dist = haversine(center.lat, center.lng, r.lat, r.lng);
       const km = dist / 1000;
       score += Math.max(0, 30 - km * 5);  // drop 5 points per km after 0km
-      reasons.push(`ใกล้ ~${km.toFixed(1)}km`);
+      reasons.push(`Near ~${km.toFixed(1)}km`);
     }
 
     // history penalty
     const visited = recentHistories.some((h) => h.restaurantId === r.id);
     if (visited) {
       score -= 20;
-      reasons.push(`เคยไปใน ${REPEAT_COOLDOWN_DAYS} วัน`);
+      reasons.push(`Visited in last ${REPEAT_COOLDOWN_DAYS} days`);
     }
 
     // room-level de-dup
     if (seenSet.has(r.id)) {
       score -= 50;
-      reasons.push("แนะนำไปแล้วในห้องนี้");
+      reasons.push("Already suggested in this room");
     }
 
     // tag reason by rating
-    if (rating >= 4.3) reasons.push("เรตติ้งดี");
+    if (rating >= 4.3) reasons.push("Good rating");
 
     return { ...r, score, reasons, distanceM: dist || undefined };
   });
@@ -129,7 +129,7 @@ export async function buildCandidates(params: {
   cands.sort((a, b) => b.score - a.score);
   const top = cands.slice(0, limit);
 
-  // 5) บันทึก suggestion history ของห้อง (เพื่อกันซ้ำรอบหน้า)
+  // 5) Save suggestion history for this room (to prevent duplicates next round)
   if (top.length) {
     await prisma.$transaction(
       top.map((t) =>

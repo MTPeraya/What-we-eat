@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 // import { tallyVotesByRoom } from "../../services/voteService";
 
 
-// สมมติว่าคุณจะแยก logic “รวมในโค้ด” ออกจากชั้น prisma เพื่อเทสลอจิกได้ง่าย
-// ตัวอย่างนี้ mock ดาต้า “หลังดึงจาก prisma” แล้วป้อนเข้าฟังก์ชันรวมคะแนน
-// หากคุณยึดแบบในไฟล์จริง (เรียก prisma ภายใน) ให้แยก pure function เพิ่มอีกชั้น
+// Assume you separate the "tally logic" from the prisma layer for easier testing
+// This example mocks data "after fetching from prisma" and feeds it to the tally function
+// If you stick with the real file approach (calling prisma inside), extract a pure function layer
 
 // ===== voteService.test.ts =====
 type TallyInput = { restaurantId: string; value: 'ACCEPT' | 'REJECT' };

@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     await requireAdmin(req);
     const { from, to } = parse(req);
 
-    // นับผู้เข้าร่วม/โหวตต่อห้องในช่วงเวลาที่ห้องถูกสร้าง
+    // Count participants/votes per room during the time period rooms were created
     const rooms = await prisma.room.findMany({
       where: { createdAt: { gte: from, lte: to } },
       select: { id: true },
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
       range: { from, to },
       avgParticipantsPerRoom: totalParticipants / totalRooms,
       avgVotesPerRoom: totalVotes / totalRooms,
-      voteRate: totalParticipants ? totalVotes / totalParticipants : 0, // ~ โหวตต่อผู้เข้าร่วม
+      voteRate: totalParticipants ? totalVotes / totalParticipants : 0, // ~ votes per participant
     };
     return withCORS(NextResponse.json(res, { status: 200 }));
   } catch (e) {
