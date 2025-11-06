@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import "./App.css";
 import { useNavigate, useLocation } from "react-router-dom";
+import Header from './header.jsx';
+import { config } from './config';
 
 function EnterCode() {
   const navigate = useNavigate();
@@ -8,14 +10,11 @@ function EnterCode() {
   const [code, setCode] = useState("");
   const [displayName, setDisplayName] = useState("Guest");
 
-  const API_BASE = `${import.meta.env.VITE_BACKEND_URL}/api/rooms`;
-  const AUTH_BASE = `${import.meta.env.VITE_BACKEND_URL}/api/auth`;
-
   // Load current user to use username as displayName
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${AUTH_BASE}/me`, { credentials: "include" });
+        const res = await fetch(`${config.endpoints.auth}/me`, { credentials: "include" });
         if (!res.ok) return;
         const data = await res.json();
         const username = data?.user?.username;
@@ -33,7 +32,7 @@ function EnterCode() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/join`, {
+      const res = await fetch(`${config.endpoints.rooms}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: trimmed, displayName }),
@@ -72,7 +71,7 @@ function EnterCode() {
   // --- CREATE ROOM ---
   const handleCreateRoom = async () => {
     try {
-      const res = await fetch(`${API_BASE}`, {
+      const res = await fetch(`${config.endpoints.rooms}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ displayName }),

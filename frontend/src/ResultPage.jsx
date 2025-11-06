@@ -3,8 +3,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Header from './header.jsx'
 import Footer from './components/smallfooter.jsx'
 import Found from './components/showResult.jsx'
+import { config } from './config';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001/api';
+const API_BASE_URL = config.apiUrl + '/api';
 
 function Result() {
   const location = useLocation();

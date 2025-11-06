@@ -14,7 +14,7 @@ function HomePage() {
       <Header/>
       <HeroSection/>
       <Features/>
-      <div class="b-divider"></div>
+      <div className="b-divider"></div>
       <AboutUsSection/>
       <Footer/>
     </>

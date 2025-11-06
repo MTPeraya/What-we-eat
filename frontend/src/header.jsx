@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import { Link, useNavigate } from "react-router-dom";
+import { config } from './config';
 
 function Profile({ displayName }) {
   return (
@@ -78,12 +79,10 @@ function Header() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [displayName, setDisplayName] = useState("Guest");
 
-  const AUTH_BASE = `${import.meta.env.VITE_BACKEND_URL}/api/auth`;
-
   useEffect(() => {
   (async () => {
     try {
-      const res = await fetch(`${AUTH_BASE}/me`, { credentials: "include" });
+      const res = await fetch(`${config.endpoints.auth}/me`, { credentials: "include" });
       if (!res.ok) return;
       const data = await res.json();
       if (data?.user) {

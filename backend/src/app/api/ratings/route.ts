@@ -3,18 +3,12 @@ import { z } from "zod";
 import prisma from "@/lib/db";
 import { requireAuth } from "@/lib/session";
 import type { Prisma } from "@prisma/client";
+import { withCORS, preflight } from "@/lib/cors";
 
 // ---------- CORS ----------
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
-function withCORS(res: NextResponse) {
-  res.headers.set("Access-Control-Allow-Origin", FRONTEND_ORIGIN);
-  res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.headers.set("Access-Control-Allow-Credentials", "true");
-  return res;
-}
-export async function OPTIONS() {
-  return withCORS(new NextResponse(null, { status: 204 }));
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  return preflight('POST, OPTIONS', origin);
 }
 
 // ---------- Validation ----------
@@ -50,6 +44,8 @@ const BodySchema = z.object({
 
 // ---------- POST /api/ratings ----------
 export async function POST(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  
   try {
     const { userId } = await requireAuth(req);
 
@@ -60,7 +56,8 @@ export async function POST(req: NextRequest) {
         NextResponse.json(
           { error: "INVALID_BODY", details: parsed.error.flatten() },
           { status: 400 }
-        )
+        ),
+        origin
       );
     }
 
@@ -76,7 +73,8 @@ export async function POST(req: NextRequest) {
       });
       if (!r) {
         return withCORS(
-          NextResponse.json({ error: "RESTAURANT_NOT_FOUND" }, { status: 404 })
+          NextResponse.json({ error: "RESTAURANT_NOT_FOUND" }, { status: 404 }),
+          origin
         );
       }
       resolvedRestaurantId = r.id;
@@ -113,20 +111,23 @@ export async function POST(req: NextRequest) {
     });
 
     return withCORS(
-      NextResponse.json({ ok: true, ratingId: createdId }, { status: 201 })
+      NextResponse.json({ ok: true, ratingId: createdId }, { status: 201 }),
+      origin
     );
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
     if (msg === "UNAUTHENTICATED") {
       return withCORS(
-        NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 })
+        NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }),
+        origin
       );
     }
     return withCORS(
       NextResponse.json(
         { error: "RATING_CREATE_FAILED", details: msg },
         { status: 500 }
-      )
+      ),
+      origin
     );
   }
 }

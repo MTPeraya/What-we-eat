@@ -2,18 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db";
 import { requireAuth } from "@/lib/session";
+import { withCORS, preflight } from "@/lib/cors";
 
 // ===== CORS =====
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
-function withCORS(res: NextResponse) {
-  res.headers.set("Access-Control-Allow-Origin", FRONTEND_ORIGIN);
-  res.headers.set("Access-Control-Allow-Methods", "POST, DELETE, OPTIONS");
-  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.headers.set("Access-Control-Allow-Credentials", "true");
-  return res;
-}
-export async function OPTIONS() {
-  return withCORS(new NextResponse(null, { status: 204 }));
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  return preflight('POST, DELETE, OPTIONS', origin);
 }
 
 // ===== Validation =====
@@ -31,6 +25,8 @@ export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ roomId: string }> }
 ) {
+  const origin = req.headers.get('origin');
+  
   try {
     const { roomId } = await ctx.params;
     const { userId } = await requireAuth(req);
@@ -41,7 +37,7 @@ export async function POST(
       select: { id: true },
     });
     if (!isMember) {
-      return withCORS(NextResponse.json({ error: "FORBIDDEN_NOT_MEMBER" }, { status: 403 }));
+      return withCORS(NextResponse.json({ error: "FORBIDDEN_NOT_MEMBER" }, { status: 403 }), origin);
     }
 
     let json: unknown = {};
@@ -49,7 +45,8 @@ export async function POST(
     const parsed = BodySchema.safeParse(json);
     if (!parsed.success) {
       return withCORS(
-        NextResponse.json({ error: "INVALID_BODY", details: parsed.error.flatten() }, { status: 400 })
+        NextResponse.json({ error: "INVALID_BODY", details: parsed.error.flatten() }, { status: 400 }),
+        origin
       );
     }
     const { restaurantId, value } = parsed.data;
@@ -79,14 +76,15 @@ export async function POST(
           tally: { accept, reject, netScore: accept - reject, total: accept + reject },
         },
         { status: 200 }
-      )
+      ),
+      origin
     );
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
     if (msg === "UNAUTHENTICATED") {
-      return withCORS(NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }));
+      return withCORS(NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }), origin);
     }
-    return withCORS(NextResponse.json({ error: "VOTE_FAILED", details: msg }, { status: 500 }));
+    return withCORS(NextResponse.json({ error: "VOTE_FAILED", details: msg }, { status: 500 }), origin);
   }
 }
 
@@ -95,6 +93,8 @@ export async function DELETE(
   req: NextRequest,
   ctx: { params: Promise<{ roomId: string }> }
 ) {
+  const origin = req.headers.get('origin');
+  
   try {
     const { roomId } = await ctx.params;
     const { userId } = await requireAuth(req);
@@ -105,7 +105,7 @@ export async function DELETE(
       select: { id: true },
     });
     if (!isMember) {
-      return withCORS(NextResponse.json({ error: "FORBIDDEN_NOT_MEMBER" }, { status: 403 }));
+      return withCORS(NextResponse.json({ error: "FORBIDDEN_NOT_MEMBER" }, { status: 403 }), origin);
     }
 
     let json: unknown = {};
@@ -113,7 +113,8 @@ export async function DELETE(
     const parsed = DeleteSchema.safeParse(json);
     if (!parsed.success) {
       return withCORS(
-        NextResponse.json({ error: "INVALID_BODY", details: parsed.error.flatten() }, { status: 400 })
+        NextResponse.json({ error: "INVALID_BODY", details: parsed.error.flatten() }, { status: 400 }),
+        origin
       );
     }
     const { restaurantId } = parsed.data;
@@ -122,12 +123,12 @@ export async function DELETE(
       where: { roomId_userId_restaurantId: { roomId, userId, restaurantId } },
     }).catch(() => undefined); // Silently ignore if not exists
 
-    return withCORS(NextResponse.json({ ok: true }, { status: 200 }));
+    return withCORS(NextResponse.json({ ok: true }, { status: 200 }), origin);
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
     if (msg === "UNAUTHENTICATED") {
-      return withCORS(NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }));
+      return withCORS(NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }), origin);
     }
-    return withCORS(NextResponse.json({ error: "VOTE_DELETE_FAILED", details: msg }, { status: 500 }));
+    return withCORS(NextResponse.json({ error: "VOTE_DELETE_FAILED", details: msg }, { status: 500 }), origin);
   }
 }

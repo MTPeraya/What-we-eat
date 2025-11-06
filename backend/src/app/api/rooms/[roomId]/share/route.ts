@@ -4,17 +4,11 @@ import prisma from "@/lib/db";
 import { requireAuth } from "@/lib/session";
 import { createShortLink } from "@/services/shortLinkService";
 import QRCode from "qrcode";
+import { withCORS, preflight } from "@/lib/cors";
 
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
-function withCORS(res: NextResponse) {
-  res.headers.set("Access-Control-Allow-Origin", FRONTEND_ORIGIN);
-  res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.headers.set("Access-Control-Allow-Credentials", "true");
-  return res;
-}
-export async function OPTIONS() {
-  return withCORS(new NextResponse(null, { status: 204 }));
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  return preflight('POST, OPTIONS', origin);
 }
 
 const BodySchema = z
@@ -27,6 +21,9 @@ export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ roomId: string }> }
 ) {
+  const origin = req.headers.get('origin');
+  const FRONTEND_ORIGIN = origin || 'https://what-we-eat.vercel.app';
+  
   try {
     const { roomId } = await ctx.params;
     const { userId } = await requireAuth(req);
@@ -38,7 +35,8 @@ export async function POST(
     });
     if (!isMember) {
       return withCORS(
-        NextResponse.json({ error: "FORBIDDEN_NOT_MEMBER" }, { status: 403 })
+        NextResponse.json({ error: "FORBIDDEN_NOT_MEMBER" }, { status: 403 }),
+        origin
       );
     }
 
@@ -50,7 +48,8 @@ export async function POST(
     });
     if (!last) {
       return withCORS(
-        NextResponse.json({ error: "NO_DECISION" }, { status: 400 })
+        NextResponse.json({ error: "NO_DECISION" }, { status: 400 }),
+        origin
       );
     }
 
@@ -65,7 +64,8 @@ export async function POST(
         NextResponse.json(
           { error: "INVALID_BODY", details: parsed.error.flatten() },
           { status: 400 }
-        )
+        ),
+        origin
       );
     }
 
@@ -102,17 +102,20 @@ export async function POST(
           qrDataUrl, // data:image/png;base64,...
         },
         { status: 201 }
-      )
+      ),
+      origin
     );
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
     if (msg === "UNAUTHENTICATED") {
       return withCORS(
-        NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 })
+        NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }),
+        origin
       );
     }
     return withCORS(
-      NextResponse.json({ error: "SHARE_CREATE_FAILED", details: msg }, { status: 500 })
+      NextResponse.json({ error: "SHARE_CREATE_FAILED", details: msg }, { status: 500 }),
+      origin
     );
   }
 }

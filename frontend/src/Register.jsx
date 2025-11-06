@@ -1,6 +1,7 @@
 import { useState } from "react";
 import "./App.css";
 import { Link, useNavigate} from "react-router-dom";
+import { config } from './config';
 
 
 function Register() {
@@ -31,7 +32,7 @@ function Register() {
         // const payload = { username, password, rePassword };
 
         try {
-            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/register`, {
+            const res = await fetch(`${config.endpoints.auth}/register`, {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 credentials: 'include',
