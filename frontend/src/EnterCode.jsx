@@ -104,6 +104,8 @@ function EnterCode() {
   };
 
   return (
+    <>
+    <Header/>
     <div className="background">
       <h1 className="head-name">WHAT WE EAT</h1>
 
@@ -134,6 +136,7 @@ function EnterCode() {
         Create Room
       </button>
     </div>
+    </>
   );
 }
 
