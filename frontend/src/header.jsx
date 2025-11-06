@@ -78,7 +78,7 @@ function Header() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [displayName, setDisplayName] = useState("Guest");
 
-  const AUTH_BASE = `${BACKEND_URL}/api/auth`;
+  const AUTH_BASE = `${import.meta.env.VITE_BACKEND_URL}/api/auth`;
 
   useEffect(() => {
   (async () => {

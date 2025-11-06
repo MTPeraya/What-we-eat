@@ -26,9 +26,9 @@ function CreateRoom() {
   }, [isLocationModalOpen, selectedCenter]);
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null); // track room updates to detect start
 
-  const API_BASE = "http://localhost:4001/api/rooms";
-  const AUTH_BASE = "http://localhost:4001/api/auth";
-  const LEAVE_ROOM_API = `http://localhost:4001/api/rooms/${roomId}/leave`;
+  const API_BASE = `${import.meta.env.VITE_BACKEND_URL}/api/rooms`;
+  const AUTH_BASE = `${import.meta.env.VITE_BACKEND_URL}/api/auth`;
+  const LEAVE_ROOM_API = `${import.meta.env.VITE_BACKEND_URL}/api/rooms/${roomId}/leave`;
   const leaveRoom = async () => {
     await fetch(LEAVE_ROOM_API, { method: "POST", credentials: "include" });
   };
