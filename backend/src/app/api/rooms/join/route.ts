@@ -11,11 +11,14 @@ const BodySchema = z
   })
   .strict();
 
-export async function OPTIONS() {
-  return preflight("POST, OPTIONS");
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  return preflight("POST, OPTIONS", origin);
 }
 
 export async function POST(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  
   try {
     const s = await getSession(req); // Allow guest (userId = null)
     const userId = s?.user?.id ?? null;
@@ -26,12 +29,13 @@ export async function POST(req: NextRequest) {
     } catch {}
     const parsed = BodySchema.safeParse(body);
     if (!parsed.success) {
-      const res = NextResponse.json(
-        { error: "INVALID_BODY", details: parsed.error.flatten() },
-        { status: 400 }
+      return withCORS(
+        NextResponse.json(
+          { error: "INVALID_BODY", details: parsed.error.flatten() },
+          { status: 400 }
+        ),
+        origin
       );
-      res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-      return withCORS(res);
     }
     const code = parsed.data.code.toUpperCase();
     const displayName = parsed.data.displayName;
@@ -41,12 +45,13 @@ export async function POST(req: NextRequest) {
       select: { id: true, status: true, code: true },
     });
     if (!room || room.status !== "OPEN") {
-      const res = NextResponse.json(
-        { error: "ROOM_NOT_FOUND_OR_CLOSED" },
-        { status: 404 }
+      return withCORS(
+        NextResponse.json(
+          { error: "ROOM_NOT_FOUND_OR_CLOSED" },
+          { status: 404 }
+        ),
+        origin
       );
-      res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-      return withCORS(res);
     }
 
     // If existing user rejoining same room
@@ -56,12 +61,13 @@ export async function POST(req: NextRequest) {
         select: { id: true },
       });
       if (existing) {
-        const res = NextResponse.json(
-          { ok: true, roomId: room.id, code: room.code },
-          { status: 200 }
+        return withCORS(
+          NextResponse.json(
+            { ok: true, roomId: room.id, code: room.code },
+            { status: 200 }
+          ),
+          origin
         );
-        res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-        return withCORS(res);
       }
     }
 
@@ -74,18 +80,20 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const res = NextResponse.json(
-      { ok: true, roomId: room.id, code: room.code },
-      { status: 201 }
+    return withCORS(
+      NextResponse.json(
+        { ok: true, roomId: room.id, code: room.code },
+        { status: 201 }
+      ),
+      origin
     );
-    res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-    return withCORS(res);
   } catch (e) {
-    const res = NextResponse.json(
-      { error: "ROOM_JOIN_FAILED", details: String(e) },
-      { status: 500 }
+    return withCORS(
+      NextResponse.json(
+        { error: "ROOM_JOIN_FAILED", details: String(e) },
+        { status: 500 }
+      ),
+      origin
     );
-    res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-    return withCORS(res);
   }
 }

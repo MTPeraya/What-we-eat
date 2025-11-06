@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db";
-import { requireAuth } from "@/lib/session";
+import { getSession } from "@/lib/session";
 import { withCORS, preflight } from "@/lib/cors";
 
 const BodySchema = z
@@ -19,13 +19,25 @@ function genRoomCode(len = 8) {
   return out;
 }
 
-export async function OPTIONS() {
-  return preflight("POST, OPTIONS");
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  return preflight("POST, OPTIONS", origin);
 }
 
 export async function POST(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  
   try {
-    const { userId } = await requireAuth(req);
+    // Only authenticated users can create rooms (guest can only join)
+    const session = await getSession(req);
+    const userId = session?.user?.id;
+    
+    if (!userId) {
+      return withCORS(
+        NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }),
+        origin
+      );
+    }
 
     let body: unknown = {};
     try {
@@ -38,7 +50,8 @@ export async function POST(req: NextRequest) {
         NextResponse.json(
           { error: "INVALID_BODY", details: parsed.error.flatten() },
           { status: 400 }
-        )
+        ),
+        origin
       );
     }
     const { displayName, expiresAt } = parsed.data;
@@ -53,7 +66,7 @@ export async function POST(req: NextRequest) {
       const created = await tx.room.create({
         data: {
           code,
-          hostId: userId,
+          hostId: userId, // Can be null for guest
           expiresAt: expiresAt ? new Date(expiresAt) : null,
           status: "OPEN",
         },
@@ -80,21 +93,15 @@ export async function POST(req: NextRequest) {
       return created;
     });
 
-    const res = NextResponse.json({ room }, { status: 201 });
-    res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-    return withCORS(res);
+    return withCORS(NextResponse.json({ room }, { status: 201 }), origin);
   } catch (e: unknown) {
     const msg = (e as Error)?.message ?? String(e);
-    if (msg === "UNAUTHENTICATED") {
-      const res = NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
-      res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-      return withCORS(res);
-    }
-    const res = NextResponse.json(
-      { error: "ROOM_CREATE_FAILED", details: msg },
-      { status: 500 }
+    return withCORS(
+      NextResponse.json(
+        { error: "ROOM_CREATE_FAILED", details: msg },
+        { status: 500 }
+      ),
+      origin
     );
-    res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-    return withCORS(res);
   }
 }

@@ -80,6 +80,16 @@ function EnterCode() {
 
       if (!res.ok) {
         const err = await res.json();
+        
+        // If unauthenticated, redirect to login
+        if (err.error === "UNAUTHENTICATED") {
+          const confirmLogin = confirm("You need to login to create a room. Would you like to login now?");
+          if (confirmLogin) {
+            navigate("/login");
+          }
+          return;
+        }
+        
         return alert(err.error || "Failed to create room");
       }
 
