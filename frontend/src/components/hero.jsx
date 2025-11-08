@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import React from 'react'
 import '../App.css'
-import preview from "../../public/wwePreview.png"
+import preview from "/wwePreview.png"
 
 
 function HeroSection(){
