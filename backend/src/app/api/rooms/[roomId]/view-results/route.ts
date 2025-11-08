@@ -3,14 +3,17 @@ import prisma from "@/lib/db";
 import { requireAuth } from "@/lib/session";
 import { withCORS, preflight } from "@/lib/cors";
 
-export async function OPTIONS() {
-  return preflight("POST, OPTIONS");
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  return preflight("POST, OPTIONS", origin);
 }
 
 export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ roomId: string }> }
 ) {
+  const origin = req.headers.get('origin');
+  
   try {
     const { roomId } = await ctx.params;
     const { userId } = await requireAuth(req);
@@ -21,15 +24,11 @@ export async function POST(
     });
 
     if (!room) {
-      const res = NextResponse.json({ error: "ROOM_NOT_FOUND" }, { status: 404 });
-      res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-      return withCORS(res);
+      return withCORS(NextResponse.json({ error: "ROOM_NOT_FOUND" }, { status: 404 }), origin);
     }
 
     if (room.hostId !== userId) {
-      const res = NextResponse.json({ error: "FORBIDDEN_NOT_HOST" }, { status: 403 });
-      res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-      return withCORS(res);
+      return withCORS(NextResponse.json({ error: "FORBIDDEN_NOT_HOST" }, { status: 403 }), origin);
     }
 
     // Update room to mark as viewing results (touching updatedAt)
@@ -42,25 +41,25 @@ export async function POST(
       select: { id: true, updatedAt: true },
     });
 
-    const res = NextResponse.json(
-      { ok: true, roomId, viewingResults: true, triggeredAt: updated.updatedAt.toISOString() },
-      { status: 200 }
+    return withCORS(
+      NextResponse.json(
+        { ok: true, roomId, viewingResults: true, triggeredAt: updated.updatedAt.toISOString() },
+        { status: 200 }
+      ),
+      origin
     );
-    res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-    return withCORS(res);
   } catch (e: unknown) {
     const msg = (e as Error)?.message ?? String(e);
     if (msg === "UNAUTHENTICATED") {
-      const res = NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 });
-      res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-      return withCORS(res);
+      return withCORS(NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }), origin);
     }
-    const res = NextResponse.json(
-      { error: "VIEW_RESULTS_FAILED", details: msg },
-      { status: 500 }
+    return withCORS(
+      NextResponse.json(
+        { error: "VIEW_RESULTS_FAILED", details: msg },
+        { status: 500 }
+      ),
+      origin
     );
-    res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-    return withCORS(res);
   }
 }
 

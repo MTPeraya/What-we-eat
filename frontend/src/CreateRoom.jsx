@@ -25,7 +25,6 @@ function CreateRoom() {
       setTempCenter(selectedCenter);
     }
   }, [isLocationModalOpen, selectedCenter]);
-  const [lastUpdatedAt, setLastUpdatedAt] = useState(null); // track room updates to detect start
 
   const leaveRoom = async () => {
     await fetch(`${config.endpoints.rooms}/${roomId}/leave`, { method: "POST", credentials: "include" });
@@ -60,18 +59,35 @@ function CreateRoom() {
   // Fetch participants every 3 seconds using roomId
   useEffect(() => {
     if (!roomId) return;
+    let isActive = true; // Prevent race conditions
+    let currentController = null;
+    
     const fetchParticipants = async () => {
+      // Abort previous request if still running
+      if (currentController) {
+        currentController.abort();
+      }
+      
       try {
+        currentController = new AbortController();
+        const timeoutId = setTimeout(() => currentController.abort(), 5000); // 5s timeout
+        
         const res = await fetch(`${config.endpoints.rooms}/${roomId}?t=${Date.now()}`, {
           method: "GET",
           credentials: "include",
           cache: "no-store",
           headers: { Accept: "application/json" },
+          signal: currentController.signal,
         });
+        
+        clearTimeout(timeoutId);
         if (!res.ok) {
           console.log("[rooms GET]", res.status, "roomId=", roomId);
           return;
         }
+        
+        if (!isActive) return; // Component unmounted, ignore response
+        
         const data = await res.json();
         const raw = data.participants || data.members || [];
         const normalized = raw.map((m) => ({
@@ -82,40 +98,44 @@ function CreateRoom() {
         setParticipants(normalized);
         if (data.hostId) setHostId(data.hostId);
         
-        // Check if room was just started (updatedAt changed recently)
-        // Only check if user is not the host
+        // Check if room is viewing results (host clicked START)
         const currentIsHost = data.hostId && meUserId && data.hostId === meUserId;
-        if (data.updatedAt && !currentIsHost) {
-          const updatedAt = new Date(data.updatedAt).getTime();
-          const now = Date.now();
-          const timeDiff = now - updatedAt;
+        
+        // If not host and room is viewing results, navigate to game
+        if (!currentIsHost && data.viewingResults) {
+          // Room was started by host, navigate members to game
+          const qp = new URLSearchParams({ roomId });
           
-          // If room was updated within last 5 seconds, consider it started
-          if (timeDiff < 5000 && lastUpdatedAt && updatedAt > new Date(lastUpdatedAt).getTime()) {
-            // Room was just started, navigate to game
-            const qp = new URLSearchParams({ roomId });
-            if (selectedCenter?.lat && selectedCenter?.lng) {
-              qp.set("lat", String(selectedCenter.lat));
-              qp.set("lng", String(selectedCenter.lng));
-            } else {
-              // Use default location if no center selected
-              qp.set("lat", "13.7563");
-              qp.set("lng", "100.5018");
-            }
-            navigate(`/foodtinder?${qp.toString()}`);
+          // Use center from room data (set by host)
+          const roomCenter = data.center;
+          if (roomCenter?.lat && roomCenter?.lng) {
+            qp.set("lat", String(roomCenter.lat));
+            qp.set("lng", String(roomCenter.lng));
+            console.log('Member using room center:', roomCenter);
+          } else {
+            // Fallback to default location
+            qp.set("lat", "13.7563");
+            qp.set("lng", "100.5018");
+            console.warn('No room center, using default');
           }
-          setLastUpdatedAt(data.updatedAt);
-        } else if (data.updatedAt) {
-          setLastUpdatedAt(data.updatedAt);
+          navigate(`/foodtinder?${qp.toString()}`);
         }
       } catch (err) {
-        console.error("Failed to fetch participants:", err);
+        if (err.name === 'AbortError') {
+          console.log('[rooms GET] Request timeout');
+        } else {
+          console.error("Failed to fetch participants:", err);
+        }
       }
     };
     fetchParticipants();
     const interval = setInterval(fetchParticipants, 3000);
-    return () => clearInterval(interval);
-  }, [roomId, meUserId, selectedCenter, lastUpdatedAt, navigate]);
+    return () => {
+      isActive = false; // Stop processing responses
+      if (currentController) currentController.abort(); // Abort pending request
+      clearInterval(interval);
+    };
+  }, [roomId, meUserId, selectedCenter, navigate]);
 
   useEffect(() => {
     if (!roomCode) return;
@@ -131,11 +151,14 @@ function CreateRoom() {
     if (!isHost || !selectedCenter) return;
     
     try {
-      // Call start API to mark room as started
+      // Call start API to mark room as started and save center
       const startRes = await fetch(`${config.endpoints.rooms}/${roomId}/start`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          center: selectedCenter 
+        }),
       });
       
       if (!startRes.ok) {
@@ -211,9 +234,8 @@ function CreateRoom() {
           <div className="room-code">{roomCode}</div>
           <div
             className="location-box"
-            onClick={() => setIsLocationModalOpen(true)}
-            style={{ cursor: "pointer" }}
-            disabled={!isHost}
+            onClick={() => isHost && setIsLocationModalOpen(true)}
+            style={{ cursor: isHost ? "pointer" : "not-allowed", opacity: isHost ? 1 : 0.7 }}
           >
             <div>
               <span className="pin">📍</span>

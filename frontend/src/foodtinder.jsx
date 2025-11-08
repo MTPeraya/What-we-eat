@@ -47,34 +47,9 @@ function FoodTinder() {
     })();
   }, [roomId]);
 
-  // Poll for "view results" trigger from host
-  useEffect(() => {
-    if (!roomId) return;
-
-    const pollInterval = setInterval(async () => {
-      try {
-        const res = await fetch(`${API_BASE}/rooms/${roomId}`, { credentials: "include" });
-        if (res.ok) {
-          const data = await res.json();
-          // Check if room has viewingResults flag
-          if (data.viewingResults) {
-            // Navigate to results page
-            navigate('/result', { 
-              state: { 
-                roomId,
-                shouldFetchResults: true,
-                userCenter: lat && lng ? { lat, lng } : undefined
-              } 
-            });
-          }
-        }
-      } catch (error) {
-        console.error("Error polling room status:", error);
-      }
-    }, 2000); // Poll every 2 seconds
-
-    return () => clearInterval(pollInterval);
-  }, [roomId, navigate, lat, lng]);
+  // Note: Removed auto-navigate to results page when room starts
+  // Host will manually navigate after all members finish voting
+  // This prevents showing "No results found" before any votes are cast
 
   return(
     <div>

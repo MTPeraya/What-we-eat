@@ -511,3 +511,62 @@ input::placeholder {
   font-size: 20px;
 }
 
+/* --- modal layout --- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-card {
+  width: min(92vw, 480px);
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.modal-title {
+  margin: 0 0 8px 0;
+  color: #603A2B;
+  font-weight: 700;
+}
+
+.map-box {
+  width: 100%;
+  height: 300px;          /* สูงกว่าของเดิมนิด ให้ซูม/ลากสะดวก */
+  border: 2px solid #603A2B;
+  border-radius: 8px;
+  overflow: hidden;       /* กัน tile เกิน */
+  margin-bottom: 10px;
+}
+
+.coord-line {
+  color: #555;
+  min-height: 20px;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
+.btn-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  /* flex-wrap: wrap; */
+}
+
+.btn-row .spacer {
+  flex: 1 1 auto;
+}
+
+/* ปุ่มของคุณมี class .green/.brown/.small-btn/.shadow อยู่แล้ว
+   ถ้าล้นความกว้างบนจอเล็ก ให้จำกัดขนาดฟอนต์ปุ่มเล็กน้อย */
+@media (max-width: 420px) {
+  .small-btn { font-size: 0.95rem; padding: 8px 12px; }
+}
+

@@ -82,7 +82,16 @@ function Header() {
   useEffect(() => {
   (async () => {
     try {
-      const res = await fetch(`${config.endpoints.auth}/me`, { credentials: "include" });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
+      
+      const res = await fetch(`${config.endpoints.auth}/me`, { 
+        credentials: "include",
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
       if (!res.ok) return;
       const data = await res.json();
       if (data?.user) {
@@ -91,7 +100,9 @@ function Header() {
         setIsAdmin(data.user.role === "ADMIN");
       }
     } catch (err) {
-      console.error("Error verifying user:", err);
+      if (err.name !== 'AbortError') {
+        console.error("Error verifying user:", err);
+      }
     }
   })();
 }, []);
