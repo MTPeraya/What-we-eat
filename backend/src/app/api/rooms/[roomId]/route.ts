@@ -18,7 +18,7 @@ export async function GET(
 
     const room = await prisma.room.findUnique({
       where: { id: roomId },
-      select: { id: true, hostId: true, updatedAt: true },
+      select: { id: true, hostId: true, status: true, centerLat: true, centerLng: true, updatedAt: true },
     });
     if (!room) {
       return withCORS(NextResponse.json({ error: "ROOM_NOT_FOUND" }, { status: 404 }), origin);
@@ -30,17 +30,18 @@ export async function GET(
       orderBy: { joinedAt: "asc" },
     });
 
-    // Check if room was recently updated (within last 3 seconds) - indicates viewing results
-    const now = Date.now();
-    const updatedTime = new Date(room.updatedAt).getTime();
-    const timeDiff = now - updatedTime;
-    const viewingResults = timeDiff < 3000; // Within 3 seconds = viewing results
+    // Check if room has started (status changed from OPEN to STARTED)
+    const viewingResults = room.status === "STARTED";
 
     return withCORS(
       NextResponse.json(
         {
           id: room.id,
           hostId: room.hostId,
+          status: room.status,
+          center: room.centerLat && room.centerLng 
+            ? { lat: room.centerLat, lng: room.centerLng }
+            : null,
           participants,
           updatedAt: room.updatedAt.toISOString(),
           viewingResults,

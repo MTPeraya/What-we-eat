@@ -37,12 +37,16 @@ const apiRequest = async (url, options = {}) => {
   }
 };
 
-// Fetch restaurants from backend (using Nearby Search API)
-const fetchRestaurants = async (center) => {
-  const qs = center?.lat && center?.lng 
-    ? `?lat=${encodeURIComponent(center.lat)}&lng=${encodeURIComponent(center.lng)}&radius=5000` 
-    : '?radius=5000';
-  return await apiRequest(`/restaurants${qs}`);
+// Fetch restaurants for a specific room (everyone in room gets same restaurants)
+const fetchRoomCandidates = async (roomId, center) => {
+  const body = center?.lat && center?.lng 
+    ? { center: { lat: center.lat, lng: center.lng }, limit: 20 }
+    : { limit: 20 };
+  
+  return await apiRequest(`/rooms/${roomId}/candidates`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 };
 
 // Send vote to backend
@@ -73,22 +77,33 @@ const getRestaurantImageUrl = (restaurantId, index) => {
   // return `https://source.unsplash.com/300x520/?food,restaurant&sig=${seed}`;
 };
 
-// Transform API restaurant data to match component format
-const transformRestaurantData = (apiData, center) => {
-  // Extract items array from API response { count, items }
+// Transform room candidates data to match component format
+const transformCandidatesData = (apiData, center) => {
+  // Extract items array from API response { roomId, count, items }
   const restaurants = apiData.items || [];
-  return restaurants.map((restaurant, index) => ({
-    id: restaurant.id,
-    url: getRestaurantImageUrl(restaurant.id, index),
-    name: restaurant.name,
-    address: restaurant.address,
-    rating: restaurant.rating,
-    price: restaurant.price,
-    lat: restaurant.location?.lat,
-    lng: restaurant.location?.lng,
-    userRatingsTotal: restaurant.userRatingsTotal,
-    distance: calculateDistance(center, { lat: restaurant.location?.lat, lng: restaurant.location?.lng }),
-  }));
+  
+  console.log('First candidate from API:', restaurants[0]);
+  
+  const transformed = restaurants.map((restaurant, index) => {
+    const card = {
+      id: restaurant.restaurantId, // candidates API uses restaurantId instead of id
+      url: getRestaurantImageUrl(restaurant.restaurantId, index),
+      name: restaurant.name,
+      address: restaurant.address,
+      rating: restaurant.rating,
+      price: restaurant.priceLevel,
+      lat: restaurant.lat,
+      lng: restaurant.lng,
+      userRatingsTotal: restaurant.userRatingsTotal,
+      distance: restaurant.distanceM ? (restaurant.distanceM / 1000).toFixed(1) : null, // Convert meters to km
+    };
+    
+    if (index === 0) console.log('First transformed candidate:', card);
+    
+    return card;
+  });
+  
+  return transformed;
 };
 
 // Calculate distance (placeholder - implement based on user location)
@@ -104,6 +119,14 @@ const calculateDistance = (from, to) => {
       Math.sin(dLng / 2) * Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return +(R * c).toFixed(1);
+};
+
+// Safe format distance for display
+const formatDistance = (distance) => {
+  if (distance === null || distance === undefined) return "0.0";
+  const num = typeof distance === 'string' ? parseFloat(distance) : distance;
+  if (isNaN(num)) return "0.0";
+  return num.toFixed(1);
 };
 
 
@@ -125,12 +148,12 @@ const SwipeCards = ({ roomId, userCenter, isHost }) => {
     const loadInitialCards = useCallback(async () => {
         try {
             setIsLoading(true);
-            console.log('Fetching restaurants from API...', { userCenter });
-            const response = await fetchRestaurants(userCenter);
-            console.log("fetchRestaurants Pass", response);
+            console.log('Fetching candidates for room:', roomId, { userCenter });
+            const response = await fetchRoomCandidates(roomId, userCenter);
+            console.log("fetchRoomCandidates Pass", response);
 
             if (response.items && response.items.length > 0) {
-                const transformedCards = transformRestaurantData(response, userCenter);
+                const transformedCards = transformCandidatesData(response, userCenter);
                 // Sort by distance (closest first)
                 const sortedCards = transformedCards.sort((a, b) => {
                     const distA = a.distance ?? Infinity;
@@ -141,11 +164,13 @@ const SwipeCards = ({ roomId, userCenter, isHost }) => {
                 // Limit to MAX_RESTAURANTS
                 const limitedCards = sortedCards.slice(0, MAX_RESTAURANTS);
                 console.log('Transformed and sorted cards:', limitedCards);
+                console.log('About to setCards with:', limitedCards.length, 'items');
                 setCards(limitedCards);
                 setTotalRestaurants(limitedCards.length);
                 setCurrentPage(1);
                 // Don't load more if we've limited to max
                 setHasMoreCards(false);
+                console.log('setCards called, isLoading:', false);
             } else {
                 console.warn('No restaurants found');
                 setCards([]);
@@ -158,7 +183,7 @@ const SwipeCards = ({ roomId, userCenter, isHost }) => {
         } finally {
             setIsLoading(false);
         }
-    }, [userCenter]);
+    }, [roomId, userCenter]);
 
     // Fetch initial restaurant data when component mounts or userCenter changes
     useEffect(() => {
@@ -301,9 +326,45 @@ const SwipeCards = ({ roomId, userCenter, isHost }) => {
             });
         }
     }, [showResults, results, navigate, roomId, userCenter]);
+    
+    // Poll room status to detect when host triggers result viewing (for non-host members)
+    useEffect(() => {
+        if (!roomId || isHost || !allCardsCompleted) return;
+        
+        const pollInterval = setInterval(async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/decide/score`, {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    // If we get scores with votes, host has triggered results
+                    if (data.scores && data.scores.length > 0 && data.stats.totalVotes > 0) {
+                        console.log('Results ready, navigating to result page');
+                        setResults(data);
+                        setShowResults(true);
+                    }
+                }
+            } catch (error) {
+                console.error('Error polling results:', error);
+            }
+        }, 2000); // Poll every 2 seconds
+        
+        return () => clearInterval(pollInterval);
+    }, [roomId, isHost, allCardsCompleted]);
 
     // Calculate current card number (total - remaining + 1)
     const currentCardNumber = totalRestaurants - cards.length + 1;
+    
+    console.log('Render SwipeCards:', { 
+      cardsLength: cards.length, 
+      isLoading, 
+      totalRestaurants,
+      allCardsCompleted,
+      firstCardId: cards[0]?.id,
+      firstCardName: cards[0]?.name
+    });
 
     return(
       <div className="d-flex justify-content-start align-items-center" style={{
@@ -328,6 +389,12 @@ const SwipeCards = ({ roomId, userCenter, isHost }) => {
         )}
         
         {/* <RoomIDContainer/> */}
+        {isLoading && <div style={{fontSize: "1.5rem", color: "#801F08"}}>Loading restaurants...</div>}
+        
+        {!isLoading && cards.length === 0 && !allCardsCompleted && (
+          <div style={{fontSize: "1.5rem", color: "#801F08"}}>No restaurants found</div>
+        )}
+        
         <div className="" style={{display: "grid", placeItems: "center"}}>
           {cards.length > 1 && (
             <Card
@@ -336,7 +403,7 @@ const SwipeCards = ({ roomId, userCenter, isHost }) => {
               url={cards[1].url}
               isBack
               name={cards[1].name}
-              location={cards[1].distance !== null && cards[1].distance !== undefined ? cards[1].distance.toFixed(1) : "0.0"}
+              location={formatDistance(cards[1].distance)}
             />
           )}
           {cards.length > 0 && (
@@ -347,7 +414,7 @@ const SwipeCards = ({ roomId, userCenter, isHost }) => {
               setCards={setCards}
               ref={topCardRef}
               name={cards[0].name}
-              location={cards[0].distance !== null && cards[0].distance !== undefined ? cards[0].distance.toFixed(1) : "0.0"}
+              location={formatDistance(cards[0].distance)}
               onVote={handleVote}
             />
           )}

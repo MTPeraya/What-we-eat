@@ -14,12 +14,25 @@ function EnterCode() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${config.endpoints.auth}/me`, { credentials: "include" });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        
+        const res = await fetch(`${config.endpoints.auth}/me`, { 
+          credentials: "include",
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
         if (!res.ok) return;
         const data = await res.json();
         const username = data?.user?.username;
         if (username) setDisplayName(username);
-      } catch {}
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error("Error fetching user:", err);
+        }
+      }
     })();
   }, []);
 
@@ -80,16 +93,6 @@ function EnterCode() {
 
       if (!res.ok) {
         const err = await res.json();
-        
-        // If unauthenticated, redirect to login
-        if (err.error === "UNAUTHENTICATED") {
-          const confirmLogin = confirm("You need to login to create a room. Would you like to login now?");
-          if (confirmLogin) {
-            navigate("/login");
-          }
-          return;
-        }
-        
         return alert(err.error || "Failed to create room");
       }
 
@@ -137,7 +140,7 @@ function EnterCode() {
         Paste from Clipboard
       </a>
 
-      <button className="green small-btn shadow" onClick={handleJoin}>
+      <button className="green small-btn shadow" onClick={() => handleJoin()}>
         Join Room
       </button>
 

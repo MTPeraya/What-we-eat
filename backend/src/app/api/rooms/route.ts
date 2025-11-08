@@ -28,16 +28,9 @@ export async function POST(req: NextRequest) {
   const origin = req.headers.get('origin');
   
   try {
-    // Only authenticated users can create rooms (guest can only join)
+    // Allow both authenticated users and guests to create rooms
     const session = await getSession(req);
-    const userId = session?.user?.id;
-    
-    if (!userId) {
-      return withCORS(
-        NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }),
-        origin
-      );
-    }
+    const userId = session?.user?.id ?? null;
 
     let body: unknown = {};
     try {
@@ -80,13 +73,13 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // add host as participant
+      // add host/creator as participant
       await tx.roomParticipant.create({
         data: {
           roomId: created.id,
-          userId,
+          userId, // Can be null for guest
           displayName,
-          role: "host",
+          role: userId ? "host" : "member", // Guests are members, not hosts
         },
       });
 
