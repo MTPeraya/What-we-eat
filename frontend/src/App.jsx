@@ -10,6 +10,7 @@ import EnterCode from "./EnterCode"
 import CreateRoom from "./CreateRoom"
 import FoodTinder from "./foodtinder";
 import ResultPage from "./ResultPage";
+import AdminDash from "./AdminDashboard";
 
 function App() {
 
@@ -23,6 +24,7 @@ function App() {
         <Route path="/create-room" element={<CreateRoom />} />
         <Route path="/foodtinder" element={<FoodTinder />} />
         <Route path="/result" element={<ResultPage />} />
+        <Route path="/admin-dashboard" element={<AdminDash />} />
       </Routes>
     </Router>
   );
