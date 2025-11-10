@@ -3,7 +3,7 @@ import './App.css';
 import { Link, useNavigate } from "react-router-dom";
 import { config } from './config';
 
-function Profile({ displayName }) {
+function Profile() {
   return (
     <div className='profile-s Margin1vh'>
     </div>
@@ -77,7 +77,6 @@ function Header() {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [displayName, setDisplayName] = useState("Guest");
 
   useEffect(() => {
   (async () => {
@@ -96,7 +95,6 @@ function Header() {
       const data = await res.json();
       if (data?.user) {
         setIsLoggedIn(true);
-        setDisplayName(data.user.username || "User");
         setIsAdmin(data.user.role === "ADMIN");
       }
     } catch (err) {
@@ -110,7 +108,7 @@ function Header() {
   return (
     <div className='header'>
       <MenuIcon isAdmin={isAdmin} isLoggedIn={isLoggedIn} />
-      <Profile displayName={displayName} />
+      <Profile/>
     </div>
   );
 }
