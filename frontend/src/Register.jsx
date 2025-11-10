@@ -10,12 +10,9 @@ function Register() {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [rePassword, setRePassword] = useState("");
-    const [error, setError] = useState("");
-    const [message, setMessage] = useState("");
 
     const handleRegister = async (e) => {
-        e.preventDefault()
-        setError("");
+        e.preventDefault();
 
         if (!username) {
             alert("Please enter your username !");
@@ -44,7 +41,6 @@ function Register() {
 
             if (res.ok) {
                 // Backend uses HttpOnly cookie session; no token to store
-                setMessage("✅ ลงทะเบียนสำเร็จ!");
                 navigate("/create-room");
             } else {
                 // Show friendlier validation/duplicate messages
@@ -52,16 +48,16 @@ function Register() {
                     const fieldErr = data?.details?.fieldErrors || {};
                     const firstField = Object.keys(fieldErr)[0];
                     const firstMsg = firstField && Array.isArray(fieldErr[firstField]) ? fieldErr[firstField][0] : 'Validation failed';
-                    setMessage(`❌ ${firstMsg}`);
+                    alert(`❌ ${firstMsg}`);
                 } else if (data?.error === 'USERNAME_TAKEN') {
-                    setMessage('❌ Username is already taken');
+                    alert('❌ Username is already taken');
                 } else {
-                    setMessage(`❌ ${data?.error || "Registration failed"}`);
+                    alert(`❌ ${data?.error || "Registration failed"}`);
                 }
             }
         } catch (err) {
             console.log("err", err);
-            setMessage("Cannot connect to server");
+            alert("Cannot connect to server");
         }
 
     // navigate("/create-room");

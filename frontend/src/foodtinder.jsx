@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import SwipeCards from './components/swipecard.jsx'
 import Header from './header.jsx'
 import Footer from './components/smallfooter.jsx'
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 function useQueryParams() {
   const location = useLocation();
@@ -15,9 +15,7 @@ function useQueryParams() {
 
 function FoodTinder() {
   const { roomId, lat, lng } = useQueryParams();
-  const navigate = useNavigate();
   const [isHost, setIsHost] = useState(false);
-  const [meUserId, setMeUserId] = useState("");
 
   const API_BASE = "http://localhost:4001/api";
 
@@ -30,7 +28,6 @@ function FoodTinder() {
         if (meRes.ok) {
           const meData = await meRes.json();
           const uid = meData?.user?.id;
-          setMeUserId(uid);
 
           // Get room info
           if (roomId) {
@@ -54,11 +51,13 @@ function FoodTinder() {
   return(
     <div>
       <Header/>
+      <div>
       <SwipeCards 
         roomId={roomId} 
         userCenter={lat && lng ? { lat, lng } : undefined}
         isHost={isHost}
       />
+      </div>
       <Footer/>
     </div>
   );
