@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { LayoutDashboard, Users, Utensils, ThumbsUp, MessageSquare, Menu, X, BarChart, TrendingUp, ChevronDown, CheckCircle, Clock, XCircle, Trash2 } from 'lucide-react';
 import {
   BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -53,17 +53,20 @@ const STATUS_COLORS = {
 
 // --- Utility Components ---
 
-const MetricCard = ({ title, value, icon: Icon, color }) => (
-  <div className={`${CARD_STYLES} flex items-center`}>
-    <div className={`p-3 rounded-full ${color} text-white mr-4 shadow-lg`}>
-      <Icon size={24} />
+const MetricCard = ({ title, value, icon, color }) => {
+  const IconComponent = icon;
+  return (
+    <div className={`${CARD_STYLES} flex items-center`}>
+      <div className={`p-3 rounded-full ${color} text-white mr-4 shadow-lg`}>
+        <IconComponent size={24} />
+      </div>
+      <div>
+        <p className="text-sm font-medium text-gray-500">{title}</p>
+        <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">{value.toLocaleString()}</p>
+      </div>
     </div>
-    <div>
-      <p className="text-sm font-medium text-gray-500">{title}</p>
-      <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">{value.toLocaleString()}</p>
-    </div>
-  </div>
-);
+  );
+};
 
 const StatusTag = ({ status }) => (
   <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${STATUS_COLORS[status]}`}>
@@ -167,7 +170,7 @@ const TopRestaurantsTable = ({ data }) => (
 );
 
 const DashboardAnalytics = () => {
-  const [data, setData] = useState({
+  const [data] = useState({
     overview: MOCK_DATA.overview,
     timeseries: MOCK_DATA.timeseries,
     topRestaurants: MOCK_DATA.topRestaurants,
@@ -295,19 +298,22 @@ export default function AdminDashboard() {
     }
   };
 
-  const NavItem = ({ tab, icon: Icon, label }) => (
-    <button
-      onClick={() => { setActiveTab(tab); setIsSidebarOpen(false); }}
-      className={`flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200 text-left ${
-        activeTab === tab
-          ? 'bg-indigo-700 text-white shadow-lg'
-          : 'text-indigo-200 hover:bg-indigo-700/50'
-      }`}
-    >
-      <Icon size={20} className="mr-3" />
-      <span className="font-semibold">{label}</span>
-    </button>
-  );
+  const NavItem = ({ tab, icon, label }) => {
+    const IconComponent = icon;
+    return (
+      <button
+        onClick={() => { setActiveTab(tab); setIsSidebarOpen(false); }}
+        className={`flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200 text-left ${
+          activeTab === tab
+            ? 'bg-indigo-700 text-white shadow-lg'
+            : 'text-indigo-200 hover:bg-indigo-700/50'
+        }`}
+      >
+        <IconComponent size={20} className="mr-3" />
+        <span className="font-semibold">{label}</span>
+      </button>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">

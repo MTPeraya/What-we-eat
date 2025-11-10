@@ -3,7 +3,7 @@ import "./App.css";
 import Header from "./header";
 import QRCode from "qrcode";
 import { useNavigate, useLocation } from "react-router-dom";
-import { config } from './config';
+import { config } from "./config";
 
 function CreateRoom() {
   const navigate = useNavigate();
@@ -18,7 +18,7 @@ function CreateRoom() {
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [selectedCenter, setSelectedCenter] = useState(null); // { lat, lng }
   const [tempCenter, setTempCenter] = useState(null); // working selection in modal
-  
+
   // Initialize tempCenter when modal opens
   useEffect(() => {
     if (isLocationModalOpen) {
@@ -27,14 +27,19 @@ function CreateRoom() {
   }, [isLocationModalOpen, selectedCenter]);
 
   const leaveRoom = async () => {
-    await fetch(`${config.endpoints.rooms}/${roomId}/leave`, { method: "POST", credentials: "include" });
+    await fetch(`${config.endpoints.rooms}/${roomId}/leave`, {
+      method: "POST",
+      credentials: "include",
+    });
   };
 
   // Fetch username and userId (for host check)
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${config.endpoints.auth}/me`, { credentials: "include" });
+        const res = await fetch(`${config.endpoints.auth}/me`, {
+          credentials: "include",
+        });
         if (!res.ok) return;
         const data = await res.json();
         const uid = data?.user?.id;
@@ -61,33 +66,36 @@ function CreateRoom() {
     if (!roomId) return;
     let isActive = true; // Prevent race conditions
     let currentController = null;
-    
+
     const fetchParticipants = async () => {
       // Abort previous request if still running
       if (currentController) {
         currentController.abort();
       }
-      
+
       try {
         currentController = new AbortController();
         const timeoutId = setTimeout(() => currentController.abort(), 5000); // 5s timeout
-        
-        const res = await fetch(`${config.endpoints.rooms}/${roomId}?t=${Date.now()}`, {
-          method: "GET",
-          credentials: "include",
-          cache: "no-store",
-          headers: { Accept: "application/json" },
-          signal: currentController.signal,
-        });
-        
+
+        const res = await fetch(
+          `${config.endpoints.rooms}/${roomId}?t=${Date.now()}`,
+          {
+            method: "GET",
+            credentials: "include",
+            cache: "no-store",
+            headers: { Accept: "application/json" },
+            signal: currentController.signal,
+          }
+        );
+
         clearTimeout(timeoutId);
         if (!res.ok) {
           console.log("[rooms GET]", res.status, "roomId=", roomId);
           return;
         }
-        
+
         if (!isActive) return; // Component unmounted, ignore response
-        
+
         const data = await res.json();
         const raw = data.participants || data.members || [];
         const normalized = raw.map((m) => ({
@@ -97,32 +105,33 @@ function CreateRoom() {
         }));
         setParticipants(normalized);
         if (data.hostId) setHostId(data.hostId);
-        
+
         // Check if room is viewing results (host clicked START)
-        const currentIsHost = data.hostId && meUserId && data.hostId === meUserId;
-        
+        const currentIsHost =
+          data.hostId && meUserId && data.hostId === meUserId;
+
         // If not host and room is viewing results, navigate to game
         if (!currentIsHost && data.viewingResults) {
           // Room was started by host, navigate members to game
           const qp = new URLSearchParams({ roomId });
-          
+
           // Use center from room data (set by host)
           const roomCenter = data.center;
           if (roomCenter?.lat && roomCenter?.lng) {
             qp.set("lat", String(roomCenter.lat));
             qp.set("lng", String(roomCenter.lng));
-            console.log('Member using room center:', roomCenter);
+            console.log("Member using room center:", roomCenter);
           } else {
             // Fallback to default location
             qp.set("lat", "13.7563");
             qp.set("lng", "100.5018");
-            console.warn('No room center, using default');
+            console.warn("No room center, using default");
           }
           navigate(`/foodtinder?${qp.toString()}`);
         }
       } catch (err) {
-        if (err.name === 'AbortError') {
-          console.log('[rooms GET] Request timeout');
+        if (err.name === "AbortError") {
+          console.log("[rooms GET] Request timeout");
         } else {
           console.error("Failed to fetch participants:", err);
         }
@@ -149,23 +158,26 @@ function CreateRoom() {
 
   const handleStart = async () => {
     if (!isHost || !selectedCenter) return;
-    
+
     try {
       // Call start API to mark room as started and save center
-      const startRes = await fetch(`${config.endpoints.rooms}/${roomId}/start`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          center: selectedCenter 
-        }),
-      });
-      
+      const startRes = await fetch(
+        `${config.endpoints.rooms}/${roomId}/start`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            center: selectedCenter,
+          }),
+        }
+      );
+
       if (!startRes.ok) {
         console.error("Failed to start room:", await startRes.text());
         // Still navigate even if API call fails
       }
-      
+
       // Navigate host to game
       const qp = new URLSearchParams({ roomId });
       if (selectedCenter?.lat && selectedCenter?.lng) {
@@ -197,12 +209,9 @@ function CreateRoom() {
 
   return (
     <>
-      <div style={{ position: "absolute", top: 0 }}>
-        <Header />
-      </div>
+      <Header />
       <div className="room-container">
         <div className="left">
-          {/* Username Displayed Above QR Code */}
           <div
             style={{
               fontWeight: "bold",
@@ -235,20 +244,18 @@ function CreateRoom() {
           <div
             className="location-box"
             onClick={() => isHost && setIsLocationModalOpen(true)}
-            style={{ cursor: isHost ? "pointer" : "not-allowed", opacity: isHost ? 1 : 0.7 }}
+            style={{
+              cursor: isHost ? "pointer" : "not-allowed",
+              opacity: isHost ? 1 : 0.7,
+            }}
           >
             <div>
-              <span className="pin">📍</span>
-              <span className="label">Location </span>
+              📍 Location
             </div>
             <div>
-              <span className="coord">
-                {selectedCenter
-                  ? `${selectedCenter.lat.toFixed(
-                      5
-                    )}, ${selectedCenter.lng.toFixed(5)}`
-                  : "(tap to choose)"}
-              </span>
+              {selectedCenter
+                ? `${selectedCenter.lat.toFixed(5)}, ${selectedCenter.lng.toFixed(5)}`
+                : "(tap to choose)"}
             </div>
           </div>
         </div>
@@ -313,10 +320,10 @@ function CreateRoom() {
                 console.error("Geolocation error:", error);
                 alert("Cannot get current location: " + error.message);
               },
-              { 
+              {
                 enableHighAccuracy: true,
                 timeout: 10000,
-                maximumAge: 0 
+                maximumAge: 0,
               }
             );
           }}
@@ -442,6 +449,7 @@ function LocationModal({
         console.error("Error during map cleanup:", e);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // mount once - empty dependency array ensures this runs only once
 
   // when tempCenter changes from parent (e.g., Use my location), move marker & pan

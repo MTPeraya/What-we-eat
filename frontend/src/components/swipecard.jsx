@@ -78,7 +78,7 @@ const getRestaurantImageUrl = (restaurantId, index) => {
 };
 
 // Transform room candidates data to match component format
-const transformCandidatesData = (apiData, center) => {
+const transformCandidatesData = (apiData) => {
   // Extract items array from API response { roomId, count, items }
   const restaurants = apiData.items || [];
   
@@ -106,21 +106,6 @@ const transformCandidatesData = (apiData, center) => {
   return transformed;
 };
 
-// Calculate distance (placeholder - implement based on user location)
-const calculateDistance = (from, to) => {
-  if (!from?.lat || !from?.lng || !to?.lat || !to?.lng) return null;
-  const R = 6371; // km
-  const dLat = ((to.lat - from.lat) * Math.PI) / 180;
-  const dLng = ((to.lng - from.lng) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((from.lat * Math.PI) / 180) *
-      Math.cos((to.lat * Math.PI) / 180) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return +(R * c).toFixed(1);
-};
-
 // Safe format distance for display
 const formatDistance = (distance) => {
   if (distance === null || distance === undefined) return "0.0";
@@ -137,7 +122,6 @@ const SwipeCards = ({ roomId, userCenter, isHost }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [showResults, setShowResults] = useState(false);
     const [results, setResults] = useState(null);
-    const [currentPage, setCurrentPage] = useState(1);
     const [hasMoreCards, setHasMoreCards] = useState(true);
     const [totalRestaurants, setTotalRestaurants] = useState(0); // Track total for progress
     const [allCardsCompleted, setAllCardsCompleted] = useState(false); // Track if swiped all 20
@@ -167,7 +151,6 @@ const SwipeCards = ({ roomId, userCenter, isHost }) => {
                 console.log('About to setCards with:', limitedCards.length, 'items');
                 setCards(limitedCards);
                 setTotalRestaurants(limitedCards.length);
-                setCurrentPage(1);
                 // Don't load more if we've limited to max
                 setHasMoreCards(false);
                 console.log('setCards called, isLoading:', false);
@@ -194,28 +177,15 @@ const SwipeCards = ({ roomId, userCenter, isHost }) => {
         if (!hasMoreCards) return;
         
         try {
-            const nextPage = currentPage + 1;
-            const response = await fetchRestaurants(userCenter);
-            if (response.items && response.items.length > 0) {
-                const transformedCards = transformRestaurantData(response, userCenter);
-                // Sort by distance (closest first)
-                const sortedCards = transformedCards.sort((a, b) => {
-                    const distA = a.distance ?? Infinity;
-                    const distB = b.distance ?? Infinity;
-                    return distA - distB;
-                });
-                setCards(prev => [...prev, ...sortedCards]);
-                setCurrentPage(nextPage);
-                // Nearby Search returns up to 20 results per request
-                setHasMoreCards(response.items.length >= 20);
-            } else {
-                setHasMoreCards(false);
-            }
+            // Note: This function is currently not used as we limit to 20 restaurants
+            // If you need pagination in the future, implement fetchRestaurants and transformRestaurantData
+            console.warn('loadMoreCards called but pagination is disabled');
+            setHasMoreCards(false);
         } catch (error) {
             console.error('Failed to load more cards:', error);
             setHasMoreCards(false);
         }
-    }, [hasMoreCards, currentPage, userCenter]);
+    }, [hasMoreCards]);
 
     const handleVote = async (restaurantId, value) => {
         try {
