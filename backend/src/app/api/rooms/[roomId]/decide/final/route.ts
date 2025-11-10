@@ -5,19 +5,12 @@ import { finalDecide, writeMealHistory } from "@/services/decideService";
 import { requireAuth } from "@/lib/session";
 import { buildMapLinks } from "@/services/mapLink";
 import { emitToRoom } from "@/services/realtime";
+import { withCORS, preflight } from "@/lib/cors";
 
 // ================== CORS ==================
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
-function withCORS(res: NextResponse) {
-  res.headers.set("Access-Control-Allow-Origin", FRONTEND_ORIGIN);
-  res.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.headers.set("Access-Control-Allow-Credentials", "true");
-  return res;
-}
-
-export async function OPTIONS() {
-  return withCORS(new NextResponse(null, { status: 204 }));
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  return preflight('GET, POST, OPTIONS', origin);
 }
 
 // ================== Schemas ==================
@@ -37,6 +30,8 @@ export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ roomId: string }> } // Next.js v15: params is a Promise
 ) {
+  const origin = req.headers.get('origin');
+  
   try {
     const { roomId } = await ctx.params;
 
@@ -50,7 +45,8 @@ export async function POST(
     });
     if (!isMember) {
       return withCORS(
-        NextResponse.json({ error: "FORBIDDEN_NOT_MEMBER" }, { status: 403 })
+        NextResponse.json({ error: "FORBIDDEN_NOT_MEMBER" }, { status: 403 }),
+        origin
       );
     }
 
@@ -67,7 +63,8 @@ export async function POST(
         NextResponse.json(
           { error: "INVALID_BODY", details: parsed.error.flatten() },
           { status: 400 }
-        )
+        ),
+        origin
       );
     }
 
@@ -75,7 +72,8 @@ export async function POST(
     const result = await finalDecide(roomId, parsed.data.center);
     if (!result?.winner) {
       return withCORS(
-        NextResponse.json({ error: "NO_WINNER" }, { status: 400 })
+        NextResponse.json({ error: "NO_WINNER" }, { status: 400 }),
+        origin
       );
     }
 
@@ -103,29 +101,34 @@ export async function POST(
           mapLinks,
         },
         { status: 200 }
-      )
+      ),
+      origin
     );
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
     if (msg === "UNAUTHENTICATED") {
       return withCORS(
-        NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 })
+        NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }),
+        origin
       );
     }
     return withCORS(
       NextResponse.json(
         { error: "FINAL_DECIDE_FAILED", details: msg },
         { status: 500 }
-      )
+      ),
+      origin
     );
   }
 }
 
 // ================== GET: Read latest room decision (public) ==================
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ roomId: string }> }
 ) {
+  const origin = req.headers.get('origin');
+  
   try {
     const { roomId } = await ctx.params;
 
@@ -141,7 +144,8 @@ export async function GET(
         NextResponse.json(
           { winner: null, decidedAt: null, mapLinks: null },
           { status: 200 }
-        )
+        ),
+        origin
       );
     }
 
@@ -164,7 +168,8 @@ export async function GET(
         NextResponse.json(
           { winner: null, decidedAt: last.decidedAt, mapLinks: null },
           { status: 200 }
-        )
+        ),
+        origin
       );
     }
 
@@ -188,14 +193,16 @@ export async function GET(
           mapLinks,
         },
         { status: 200 }
-      )
+      ),
+      origin
     );
   } catch (e) {
     return withCORS(
       NextResponse.json(
         { error: "FINAL_GET_FAILED", details: String(e) },
         { status: 500 }
-      )
+      ),
+      origin
     );
   }
 }

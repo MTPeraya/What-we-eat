@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import "./App.css";
 import { Link, useNavigate } from "react-router-dom";
+import Header from './header.jsx'
+import { config } from './config';
 
 
 function Login() {
@@ -40,7 +42,7 @@ function Login() {
         }
 
         try {
-            const res = await fetch("http://localhost:4001/api/auth/login", {
+            const res = await fetch(`${config.endpoints.auth}/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include", // receive HttpOnly session cookie
@@ -53,13 +55,13 @@ function Login() {
                 if (remember) {
                     localStorage.setItem("WhatWeEatUsername", username);
                 }
-                setMessage("✅ เข้าสู่ระบบสำเร็จ!");
+                setMessage("✅ Login successfully!");
                 navigate("/enter-code");
             } else {
-                setMessage(`❌ ${data.error || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"}`);
+                setMessage(`❌ ${data.error || "password or username incorrect"}`);
             }
         } catch (err) {
-            setMessage("🚨 ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+            setMessage("Cannot connect to server");
             }
 
         // console.log({ username, password, remember });
@@ -69,6 +71,7 @@ function Login() {
 
     return (
         <>
+        <Header/>
         <div className="background">
             <h1 className="head-name">WHAT WE EAT</h1>
             <div className="box" style={{height: '380px'}}>

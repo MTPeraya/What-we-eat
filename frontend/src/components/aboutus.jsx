@@ -31,7 +31,7 @@ const ProblemSection = () => {
             </h1>
             </div>
             <div>
-                <img src="../../public/argument.png"/>
+                <img src="/argument.png"/>
             </div>
             </div>
 
@@ -82,7 +82,7 @@ const WhatWeOffer = () =>{
     return(
         <section className="d-flex flex-row justify-content-around w-80 pb-5">
             <div>
-                <img style={{width: "30vw"}}src="../../public/wweIcon.png"/>
+                <img style={{width: "30vw"}}src="/wweIcon.png"/>
             </div>
             <div className="" style={{ width: "40vw", margin: "0" }}>
                <h1 className="fw-bold" style={{color:"#BB3D25"}}>What We Offer</h1>

@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-// import prisma from "@/lib/db";
 import prisma from "@/lib/db";
-import { requireAdmin } from "@/lib/admin";
-import { withCORS, OPTIONS } from "@/lib/admin";
+import { requireAdmin, withCORS } from "@/lib/admin";
+import { preflight } from "@/lib/cors";
 
-export { OPTIONS };
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  return preflight('GET, OPTIONS', origin);
+}
 
 function parse(req: NextRequest) {
   const sp = Object.fromEntries(req.nextUrl.searchParams.entries());
@@ -14,6 +16,8 @@ function parse(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  
   try {
     await requireAdmin(req);
     const { from, to } = parse(req);
@@ -49,10 +53,10 @@ export async function GET(req: NextRequest) {
       avgVotesPerRoom: totalVotes / totalRooms,
       voteRate: totalParticipants ? totalVotes / totalParticipants : 0, // ~ votes per participant
     };
-    return withCORS(NextResponse.json(res, { status: 200 }));
+    return withCORS(NextResponse.json(res, { status: 200 }), origin);
   } catch (e) {
     const msg = (e as Error).message;
     const code = msg === "UNAUTHENTICATED" ? 401 : msg === "FORBIDDEN" ? 403 : 500;
-    return withCORS(NextResponse.json({ error: msg }, { status: code }));
+    return withCORS(NextResponse.json({ error: msg }, { status: code }), origin);
   }
 }

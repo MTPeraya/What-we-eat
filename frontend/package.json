@@ -27,11 +27,12 @@
     "@heroui/react": "^2.8.5",
     "bootstrap": "^5.3.8",
     "framer-motion": "^12.23.14",
-    "prop-types": "^15.8.1",
+    "lucide-react": "^0.552.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^7.9.1"
+    "react-router-dom": "^7.9.1",
+    "recharts": "^3.3.0"
   }
 }

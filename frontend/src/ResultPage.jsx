@@ -3,8 +3,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Header from './header.jsx'
 import Footer from './components/smallfooter.jsx'
 import Found from './components/showResult.jsx'
+import { config } from './config';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001/api';
+const API_BASE_URL = config.apiUrl + '/api';
 
 function Result() {
   const location = useLocation();
@@ -17,6 +18,8 @@ function Result() {
   useEffect(() => {
     const loadResults = async () => {
       try {
+        console.log('ResultPage: location.state =', location.state);
+        
         let resultsData = null;
         let userCenter = null;
 
@@ -24,6 +27,8 @@ function Result() {
         if (location.state?.shouldFetchResults && location.state?.roomId) {
           const { roomId } = location.state;
           userCenter = location.state?.userCenter;
+          
+          console.log('Fetching results for roomId:', roomId);
           
           // Fetch results from API
           const response = await fetch(
@@ -33,20 +38,36 @@ function Result() {
           
           if (response.ok) {
             resultsData = await response.json();
+            console.log('Fetched results:', resultsData);
+          } else {
+            console.error('Failed to fetch results:', response.status);
           }
         } else if (location.state?.results) {
           // Use results from navigation state
           resultsData = location.state.results;
           userCenter = location.state?.userCenter;
+          console.log('Using results from state:', resultsData);
+        } else {
+          console.warn('No roomId or results in location.state');
         }
 
         if (resultsData?.scores && resultsData.scores.length > 0) {
-          // Sort by approval rate
-          const sortedScores = [...resultsData.scores].sort((a, b) => b.approval - a.approval);
+          console.log('Processing scores:', resultsData.scores.length, 'items');
+          console.log('First score:', resultsData.scores[0]);
+          
+          // Sort by approval rate (highest first)
+          const sortedScores = [...resultsData.scores].sort((a, b) => {
+            // Sort by approval first, then by accept count if approval is same
+            if (b.approval !== a.approval) return b.approval - a.approval;
+            return b.accept - a.accept;
+          });
+          
+          console.log('Top 3 scores:', sortedScores.slice(0, 3));
+          
           const topRestaurant = sortedScores[0];
           
           if (topRestaurant) {
-            setWinner({
+            const winnerData = {
               id: topRestaurant.restaurantId,
               placeId: topRestaurant.placeId,
               name: topRestaurant.name || "Selected Restaurant",
@@ -55,8 +76,14 @@ function Result() {
               distance: topRestaurant.distanceKm || calculateDistance(userCenter, topRestaurant.location),
               approval: topRestaurant.approval,
               location: topRestaurant.location
-            });
+            };
+            console.log('Setting winner to:', winnerData);
+            setWinner(winnerData);
+          } else {
+            console.warn('No topRestaurant found in scores');
           }
+        } else {
+          console.warn('No scores found or empty scores array');
         }
       } catch (error) {
         console.error('Failed to load results:', error);

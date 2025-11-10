@@ -4,15 +4,7 @@ import { z, ZodError } from "zod";
 import { RestaurantService, type RestaurantUpsertInput } from "@/services/RestaurantService";
 
 // ===== CORS =====
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
-
-function withCORS(res: NextResponse) {
-  res.headers.set("Access-Control-Allow-Origin", FRONTEND_ORIGIN);
-  res.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.headers.set("Access-Control-Allow-Credentials", "true");
-  return res;
-}
+import { withCORS, preflight } from "@/lib/cors";
 
 // -------- Types from Google Places we actually use --------
 type GooglePlaceResult = {
@@ -62,6 +54,8 @@ class RestaurantsController {
 
   // GET /api/restaurants
   async get(req: NextRequest) {
+    const origin = req.headers.get('origin');
+    
     try {
       const params = Object.fromEntries(req.nextUrl.searchParams.entries());
       const qp = querySchema.parse(params);
@@ -72,7 +66,7 @@ class RestaurantsController {
         return withCORS(NextResponse.json(
           { error: "Missing EXTERNAL_PLACES_API_KEY" },
           { status: 500 }
-        ));
+        ), origin);
       }
 
       const keyForCall = placesKey ?? "test";
@@ -95,7 +89,7 @@ class RestaurantsController {
         return withCORS(NextResponse.json(
           { error: `Google API error: ${res.status}` },
           { status: 500 }
-        ));
+        ), origin);
       }
 
       const data = (await res.json()) as GooglePlacesResponse;
@@ -138,28 +132,31 @@ class RestaurantsController {
           location: { lat: r.lat, lng: r.lng },
           userRatingsTotal: r.userRatingsTotal ?? null,
         })),
-      }, { status: 200 }));
+      }, { status: 200 }), origin);
     } catch (err: unknown) {
       const message = this.toMessage(err, "Failed to fetch restaurants");
-      return withCORS(NextResponse.json({ error: message }, { status: 500 }));
+      return withCORS(NextResponse.json({ error: message }, { status: 500 }), origin);
     }
   }
 
   // POST /api/restaurants (bulk upsert)
   async post(req: NextRequest) {
+    const origin = req.headers.get('origin');
+    
     try {
       const body = await req.json();
       const parsed = upsertManySchema.parse(body);
       const result = await this.service.createOrUpdateMany(parsed.items);
-      return withCORS(NextResponse.json({ upserted: result.length }, { status: 200 }));
+      return withCORS(NextResponse.json({ upserted: result.length }, { status: 200 }), origin);
     } catch (err: unknown) {
       const message = this.toMessage(err, "Failed to save restaurants");
-      return withCORS(NextResponse.json({ error: message }, { status: 400 }));
+      return withCORS(NextResponse.json({ error: message }, { status: 400 }), origin);
     }
   }
 
-  async options() {
-    return withCORS(new NextResponse(null, { status: 204 }));
+  async options(req: NextRequest) {
+    const origin = req.headers.get('origin');
+    return preflight('GET, POST, OPTIONS', origin);
   }
 }
 
@@ -167,4 +164,4 @@ class RestaurantsController {
 const controller = new RestaurantsController(new RestaurantService());
 export async function GET(req: NextRequest) { return controller.get(req); }
 export async function POST(req: NextRequest) { return controller.post(req); }
-export async function OPTIONS() { return controller.options(); }
+export async function OPTIONS(req: NextRequest) { return controller.options(req); }

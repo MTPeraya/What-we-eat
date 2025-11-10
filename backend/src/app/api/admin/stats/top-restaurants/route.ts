@@ -1,9 +1,13 @@
 // backend/src/app/api/admin/stats/top-restaurants/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { requireAdmin, withCORS, OPTIONS } from "@/lib/admin";
+import { requireAdmin, withCORS } from "@/lib/admin";
+import { preflight } from "@/lib/cors";
 
-export { OPTIONS };
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  return preflight('GET, OPTIONS', origin);
+}
 
 type Range = { from: Date; to: Date };
 type ByKey = "wins" | "ratings";
@@ -19,6 +23,8 @@ function parse(req: NextRequest): Range & { limit: number; by: ByKey } {
 }
 
 export async function GET(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  
   try {
     await requireAdmin(req);
     const { from, to, limit, by } = parse(req);
@@ -58,6 +64,7 @@ export async function GET(req: NextRequest) {
           { by, range: { from, to }, items },
           { status: 200 },
         ),
+        origin
       );
     }
 
@@ -98,10 +105,11 @@ export async function GET(req: NextRequest) {
         { by, range: { from, to }, items },
         { status: 200 },
       ),
+      origin
     );
   } catch (e) {
     const msg = (e as Error).message;
     const code = msg === "UNAUTHENTICATED" ? 401 : msg === "FORBIDDEN" ? 403 : 500;
-    return withCORS(NextResponse.json({ error: msg }, { status: code }));
+    return withCORS(NextResponse.json({ error: msg }, { status: code }), origin);
   }
 }

@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import "./App.css";
 import { useNavigate, useLocation } from "react-router-dom";
+import Header from './header.jsx';
+import { config } from './config';
 
 function EnterCode() {
   const navigate = useNavigate();
@@ -8,19 +10,29 @@ function EnterCode() {
   const [code, setCode] = useState("");
   const [displayName, setDisplayName] = useState("Guest");
 
-  const API_BASE = "http://localhost:4001/api/rooms";
-  const AUTH_BASE = "http://localhost:4001/api/auth";
-
   // Load current user to use username as displayName
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${AUTH_BASE}/me`, { credentials: "include" });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        
+        const res = await fetch(`${config.endpoints.auth}/me`, { 
+          credentials: "include",
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
         if (!res.ok) return;
         const data = await res.json();
         const username = data?.user?.username;
         if (username) setDisplayName(username);
-      } catch {}
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error("Error fetching user:", err);
+        }
+      }
     })();
   }, []);
 
@@ -33,7 +45,7 @@ function EnterCode() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/join`, {
+      const res = await fetch(`${config.endpoints.rooms}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: trimmed, displayName }),
@@ -72,7 +84,7 @@ function EnterCode() {
   // --- CREATE ROOM ---
   const handleCreateRoom = async () => {
     try {
-      const res = await fetch(`${API_BASE}`, {
+      const res = await fetch(`${config.endpoints.rooms}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ displayName }),
@@ -104,6 +116,8 @@ function EnterCode() {
   };
 
   return (
+    <>
+    <Header/>
     <div className="background">
       <h1 className="head-name">WHAT WE EAT</h1>
 
@@ -126,7 +140,7 @@ function EnterCode() {
         Paste from Clipboard
       </a>
 
-      <button className="green small-btn shadow" onClick={handleJoin}>
+      <button className="green small-btn shadow" onClick={() => handleJoin()}>
         Join Room
       </button>
 
@@ -134,6 +148,7 @@ function EnterCode() {
         Create Room
       </button>
     </div>
+    </>
   );
 }
 
