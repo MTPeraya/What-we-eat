@@ -1,13 +1,22 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 // , {useRef, useCallback}
-import { Button, Offcanvas, Container } from 'react-bootstrap';
 import ReviewCard from './components/ReviewCard';
 import Header from './header';
 import Footer from './components/smallfooter';
 
+// CONSTANT VARIABLE
+
 const stars = ({size, color}) => <svg className="mx-2" xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 432 408"><path fill={color} d="M213 328L81 408l35-150L0 157l153-13L213 3l60 141l154 13l-117 101l35 150z" /></svg>
 
-function ReviewSection({onSwitchToAdding, responsive, reveiwInformation}){
+stars.propTypes = {
+    size: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    color: PropTypes.string.isRequired
+};
+
+
+function ReviewSection({onSwitchToAdding, responsive, reviewInformation}){
+    // Review Viewer page
     return(
     <section className="h-100">
 
@@ -18,22 +27,19 @@ function ReviewSection({onSwitchToAdding, responsive, reveiwInformation}){
                 <button 
                     type="button" 
                     className="bg-transparent btn btn-outline-dark text-dark h-75 d-flex align-items-center"
-                    onClick={onSwitchToAdding}
-                >
-                    Leave a Review
-                </button>
+                    onClick={onSwitchToAdding}> Leave a Review </button>
             </div>
         </div>
 
-        <div class="container overflow-auto" style={{
+        <div className="container overflow-auto" style={{
             width:"95%",
             height: responsive ? "90%" : "85%",
             scrollbarWidth: 'thin',
             scrollbarColor: '#BB3D25 #f1f1f1'
         }}>
-            <div class={`${responsive ? 'col' : 'row'} flex-nowrap gap-2 ${responsive? "h-25" : "h-100"}`}>
-                {reveiwInformation && reveiwInformation.length > 0 ? (
-                    reveiwInformation.map((review, index) => (
+            <div className={`${responsive ? 'col' : 'row'} flex-nowrap gap-2 ${responsive? "h-25" : "h-100"}`}>
+                {reviewInformation && reviewInformation.length > 0 ? (
+                    reviewInformation.map((review, index) => (
                         <ReviewCard 
                             key={index}
                             isMobile={responsive} 
@@ -52,7 +58,29 @@ function ReviewSection({onSwitchToAdding, responsive, reveiwInformation}){
     </section>)
 }
 
+ReviewSection.propTypes = {
+    onSwitchToAdding: PropTypes.func.isRequired,
+    responsive: PropTypes.bool.isRequired,
+    reviewInformation: PropTypes.arrayOf(
+        PropTypes.shape({
+            userinfo: PropTypes.shape({
+                username: PropTypes.string.isRequired,
+                profileURL: PropTypes.string.isRequired
+            }),
+            reviewInfo: PropTypes.shape({
+                star: PropTypes.number.isRequired,
+                review: PropTypes.string.isRequired,
+                image: PropTypes.arrayOf(PropTypes.string)
+            })
+        })
+    )
+};
+
+
 function ReviewAdding({onSwitchToReading, responsive}){
+
+    // writing and receiving pictures from user, handle all the rating, uploaded file and text into the rating, uploadImages, and reviewText.
+
     const [uploadedImages, setUploadedImages] = useState([]);
     const [rating, setRating] = useState(1); // Default score of 1
     const [reviewText, setReviewText] = useState(""); // Track review text for character count
@@ -289,7 +317,13 @@ function ReviewAdding({onSwitchToReading, responsive}){
     )
 }
 
+ReviewAdding.propTypes = {
+    onSwitchToReading: PropTypes.func.isRequired,
+    responsive: PropTypes.bool.isRequired
+};
+
 function RatingPage(){
+    // Main Page
     const [showReviewAdding, setShowReviewAdding] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
@@ -305,7 +339,8 @@ function RatingPage(){
                     name: "Restaurant 1"};
 
     // Sample review data - replace this with your actual data source
-    const reveiwInformation = [
+    // TODO: make a integration function here
+    const reviewInformation = [
         {
             userinfo: {
                 username: "awesome name 1519",
@@ -362,12 +397,9 @@ function RatingPage(){
                         {showReviewAdding ? (
                             <ReviewAdding onSwitchToReading={() => setShowReviewAdding(false)} responsive={isMobile}/>
                         ) : (
-                            <ReviewSection onSwitchToAdding={() => setShowReviewAdding(true)} responsive={isMobile} reveiwInformation={reveiwInformation}/>
+                            <ReviewSection onSwitchToAdding={() => setShowReviewAdding(true)} responsive={isMobile} reviewInformation={reviewInformation}/>
                         )}
-                        
                     </div>
-                    
-
 
                 </div>
                 
