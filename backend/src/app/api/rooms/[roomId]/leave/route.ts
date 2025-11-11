@@ -8,11 +8,11 @@ export async function OPTIONS(req: NextRequest) {
   return preflight("POST, OPTIONS", origin);
 }
 
-export async function POST(req: NextRequest, ctx: { params: { roomId: string } }) {
+export async function POST(req: NextRequest, ctx: { params: Promise<{ roomId: string }> }) {
   const origin = req.headers.get('origin');
   
   try {
-    const { roomId } = ctx.params;
+    const { roomId } = await ctx.params;
     const { userId } = await requireAuth(req);
 
     // Find room and current host
@@ -31,8 +31,16 @@ export async function POST(req: NextRequest, ctx: { params: { roomId: string } }
     if (room.hostId === userId) {
       // Select new host (if original host leaves, pick first remaining member)
       const next = await prisma.roomParticipant.findFirst({ where: { roomId }, orderBy: { joinedAt: "asc" }});
-      newHostId = next?.userId ?? "not found";
-      await prisma.room.update({ where: { id: roomId }, data: { hostId: newHostId } });
+      
+      if (next?.userId) {
+        // Transfer host to next member
+        newHostId = next.userId;
+        await prisma.room.update({ where: { id: roomId }, data: { hostId: newHostId } });
+      } else {
+        // No members left, close the room
+        await prisma.room.update({ where: { id: roomId }, data: { status: "CLOSED" } });
+        newHostId = null;
+      }
     }
 
     return withCORS(NextResponse.json({ ok: true, newHostId }, { status: 200 }), origin);

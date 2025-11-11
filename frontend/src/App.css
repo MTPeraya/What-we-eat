@@ -1,13 +1,146 @@
-@media (max-width: 600px) {
+/* ===== RESPONSIVE DESIGN ===== */
+
+/* Hero Section - Phone Image */
+@media (max-width: 1106px) {
+  .hero_section {
+    flex-direction: column;
+    min-height: 400px;
+    padding: 40px 20px;
+    align-items: center;
+  }
+
   .preview-pic {
-    display: none !important;
+    order: -1;
+    margin-bottom: 30px;
+  }
+
+  .preview-pic img {
+    max-width: 400px;
+    width: 80vw;
+  }
+
+  .hero-content {
+    width: 90vw;
+    max-width: 600px;
+    align-items: center;
+    text-align: center;
+  }
+
+  .hero-title {
+    font-size: 40px !important;
+  }
+
+  .hero-text {
+    font-size: 18px !important;
+  }
+
+  .hero-button {
+    width: 100%;
+    max-width: 300px;
   }
 }
 
+@media (max-width: 520px) {
+  .preview-pic {
+    display: none !important;
+  }
+
+  .hero-title {
+    font-size: 36px !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .hero-title {
+    font-size: 32px !important;
+  }
+
+  .hero-text {
+    font-size: 16px !important;
+  }
+
+  .problem-cta {
+    font-size: 32px !important;
+  }
+
+  .section-title {
+    font-size: 28px !important;
+  }
+}
+
+/* Create Room Page Responsive */
+@media (max-width: 1030px) {
+  .room-container {
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 20px;
+    gap: 40px;
+  }
+  
+  .left {
+    width: 100%;
+    max-width: 500px;
+    margin: 0;
+    padding: 20px;
+    align-items: center;
+    order: 1;
+  }
+  
+  .right {
+    width: 100%;
+    max-width: 600px;
+    margin: 0;
+    padding: 20px;
+    align-items: center;
+    order: 2;
+  }
+  
+  .scroll {
+    width: 100%;
+    max-width: 500px;
+  }
+  
+  .room-btn {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .menu-dropdown {
+    width: 80vw !important;
+  }
+
+  .left,
+  .right {
+    padding: 15px;
+  }
+}
+
+html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #ffe2c5;
+}
 
 body {
-  background: #FFE2C5; /* or any color/image you want */
   margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: #ffe2c5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
 }
 
 .logo {
@@ -23,7 +156,6 @@ body {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
-
 @media (prefers-reduced-motion: no-preference) {
   a:nth-of-type(2) .logo {
     animation: logo-spin infinite 20s linear;
@@ -38,78 +170,80 @@ body {
   color: #888;
 }
 
-
 /*added mine*/
 
 /* set the front of whole website */
 * {
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-weight: bold;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: bold;
 }
 
 /* for most button (can fix the width and height with other class) */
 .button {
-    border: none;
-    width: 200px;
-    padding: 15px 0px;
-    font-size: 24px;
-    border-radius: 10px;
-    color: white;
+  border: none;
+  width: 200px;
+  padding: 15px 0px;
+  font-size: 24px;
+  border-radius: 10px;
+  color: white;
 }
 
 .s-button {
-    border: none;
-    width: 100px;
-    padding: 5px 0px;
-    font-size: 16px;
-    border-radius: 10px;
-    color: white;
+  border: none;
+  width: 100px;
+  padding: 5px 0px;
+  font-size: 16px;
+  border-radius: 10px;
+  color: white;
 }
 
-.shadow{
-    box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+.shadow {
+  box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
 }
 
 /* for colored button */
 
-.green{
-    background-color: #517824;
+.green {
+  background-color: #517824;
 }
-.green:hover {background-color: #3f5e1b}
-
-.brown{
-    background-color: #603A2B;
-}
-.brown:hover{
-    background-color: #4a2b1f
+.green:hover {
+  background-color: #3f5e1b;
 }
 
+.brown {
+  background-color: #603a2b;
+}
+.brown:hover {
+  background-color: #4a2b1f;
+}
 
 /* header */
 
 .header {
   z-index: 20;
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   overflow: visible;
-  width: 100vw;
+  width: 100%;
   height: 10vh;
   display: flex;
-  justify-content: space-between; 
+  justify-content: space-between;
   align-items: center;
   padding: 1vh 2vh;
-  background-color: #BB3D25; 
-
+  background-color: #bb3d25;
 }
 
-.profile-s{
+.profile-s {
   background-color: white;
   width: 8vh;
   height: 8vh;
   border-radius: 50%;
 }
 
-.Margin1vh{
-  margin:1vh;
+.Margin1vh {
+  margin: 1vh;
 }
 
 /* Menu button and dropdown (simple CSS to replace Tailwind usage) */
@@ -131,7 +265,7 @@ body {
 }
 
 .menu-button:focus {
-  outline: 2px solid rgba(255,255,255,0.25);
+  outline: 2px solid rgba(255, 255, 255, 0.25);
 }
 
 .menu-dropdown {
@@ -140,90 +274,145 @@ body {
   bottom: 0;
   left: 0;
   right: auto;
-  width: 300px; 
+  width: 300px;
   height: 100vh;
-  
-  /* CHANGE: Frosted Glass Background */
-  /* Use a slightly darker base color with transparency */
-  background: rgba(32, 33, 36, 0.9); /* Dark grey with 90% opacity */
-  /* Reintroduce backdrop-filter */
-  backdrop-filter: blur(8px); /* Adjust blur amount as desired */
-  
-  color: white; /* Keep text white for contrast */
-  
-  border-radius: 0; 
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5); 
-  padding: 20px 0; 
-  
-  transform: translateX(-100%); 
-  opacity: 1; /* Keep opacity at 1 for the slide effect */
-  transition: transform 300ms ease; 
-  
-  pointer-events: auto; 
-  z-index: 1000;
-  
+
+  /* Warm gradient matching project theme */
+  background: linear-gradient(
+    135deg,
+    rgba(187, 61, 37, 0.98) 0%,
+    /* #BB3D25 with high opacity */ rgba(96, 58, 43, 0.98) 100%
+  ); /* #603A2B with high opacity */
+  backdrop-filter: blur(10px);
+
+  color: white;
+
+  border-radius: 0;
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+  padding: 30px 0;
+
+  transform: translateX(-100%);
+  opacity: 1;
+  transition: transform 350ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  pointer-events: auto;
+  z-index: 1001;
+
   display: flex;
   flex-direction: column;
 }
 
-/* The drawer-overlay is still useful for darkening the rest of the screen */
+/* The drawer-overlay for darkening background and click-to-close */
 .drawer-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.4); /* A slightly darker overlay */
-    z-index: 999;
-    display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  cursor: pointer;
+  animation: fadeIn 250ms ease;
 }
-.menu-dropdown.open + .drawer-overlay {
-    display: block;
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .menu-dropdown.open {
   /* Bring it into view */
-  transform: translateX(0); 
+  transform: translateX(0);
   /* pointer-events: auto; (already set above, but good practice) */
+}
+
+.menu-header {
+  padding: 20px 30px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.menu-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: bold;
+  color: #ffe2c5;
+  letter-spacing: 0.5px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.menu-header p {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: normal;
 }
 
 .menu-list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 10px;
   display: flex;
   flex-direction: column;
-  /* Use gap for item spacing */
-  gap: 8px; 
-  /* Allow the list content to grow, but don't force equal height unless necessary */
-  /* Remove flex-grow: 1 from here */
+  gap: 4px;
+}
+
+.menu-list li {
+  margin: 0;
 }
 
 .menu-list a {
-  /* Use generous padding for the full-width drawer experience */
   display: flex;
-  align-items: center; 
-  padding: 12px 20px; /* Increased vertical and horizontal padding */
-  color: inherit;
+  align-items: center;
+  padding: 14px 20px;
+  color: white;
   text-decoration: none;
-  border-radius: 0; /* No corner radius since it's full-width */
-  font-weight: normal; /* Often normal font weight in drawers */
-  /* Remove flex-grow: 1 from here, as equal division is usually not desired in a long drawer list */
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 16px;
+  transition: all 200ms ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.menu-list a::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  background: #ffe2c5;
+  transform: scaleY(0);
+  transition: transform 200ms ease;
 }
 
 .menu-list a:hover {
-  background: rgba#BB3D25; /* Subtle white highlight on hover */
+  background: rgba(255, 255, 255, 0.15);
+  padding-left: 24px;
+}
+
+.menu-list a:hover::before {
+  transform: scaleY(1);
+}
+
+.menu-list a:active {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .menu-list .divider {
   height: 1px;
-  background: rgba(255,255,255,0.12);
-  margin: 6px 0;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 12px 20px;
 }
 
 /* preference page */
 
-.full-app{
+.full-app {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -231,19 +420,19 @@ body {
   justify-content: space-between;
 }
 
-.p-contain{
+.p-contain {
   display: flex;
   flex-direction: column;
   height: 90vh;
   justify-content: space-around;
 }
 
-.Preferences{
+.Preferences {
   font-size: 36px;
   width: 40%;
   height: 50px;
-  border-color: #603A2B;
-  color: #603A2B;
+  border-color: #603a2b;
+  color: #603a2b;
   border-width: 2px;
   border-style: solid;
   padding: 10px 50px;
@@ -251,39 +440,41 @@ body {
   border-radius: 40px;
 }
 
-.Preferences:hover{
-  background-color: #603A2B;
+.Preferences:hover {
+  background-color: #603a2b;
   color: white;
 }
 
-
-
-.thin-button{
-  color:#BB3D25;
+.thin-button {
+  color: #bb3d25;
   text-decoration: underline;
 }
 
 /* Add for home page */
-.hero_section{
+.hero_section {
   display: flex;
   background-image: url("../../public/unfocused-restaurant-with-tables-ready.jpg");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   justify-content: center;
+  align-items: center;
   min-height: 500px;
   max-height: 1000px;
-  width: 100vw;
+  width: 100%;
   background-blend-mode: multiply;
-  flex-direction:row-reverse;
+  flex-direction: row-reverse;
+  gap: 40px;
+  padding: 60px 40px;
+  padding-top: calc(10vh + 60px);
 
   position: relative;
-  isolation:isolate;
+  isolation: isolate;
   flex-wrap: wrap;
 }
 
-.hero_section::after{
-  content: '';
+.hero_section::after {
+  content: "";
   position: absolute;
   z-index: -1;
   inset: 0;
@@ -291,23 +482,425 @@ body {
   opacity: 0.4;
 }
 
-.white_txt{
+.hero-content {
+  display: flex;
+  flex-direction: column;
+  width: 40vw;
+  min-width: 350px;
+  max-width: 600px;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.hero-title {
+  font-size: max(50px, 5vw);
+  margin: 0;
+  color: #333;
+  line-height: 1.2;
+}
+
+.hero-text {
+  font-size: 24px;
+  color: #555;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.hero-button {
+  margin-top: 10px;
+}
+
+.white_txt {
   color: white !important;
 }
 
+/* Feature Cards */
+.feature-card {
+  display: flex;
+  flex-direction: row;
+  margin: 3vw;
+  width: 25vw;
+  min-width: 280px;
+  max-width: 400px;
+  align-items: flex-start;
+  background: transparent;
+  gap: 20px;
+}
+
+.feature-icon-box {
+  width: 50px;
+  height: 50px;
+  border: 2px solid #603a2b;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  transition: all 200ms ease;
+}
+
+.feature-card:hover .feature-icon-box {
+  transform: scale(1.1);
+  border-color: #bb3d25;
+  box-shadow: 0 4px 12px rgba(187, 61, 37, 0.2);
+}
+
+.feature-content {
+  flex: 1;
+}
+
+.feature-title {
+  margin: 0;
+  font-size: 28px;
+  color: #603a2b;
+  margin-bottom: 8px;
+}
+
+.feature-text {
+  font-size: 18px;
+  color: #555;
+  line-height: 1.5;
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .feature-card {
+    flex-direction: column;
+    align-items: center;
+    width: 90vw;
+    max-width: 500px;
+    margin: 20px auto;
+    text-align: center;
+  }
+
+  .feature-icon-box {
+    margin-bottom: 15px;
+  }
+
+  .feature-title {
+    font-size: 24px;
+  }
+
+  .feature-text {
+    font-size: 16px;
+  }
+}
+
+/* ===== ABOUT US SECTIONS ===== */
+
+/* Problem Section */
+.problem-section {
+  padding: 60px 30px;
+  background: #ffe2c5;
+  width: 100%;
+}
+
+.problem-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+
+.problem-content {
+  flex: 1;
+  min-width: 300px;
+  max-width: 600px;
+}
+
+.problem-list {
+  list-style: disc;
+  padding-left: 20px;
+  margin-bottom: 30px;
+}
+
+.problem-list li {
+  margin-bottom: 15px;
+}
+
+.problem-list h2 {
+  font-size: 24px;
+  color: #333;
+  margin: 0;
+}
+
+.problem-cta {
+  font-size: 56px;
+  font-weight: bold;
+  color: #bb3d25;
+  margin-left: 30px;
+  line-height: 1.2;
+}
+
+.problem-image {
+  flex-shrink: 0;
+}
+
+.problem-image img {
+  max-width: 400px;
+  width: 100%;
+  height: auto;
+}
+
+/* What We Offer Section */
+.what-we-offer-section {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+  padding: 60px 40px;
+  max-width: 1400px;
+  margin: 0 auto;
+  gap: 60px;
+  flex-wrap: wrap;
+}
+
+.offer-image {
+  flex-shrink: 0;
+}
+
+.offer-image img {
+  width: 30vw;
+  min-width: 250px;
+  max-width: 400px;
+  height: auto;
+}
+
+.offer-content {
+  flex: 1;
+  min-width: 300px;
+  max-width: 700px;
+}
+
+.section-title {
+  color: #bb3d25;
+  font-size: 42px;
+  margin-bottom: 16px;
+}
+
+.section-subtitle {
+  font-size: 18px;
+  color: #555;
+  margin-bottom: 30px;
+}
+
+.offer-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 30px;
+  margin-top: 20px;
+}
+
+.offer-card-item {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 15px;
+}
+
+.offer-card-icon {
+  flex-shrink: 0;
+}
+
+.offer-card-text {
+  flex: 1;
+}
+
+/* Moreover Section */
+.moreover-section {
+  padding: 60px 20px;
+  background: #ffe2c5;
+  width: 100%;
+}
+
+.moreover-header {
+  margin-bottom: 50px;
+}
+
+.moreover-cards-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 30px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+@media (min-width: 1271px) and (max-width: 1600px) {
+  .moreover-cards-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.moreover-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 2px solid #bb3d25;
+  border-radius: 20px;
+  padding: 30px 20px;
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: transform 200ms ease, box-shadow 200ms ease;
+  text-align: center;
+}
+
+.moreover-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(187, 61, 37, 0.2);
+}
+
+.moreover-icon-circle {
+  border-radius: 50%;
+  border: 4px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+
+.moreover-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #bb3d25;
+  text-align: center;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Responsive for About Us */
+
+/* Problem Section - People Image */
+@media (max-width: 1210px) {
+  .problem-section {
+    padding: 40px 20px;
+  }
+
+  .problem-container {
+    flex-direction: column;
+  }
+
+  .problem-content {
+    text-align: center;
+  }
+
+  .problem-cta {
+    font-size: 40px;
+    margin-left: 10px;
+  }
+
+  .problem-list h2 {
+    font-size: 20px;
+    text-align: left;
+  }
+
+  .problem-image {
+    order: -1;
+    width: 100%;
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  .problem-image img {
+    max-width: 300px;
+  }
+}
+
+/* What We Offer Section - Shop Image */
+@media (max-width: 1270px) {
+  .section-title {
+    font-size: 32px;
+  }
+
+  .section-subtitle {
+    font-size: 16px;
+  }
+
+  .what-we-offer-section {
+    flex-direction: column;
+    padding: 40px 20px;
+    align-items: center;
+  }
+
+  .offer-image {
+    order: -1;
+    width: 100%;
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  .offer-image img {
+    max-width: 250px;
+    width: 80vw;
+  }
+
+  .offer-content {
+    text-align: center;
+  }
+
+  .offer-cards {
+    grid-template-columns: 1fr;
+  }
+
+  /* Make offer cards display as column with icon on top */
+  .offer-card-item {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  .offer-card-icon {
+    margin-bottom: 15px;
+  }
+
+  .offer-card-text {
+    text-align: center;
+  }
+
+  /* Moreover Section - Vertical stacking */
+  .moreover-cards-container {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .moreover-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .moreover-icon-circle {
+    width: 100px !important;
+    height: 100px !important;
+    margin-bottom: 20px;
+  }
+
+  .moreover-title {
+    font-size: 16px;
+  }
+}
 
 /* register / login / enter code page*/
 
 .background {
+  position: relative;
   margin: 0;
+  padding: 0;
+  padding-top: 10vh;
   min-height: 100vh;
   width: 100vw;
-  background: linear-gradient(to bottom, #BB3D25, #E88C7A);
+  background: linear-gradient(to bottom, #bb3d25, #e88c7a);
 
   display: flex;
   flex-direction: column;
-  justify-content: center; /* Horizontal */
-  align-items: center;  /* Vertical */
+  justify-content: center;
+  align-items: center;
 }
 
 .head-name {
@@ -317,7 +910,7 @@ body {
 }
 
 .box {
-  background-color: #FFE2C5;
+  background-color: #ffe2c5;
   width: 350px;
   height: 300px;
   border-radius: 10px;
@@ -331,7 +924,7 @@ body {
 
 /* container for input */
 .n-container {
-  background-color: #D4B89C;
+  background-color: #d4b89c;
   width: 280px;
   height: 45px;
   border-radius: 10px;
@@ -339,7 +932,7 @@ body {
   margin: -15px 30px;
   margin-bottom: 0px;
 
-  color: #603A2B;
+  color: #603a2b;
   font-size: 16px;
   font-family: "Arial", sans-serif;
   font-weight: bold;
@@ -347,7 +940,7 @@ body {
 }
 
 .font-normal {
-  color: #603A2B;
+  color: #603a2b;
   font-size: 16px;
   font-family: "Arial", sans-serif;
   font-weight: normal;
@@ -372,7 +965,7 @@ body {
   cursor: pointer;
 }
 
-.white-thin-button{
+.white-thin-button {
   color: white;
   text-decoration: underline;
   cursor: pointer;
@@ -383,61 +976,62 @@ input[type="checkbox"] {
   height: 20px;
   margin-left: 40px;
   margin-right: 5px;
-  accent-color: #BB3D25;
+  accent-color: #bb3d25;
   cursor: pointer;
 }
 
 input::placeholder {
-  color: #425E21;
+  color: #425e21;
   font-size: 24px;
   font-weight: bold;
   opacity: 0.5;
   text-align: center;
 }
 
-
 /* create room page */
 .room-container {
   margin: 0;
-  height: 100vh;
-  width: 100vw;
+  margin-top: 10vh;
+  min-height: calc(100vh - 10vh);
+  width: 100%;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
 
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
+  column-gap: 180px;
+  row-gap: 20px;
+  padding: 40px;
 }
 
 .left {
   margin: 0;
-  margin-left: 100px;
-  height: 100vh;
-  width: 50vw;
+  flex: 0 0 auto;
 
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 50px;
-  /* background-color: green; */
+  padding: 20px;
+  gap: 25px;
 }
 
 .right {
   margin: 0;
-  margin-right: 100px;
-  height: 100vh;
-  width: 50vw;
+  flex: 0 0 auto;
 
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 50px;
-  /* background-color: pink; */
+  padding: 20px;
+  gap: 20px;
 }
 
 .room-code {
-  background-color: #603A2B;
-  margin-top: 30px;
+  background-color: #603a2b;
   width: 280px;
   height: 50px;
   border-radius: 10px;
@@ -449,40 +1043,42 @@ input::placeholder {
 }
 
 .location-box {
-  background-color: #FFE2C5;
-  margin-top: 25px;
+  background-color: #ffe2c5;
   width: 280px;
-  height: 50px;
+  min-height: 50px;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  
-  border: 2px solid #603A2B;
-  border-radius: 10px;
-  color: #603A2B;
-  font-size: 16px;
-  font-weight: normal;
+  gap: 2px;
+  padding: 10px;
 
-  /* padding: 10px; */
+  border: 2px solid #603a2b;
+  border-radius: 10px;
+  color: #603a2b;
+  font-size: 14px;
+  font-weight: normal;
+  text-align: center;
 }
 
 .room-btn {
   display: flex;
   gap: 20px;
   flex-direction: row;
-  justify-content: flex-start;
+  justify-content: center;
   align-items: center;
+  margin-top: 20px;
+  width: 100%;
 }
 
 .scroll {
   height: 300px;
   width: 410px;
+  max-width: 100%;
   overflow: auto;
   border-radius: 8px;
   padding: 10px;
-  background-color: #E5D4B7;
-  /* background-color: #FFE2C5;
-  border: 2px solid #603A2B; */
+  background-color: #e5d4b7;
 }
 
 .scroll::-webkit-scrollbar {
@@ -490,19 +1086,19 @@ input::placeholder {
 }
 
 .scroll::-webkit-scrollbar-track {
-  background: #D4B89C;
+  background: #d4b89c;
   border-radius: 8px;
 }
 
 .scroll::-webkit-scrollbar-thumb {
-  background-color: #FFE2C5;
+  background-color: #ffe2c5;
   border-radius: 5px;
-  border: 3px solid #D4B89C;
+  border: 3px solid #d4b89c;
 }
 
-.member-box{
-  background-color: #D4B89C;
-  color: #603A2B;
+.member-box {
+  background-color: #d4b89c;
+  color: #603a2b;
   border-radius: 10px;
   padding: 15px;
   margin-bottom: 13px;
@@ -515,7 +1111,7 @@ input::placeholder {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.45);
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -527,21 +1123,21 @@ input::placeholder {
   background: #fff;
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
 .modal-title {
   margin: 0 0 8px 0;
-  color: #603A2B;
+  color: #603a2b;
   font-weight: 700;
 }
 
 .map-box {
   width: 100%;
-  height: 300px;          /* สูงกว่าของเดิมนิด ให้ซูม/ลากสะดวก */
-  border: 2px solid #603A2B;
+  height: 300px; /* สูงกว่าของเดิมนิด ให้ซูม/ลากสะดวก */
+  border: 2px solid #603a2b;
   border-radius: 8px;
-  overflow: hidden;       /* กัน tile เกิน */
+  overflow: hidden; /* กัน tile เกิน */
   margin-bottom: 10px;
 }
 
@@ -567,6 +1163,8 @@ input::placeholder {
 /* ปุ่มของคุณมี class .green/.brown/.small-btn/.shadow อยู่แล้ว
    ถ้าล้นความกว้างบนจอเล็ก ให้จำกัดขนาดฟอนต์ปุ่มเล็กน้อย */
 @media (max-width: 420px) {
-  .small-btn { font-size: 0.95rem; padding: 8px 12px; }
+  .small-btn {
+    font-size: 0.95rem;
+    padding: 8px 12px;
+  }
 }
-
