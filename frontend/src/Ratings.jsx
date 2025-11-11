@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import ReviewCard from './components/ReviewCard';
 import Header from './header';
 import Footer from './components/smallfooter';
+import { config } from './config';
 
 // CONSTANT VARIABLE
 
@@ -327,6 +328,9 @@ function RatingPage(){
     const [showReviewAdding, setShowReviewAdding] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
+    const ratingApi = config.endpoints.ratings;
+    console.log(ratingApi);
+
     useEffect(() => {
         const handleResize = () => {
             setIsMobile(window.innerWidth <= 768);
@@ -378,7 +382,7 @@ function RatingPage(){
 
     return(
         <div>
-            <Header/>
+            {/* <Header/> */}
             <section className={`d-flex justify-content-center align-items-center ${isMobile?'flex-column' : ''}`} style={{height: isMobile ? showReviewAdding ? "90vh" : "180vh" : '80vh', backgroundColor:"603A2B", width:"100vw"}}>
                 <div className={`d-flex ${isMobile?'flex-column h-100 mt-5 align-items-center' : 'h-75'} border w-75 border-secondary rounded`}>
                     <img src={restaurant.imgURL} alt={restaurant.name} className={`object-fit-cover ${isMobile ? 'w-100 h-25' : 'w-25 h-100'} rounded-start`}/>

@@ -10,6 +10,7 @@ import RatingPage from './Ratings.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    {/* <App /> */}
+    <RatingPage/>
   </StrictMode>
 )
