@@ -526,7 +526,6 @@ const ContentModeration = () => {
 // --- Main ---
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState(TABS.ANALYTICS); // Use TABS constant
-  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -545,7 +544,6 @@ export default function AdminDashboard() {
           return;
         }
 
-        setUser(data.user);
       } catch (err) {
         console.error("Failed to fetch user:", err);
         // If fetch fails (e.g., server offline), still redirect
@@ -564,6 +562,8 @@ export default function AdminDashboard() {
   return (
     <>
       <Header />
+      <br/>
+      <br/>
       <div className="flex min-h-[calc(100vh-60px)]">
         {/* Sidebar */}
         <aside className="w-56 bg-white shadow-xl flex-shrink-0 border-r border-gray-100 p-4 hidden md:block">
