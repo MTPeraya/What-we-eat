@@ -7,9 +7,14 @@ function Profile() {
   return <div className="profile-s Margin1vh"></div>;
 }
 
-function MenuIcon({ isAdmin = false, isLoggedIn = false }) {
+function MenuIcon({ isAdmin = false, isLoggedIn = false, authChecked = false }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = () => setMenuOpen(false);
+
+  // Debug: Log when props change
+  useEffect(() => {
+    console.log('[MenuIcon] Props updated - isLoggedIn:', isLoggedIn, '| isAdmin:', isAdmin, '| authChecked:', authChecked);
+  }, [isLoggedIn, isAdmin, authChecked]);
 
   useEffect(() => {
     const handleEscape = (event) => {
@@ -46,7 +51,7 @@ function MenuIcon({ isAdmin = false, isLoggedIn = false }) {
           </svg>
         </button>
 
-        <div className={`menu-dropdown ${menuOpen ? "open" : ""}`} role="menu">
+        <div className={`menu-dropdown ${menuOpen ? "open" : ""}`} role="menu" key={`menu-${isLoggedIn}-${isAdmin}`}>
           <div className="menu-header">
             <h2>WHAT WE EAT</h2>
             <p>Choose your meal together!</p>
@@ -58,7 +63,11 @@ function MenuIcon({ isAdmin = false, isLoggedIn = false }) {
               </Link>
             </li>
 
-            {!isLoggedIn ? (
+            {!authChecked ? (
+              <li style={{opacity: 0.5, pointerEvents: 'none'}}>
+                Loading...
+              </li>
+            ) : !isLoggedIn ? (
               <li>
                 <Link to="/login" onClick={closeMenu}>
                   Login / Sign In
@@ -108,11 +117,14 @@ function Header() {
   const location = useLocation(); // Track route changes
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
     // Check auth status on every route change
     (async () => {
+      setAuthChecked(false); // Reset on route change
       try {
+        console.log('[Header] Checking auth status...');
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
 
@@ -123,36 +135,48 @@ function Header() {
 
         clearTimeout(timeoutId);
 
+        console.log('[Header] Auth response status:', res.status);
+
         if (!res.ok) {
           // Not logged in - reset states
+          console.log('[Header] Not logged in - response not OK');
           setIsLoggedIn(false);
           setIsAdmin(false);
+          setAuthChecked(true);
           return;
         }
         
         const data = await res.json();
+        console.log('[Header] Auth data received:', data);
+        
         if (data?.user) {
+          console.log('[Header] User logged in:', data.user.username, '| Role:', data.user.role);
           setIsLoggedIn(true);
           setIsAdmin(data.user.role === "ADMIN");
         } else {
           // No user data - reset states
+          console.log('[Header] No user data in response');
           setIsLoggedIn(false);
           setIsAdmin(false);
         }
+        setAuthChecked(true);
       } catch (err) {
         if (err.name !== "AbortError") {
-          console.error("Error verifying user:", err);
+          console.error("[Header] Error verifying user:", err);
+        } else {
+          console.log('[Header] Auth check timed out');
         }
         // On error, assume not logged in
         setIsLoggedIn(false);
         setIsAdmin(false);
+        setAuthChecked(true);
       }
     })();
   }, [location.pathname]); // Re-check when route changes
 
   return (
     <div className="header">
-      <MenuIcon isAdmin={isAdmin} isLoggedIn={isLoggedIn} />
+      <MenuIcon isAdmin={isAdmin} isLoggedIn={isLoggedIn} authChecked={authChecked} />
       <Profile />
     </div>
   );

@@ -76,6 +76,8 @@ model User {
   username          String            @unique
   password          String
   role              Role              @default(USER)
+  displayName       String?
+  profilePicture    String?
 
   // Relations
   rooms             Room[]            @relation("HostRooms")

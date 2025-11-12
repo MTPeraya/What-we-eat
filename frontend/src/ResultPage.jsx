@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Header from './header.jsx'
 import Footer from './components/smallfooter.jsx'
 import Found from './components/showResult.jsx'
+import RatingModal from './components/RatingModal.jsx'
 import { config } from './config';
 
 const API_BASE_URL = config.apiUrl + '/api';
@@ -14,6 +15,8 @@ function Result() {
   const [isLoading, setIsLoading] = useState(true);
   const [showVotersModal, setShowVotersModal] = useState(false);
   const [voteDetails, setVoteDetails] = useState(null);
+  const [restaurantRating, setRestaurantRating] = useState(null);
+  const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
 
   useEffect(() => {
     const loadResults = async () => {
@@ -95,6 +98,48 @@ function Result() {
     loadResults();
   }, [location.state]);
 
+  // Fetch restaurant rating when winner is set
+  useEffect(() => {
+    const fetchRating = async () => {
+      if (!winner?.id) return;
+      
+      try {
+        const response = await fetch(`${API_BASE_URL}/restaurants/${winner.id}/ratings`, {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const reviews = data.items || [];
+          
+          // Calculate average rating
+          if (reviews.length > 0) {
+            const totalScore = reviews.reduce((sum, review) => sum + (review.score || 0), 0);
+            const avgRating = totalScore / reviews.length;
+            setRestaurantRating(avgRating);
+          } else {
+            setRestaurantRating(null);
+          }
+        }
+      } catch (error) {
+        console.error('[ResultPage] Error fetching rating:', error);
+        setRestaurantRating(null);
+      }
+    };
+    
+    fetchRating();
+  }, [winner?.id]);
+
+  const handleReviewClick = useCallback(() => {
+    if (winner) {
+      setIsRatingModalOpen(true);
+    }
+  }, [winner]);
+
+  const handleCloseRatingModal = useCallback(() => {
+    setIsRatingModalOpen(false);
+  }, []);
+
   const calculateDistance = (from, to) => {
     if (!from?.lat || !from?.lng || !to?.lat || !to?.lng) return null;
     const R = 6371;
@@ -165,7 +210,10 @@ function Result() {
         <div className='container d-flex justify-content-center align-items-center' style={{height: '90vh'}}>
           <h2>Loading results...</h2>
         </div>
-        <Footer/>
+        <Footer
+          location="Your Location"
+          review=" -"
+        />
       </div>
     );
   }
@@ -177,7 +225,10 @@ function Result() {
         <div className='container d-flex justify-content-center align-items-center' style={{height: '90vh'}}>
           <h2>No results found</h2>
         </div>
-        <Footer/>
+        <Footer
+          location="Your Location"
+          review=" -"
+        />
       </div>
     );
   }
@@ -224,7 +275,11 @@ function Result() {
       <div style={{height: "10vh"}}></div>
       </div>
       
-      <Footer/>
+      <Footer
+        location="Your Location"
+        review={restaurantRating ? ` ${restaurantRating.toFixed(1)}` : " -"}
+        onclickreview={handleReviewClick}
+      />
       
       {/* Voters Modal */}
       {showVotersModal && voteDetails && (
@@ -233,6 +288,20 @@ function Result() {
           onClose={() => setShowVotersModal(false)}
         />
       )}
+      
+      {/* Rating Modal */}
+      <RatingModal
+        isOpen={isRatingModalOpen}
+        onClose={handleCloseRatingModal}
+        restaurant={winner ? {
+          id: winner.id,
+          name: winner.name,
+          address: winner.address,
+          url: winner.url,
+          rating: restaurantRating,
+          distance: winner.distance
+        } : null}
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { withCORS, preflight } from "@/lib/cors";
+import prisma from "@/lib/db";
 
 // ✅ Support preflight (OPTIONS)
 export async function OPTIONS(req: NextRequest) {
@@ -21,10 +22,28 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const { user } = s;
+  // Fetch full user data from database
+  const user = await prisma.user.findUnique({
+    where: { id: s.user.id },
+    select: {
+      id: true,
+      username: true,
+      displayName: true,
+      profilePicture: true,
+      role: true
+    }
+  });
+
+  if (!user) {
+    return withCORS(
+      NextResponse.json({ user: null }, { status: 200 }),
+      origin
+    );
+  }
+
   return withCORS(
     NextResponse.json(
-      { user: { id: user.id, username: user.username, role: user.role } },
+      { user },
       { status: 200 }
     ),
     origin

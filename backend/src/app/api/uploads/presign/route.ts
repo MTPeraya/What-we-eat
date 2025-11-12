@@ -1,8 +1,8 @@
 // backend/src/app/api/uploads/presign/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
+import { withCORS, preflight } from "@/lib/cors";
 
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "http://localhost:5173";
 const PUBLIC_BASE = process.env.PUBLIC_FILES_BASE || "http://localhost:4001/api/files";
 
 function newKey(mime: string) {
@@ -12,26 +12,36 @@ function newKey(mime: string) {
   return `ratings/${ymd}/${rand}.${ext}`;
 }
 
-export async function OPTIONS() {
-  const res = NextResponse.json({}, { status: 204 });
-  res.headers.set("Access-Control-Allow-Origin", FRONTEND_ORIGIN);
-  res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.headers.set("Access-Control-Allow-Credentials", "true");
-  return res;
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  return preflight('POST, OPTIONS', origin);
 }
 
 export async function POST(req: NextRequest) {
-  const { mime } = await req.json();
-  if (!mime || typeof mime !== "string") {
-    return NextResponse.json({ error: "INVALID_MIME" }, { status: 400 });
-  }
-  const key = newKey(mime);
-  const uploadUrl = `${req.nextUrl.origin}/api/uploads/${encodeURIComponent(key)}`;
-  const publicUrl = `${PUBLIC_BASE}/${encodeURIComponent(key)}`;
+  const origin = req.headers.get('origin');
+  
+  try {
+    const { mime } = await req.json();
+    if (!mime || typeof mime !== "string") {
+      return withCORS(
+        NextResponse.json({ error: "INVALID_MIME" }, { status: 400 }),
+        origin
+      );
+    }
+    
+    const key = newKey(mime);
+    const uploadUrl = `${req.nextUrl.origin}/api/uploads/${encodeURIComponent(key)}`;
+    const publicUrl = `${PUBLIC_BASE}/${encodeURIComponent(key)}`;
 
-  const res = NextResponse.json({ key, uploadUrl, publicUrl }, { status: 200 });
-  res.headers.set("Access-Control-Allow-Origin", FRONTEND_ORIGIN);
-  res.headers.set("Access-Control-Allow-Credentials", "true");
-  return res;
+    return withCORS(
+      NextResponse.json({ key, uploadUrl, publicUrl }, { status: 200 }),
+      origin
+    );
+  } catch (e) {
+    const msg = (e as Error)?.message ?? String(e);
+    return withCORS(
+      NextResponse.json({ error: "PRESIGN_FAILED", details: msg }, { status: 500 }),
+      origin
+    );
+  }
 }

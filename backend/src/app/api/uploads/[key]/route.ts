@@ -10,12 +10,12 @@ export async function OPTIONS(req: NextRequest) {
 
 export async function PUT(
   req: NextRequest,
-  ctx: { params: { key: string } }
+  ctx: { params: Promise<{ key: string }> }
 ) {
   const origin = req.headers.get('origin');
   
   try {
-    const rawKey = ctx.params.key;                 // key was encodeURIComponent'd
+    const { key: rawKey } = await ctx.params;
     const key = decodeURIComponent(rawKey);        // decode back to full path
     const contentType = req.headers.get("content-type") ?? "application/octet-stream";
 

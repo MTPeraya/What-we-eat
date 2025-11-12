@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extname } from "node:path";
 import storage from "@/lib/storage";
+import { preflight } from "@/lib/cors";
 
 export const runtime = "nodejs"; // Prevent edge runtime
 
@@ -14,11 +15,17 @@ function mimeFromExt(ext: string) {
   return "application/octet-stream";
 }
 
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  return preflight('GET, OPTIONS', origin);
+}
+
 export async function GET(
   _req: NextRequest,
-  ctx: { params: { key: string } }
+  ctx: { params: Promise<{ key: string }> }
 ) {
-  const key = decodeURIComponent(ctx.params.key);
+  const { key: rawKey } = await ctx.params;
+  const key = decodeURIComponent(rawKey);
 
   if (storage.exists && !(await storage.exists(key))) {
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
@@ -33,6 +40,7 @@ export async function GET(
     headers: {
       "Content-Type": mimeFromExt(ext),
       "Cache-Control": "public, max-age=31536000, immutable",
+      "Access-Control-Allow-Origin": "*", // Public files accessible from anywhere
     },
   });
 }

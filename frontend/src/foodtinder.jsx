@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import SwipeCards from './components/swipecard.jsx'
 import Header from './header.jsx'
 import Footer from './components/smallfooter.jsx'
+import RatingModal from './components/RatingModal.jsx'
 import { useLocation } from 'react-router-dom';
 
 function useQueryParams() {
@@ -16,8 +17,15 @@ function useQueryParams() {
 function FoodTinder() {
   const { roomId, lat, lng } = useQueryParams();
   const [isHost, setIsHost] = useState(false);
+  const [currentRestaurant, setCurrentRestaurant] = useState(null);
+  const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
 
   const API_BASE = "http://localhost:4001/api";
+
+  // Memoize userCenter to prevent unnecessary re-renders
+  const userCenter = useMemo(() => {
+    return lat && lng ? { lat, lng } : undefined;
+  }, [lat, lng]);
 
   // Check if current user is host
   useEffect(() => {
@@ -48,17 +56,43 @@ function FoodTinder() {
   // Host will manually navigate after all members finish voting
   // This prevents showing "No results found" before any votes are cast
 
+  const handleCurrentCardChange = useCallback((restaurant) => {
+    setCurrentRestaurant(restaurant);
+  }, []);
+
+  const handleReviewClick = useCallback(() => {
+    if (currentRestaurant) {
+      setIsRatingModalOpen(true);
+    }
+  }, [currentRestaurant]);
+
+  const handleCloseModal = useCallback(() => {
+    setIsRatingModalOpen(false);
+  }, []);
+
   return(
     <div>
       <Header/>
       <div>
       <SwipeCards 
         roomId={roomId} 
-        userCenter={lat && lng ? { lat, lng } : undefined}
+        userCenter={userCenter}
         isHost={isHost}
+        onCurrentCardChange={handleCurrentCardChange}
       />
       </div>
-      <Footer/>
+      <Footer
+        location="Your Location"
+        review={currentRestaurant?.rating ? ` ${currentRestaurant.rating.toFixed(1)}` : " -"}
+        onclickreview={handleReviewClick}
+      />
+      
+      {/* Rating Modal */}
+      <RatingModal 
+        isOpen={isRatingModalOpen}
+        onClose={handleCloseModal}
+        restaurant={currentRestaurant}
+      />
     </div>
   );
 }

@@ -278,7 +278,7 @@ const DashboardAnalytics = () => {
         setData((prev) => ({ ...prev, loading: false }));
       }
     })();
-  }, [config.endpoints]);
+  }, []);
 
   if (data.loading)
     return (
