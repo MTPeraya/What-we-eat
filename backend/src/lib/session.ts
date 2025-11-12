@@ -50,7 +50,7 @@ export async function createSession(
   res.cookies.set(COOKIE_NAME, raw, {
     httpOnly: true,
     secure: secureCookie,
-    sameSite: 'lax',
+    sameSite: 'none',
     path: '/',
     expires: expiresAt,
   });
@@ -90,7 +90,7 @@ export async function destroySession(req: NextRequest, res: NextResponse) {
   res.cookies.set(COOKIE_NAME, '', {
     httpOnly: true,
     secure: true,
-    sameSite: 'lax',
+    sameSite: 'none',
     path: '/',
     maxAge: 0,
   });
