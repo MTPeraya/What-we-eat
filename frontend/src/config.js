@@ -10,7 +10,7 @@ export const config = {
     votes: `${API_URL}/api/votes`,
     ratings: `${API_URL}/api/ratings`,
     uploads: `${API_URL}/api/uploads`,
-    analytics: `${API_URL}/api/admin`,
+    analytics: `${API_URL}/api/admin/stats`,
   }
 };
 
