@@ -11,6 +11,8 @@ export const config = {
     ratings: `${API_URL}/api/ratings`,
     uploads: `${API_URL}/api/uploads`,
     analytics: `${API_URL}/api/admin/stats`,
+    content: `${API_URL}/api/admin/content`,
   }
 };
+
 

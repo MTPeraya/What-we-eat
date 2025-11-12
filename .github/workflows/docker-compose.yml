@@ -2,8 +2,6 @@ name: Docker Compose CI
 
 on:
   push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:

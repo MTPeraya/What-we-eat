@@ -77,4 +77,5 @@ For more in-depth information, please visit our GitHub Wiki.
     - [sprint 2](https://youtu.be/CaL2scmboik)
     - [sprint 3](https://youtu.be/HSwlEBdlIQ0?si=959Ukg6LlrAV8a6I)
     - [sprint 4](https://youtu.be/ovUweeUERIg?si=9hN5qsMwIIqY5lsN)
+    - [sprint 5](https://youtu.be/wVv01Df6Tfk?si=cgTUS_y8mc96Ty0i)
 
