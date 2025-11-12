@@ -14,11 +14,22 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     const { id } = await ctx.params;
 
     const items = await prisma.rating.findMany({
-      where: { restaurantId: id, status: "approved" },
+      where: { restaurantId: id },
       orderBy: { createdAt: "desc" },
       take: 30,
       select: {
-        id: true, score: true, tags: true, comment: true, createdAt: true,
+        id: true, 
+        score: true, 
+        tags: true, 
+        comment: true, 
+        createdAt: true,
+        status: true, // Include status for verified badge
+        user: {
+          select: {
+            username: true,
+            role: true
+          }
+        },
         photos: { select: { publicUrl: true, width: true, height: true } },
       },
     });

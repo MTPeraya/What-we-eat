@@ -1,5 +1,4 @@
 import React, {useState, useRef, useEffect, useCallback} from 'react';
-// eslint-disable-next-line no-unused-vars
 import { motion, useMotionValue,  useTransform, animate} from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Button from "./swipeButton"
@@ -82,8 +81,6 @@ const transformCandidatesData = (apiData) => {
   // Extract items array from API response { roomId, count, items }
   const restaurants = apiData.items || [];
   
-  console.log('First candidate from API:', restaurants[0]);
-  
   const transformed = restaurants.map((restaurant, index) => {
     const card = {
       id: restaurant.restaurantId, // candidates API uses restaurantId instead of id
@@ -97,8 +94,6 @@ const transformCandidatesData = (apiData) => {
       userRatingsTotal: restaurant.userRatingsTotal,
       distance: restaurant.distanceM ? (restaurant.distanceM / 1000).toFixed(1) : null, // Convert meters to km
     };
-    
-    if (index === 0) console.log('First transformed candidate:', card);
     
     return card;
   });
@@ -115,7 +110,7 @@ const formatDistance = (distance) => {
 };
 
 
-const SwipeCards = ({ roomId, userCenter, isHost }) => {
+const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
     const navigate = useNavigate();
     const [cards, setCards] = useState([]);
     const [isSwiping, setIsSwiping] = useState(false);
@@ -128,13 +123,34 @@ const SwipeCards = ({ roomId, userCenter, isHost }) => {
     const MAX_RESTAURANTS = 20; // Limit to 20 restaurants
 
     const topCardRef = useRef(null); // ref to call programmatic swipe
+    const lastNotifiedCardId = useRef(null); // Track last notified card
+    const hasLoadedInitialCards = useRef(false); // Prevent multiple initial loads
+    
+    // Notify parent about current card changes (only when card actually changes)
+    useEffect(() => {
+        if (onCurrentCardChange && cards.length > 0) {
+            const currentCard = cards[0];
+            // Only notify if card actually changed (different ID)
+            if (currentCard.id !== lastNotifiedCardId.current) {
+                lastNotifiedCardId.current = currentCard.id;
+                onCurrentCardChange(currentCard);
+            }
+        }
+    }, [cards, onCurrentCardChange]);
 
     const loadInitialCards = useCallback(async () => {
+        // Prevent loading if already started loading
+        if (hasLoadedInitialCards.current) {
+            console.log('[SwipeCards] Skipping loadInitialCards - already started');
+            return;
+        }
+
         try {
+            hasLoadedInitialCards.current = true;
             setIsLoading(true);
-            console.log('Fetching candidates for room:', roomId, { userCenter });
+            console.log('[SwipeCards] Fetching candidates for room:', roomId, { userCenter });
             const response = await fetchRoomCandidates(roomId, userCenter);
-            console.log("fetchRoomCandidates Pass", response);
+            console.log("[SwipeCards] fetchRoomCandidates Pass - received", response.items?.length, "items");
 
             if (response.items && response.items.length > 0) {
                 const transformedCards = transformCandidatesData(response, userCenter);
@@ -147,30 +163,43 @@ const SwipeCards = ({ roomId, userCenter, isHost }) => {
                 
                 // Limit to MAX_RESTAURANTS
                 const limitedCards = sortedCards.slice(0, MAX_RESTAURANTS);
-                console.log('Transformed and sorted cards:', limitedCards);
-                console.log('About to setCards with:', limitedCards.length, 'items');
+                console.log('[SwipeCards] Setting', limitedCards.length, 'cards');
                 setCards(limitedCards);
                 setTotalRestaurants(limitedCards.length);
                 // Don't load more if we've limited to max
                 setHasMoreCards(false);
-                console.log('setCards called, isLoading:', false);
             } else {
-                console.warn('No restaurants found');
+                console.warn('[SwipeCards] No restaurants found');
                 setCards([]);
                 setTotalRestaurants(0);
             }
         } catch (error) {
-            console.error('Failed to load initial cards:', error);
+            console.error('[SwipeCards] Failed to load initial cards:', error);
+            // Reset flag on error so it can be retried
+            hasLoadedInitialCards.current = false;
             // Fallback to local data if API fails
             setCards(cardData);
+            setTotalRestaurants(cardData.length);
         } finally {
             setIsLoading(false);
         }
     }, [roomId, userCenter]);
 
+    // Reset load flag when roomId or userCenter changes
+    useEffect(() => {
+        console.log('[SwipeCards] Room or location changed - resetting load flag');
+        hasLoadedInitialCards.current = false;
+    }, [roomId, userCenter]);
+
     // Fetch initial restaurant data when component mounts or userCenter changes
     useEffect(() => {
         loadInitialCards();
+        
+        // Cleanup on unmount - allow re-loading if component mounts again
+        return () => {
+            console.log('[SwipeCards] Component unmounting - resetting load flag');
+            hasLoadedInitialCards.current = false;
+        };
     }, [loadInitialCards]);
 
     const loadMoreCards = useCallback(async () => {
@@ -326,15 +355,6 @@ const SwipeCards = ({ roomId, userCenter, isHost }) => {
 
     // Calculate current card number (total - remaining + 1)
     const currentCardNumber = totalRestaurants - cards.length + 1;
-    
-    console.log('Render SwipeCards:', { 
-      cardsLength: cards.length, 
-      isLoading, 
-      totalRestaurants,
-      allCardsCompleted,
-      firstCardId: cards[0]?.id,
-      firstCardName: cards[0]?.name
-    });
 
     return(
       <div className="d-flex justify-content-start align-items-center" style={{
@@ -342,8 +362,9 @@ const SwipeCards = ({ roomId, userCenter, isHost }) => {
         flexDirection: "column",
         alignItems: "center",
         minHeight: "90vh",
-        Height: "90vh",
-        backgroundColor: "#FFE2C5"
+        height: "90vh",
+        backgroundColor: "#FFE2C5",
+        paddingTop: "10vh"
       }}>
         {/* Progress indicator */}
         {totalRestaurants > 0 && cards.length > 0 && (
@@ -429,8 +450,8 @@ const SwipeCards = ({ roomId, userCenter, isHost }) => {
             width: "300px",
             justifyContent: "space-between"
         }}>
-        <Button id="LEFT" onClick={swipeLeft} disabled={isSwiping} children={cross}/>
-        <Button id="RIGHT" onClick={swipeRight} disabled={isSwiping} children={heart}/>
+        <Button id="LEFT" onClick={swipeLeft} disabled={isSwiping}>{cross}</Button>
+        <Button id="RIGHT" onClick={swipeRight} disabled={isSwiping}>{heart}</Button>
         </div>
       </div>
     )
@@ -528,6 +549,7 @@ const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0",
     )
 });
 
+Card.displayName = 'Card';
 
 export default SwipeCards
 // change data later

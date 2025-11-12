@@ -2,6 +2,7 @@ import { useState } from "react";
 import "./App.css";
 import { Link, useNavigate} from "react-router-dom";
 import { config } from './config';
+import Header from "./header.jsx";
 
 
 function Register() {
@@ -66,6 +67,7 @@ function Register() {
 
     return (
         <>
+        <Header />
         <div className="background">
             <h1 className="head-name">WHAT WE EAT</h1>
             <div className="box" style={{ height: "440px" }}>

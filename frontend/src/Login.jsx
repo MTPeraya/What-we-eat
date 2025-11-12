@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import "./App.css";
 import { Link, useNavigate } from "react-router-dom";
 import { config } from "./config";
+import Header from "./header.jsx";
 
 function Login() {
   const navigate = useNavigate();
@@ -64,10 +65,12 @@ function Login() {
   };
 
   return (
-    <div className="background">
-      <h1 className="head-name">WHAT WE EAT</h1>
-      <div className="box" style={{ height: "380px" }}>
-        <form onSubmit={handleLogin}>
+    <>
+      <Header />
+      <div className="background">
+        <h1 className="head-name">WHAT WE EAT</h1>
+        <div className="box" style={{ height: "380px" }}>
+          <form onSubmit={handleLogin}>
           {/* username - email */}
           <label htmlFor="username" className="font-normal block mb-3">
             Username / Email
@@ -144,7 +147,8 @@ function Login() {
           Stay as a guest
         </Link>
       </p>
-    </div>
+      </div>
+    </>
   );
 }
 

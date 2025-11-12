@@ -10,6 +10,8 @@ import CreateRoom from "./CreateRoom"
 import FoodTinder from "./foodtinder";
 import ResultPage from "./ResultPage";
 import AdminDash from "./AdminDashboard";
+import UserPage from "./UserPage";
+import RatingPage from "./Ratings";
 
 function App() {
 
@@ -24,6 +26,8 @@ function App() {
         <Route path="/foodtinder" element={<FoodTinder />} />
         <Route path="/result" element={<ResultPage />} />
         <Route path="/admin-dashboard" element={<AdminDash />} />
+        <Route path="/profile" element={<UserPage />} />
+        <Route path="/rating/:restaurantId" element={<RatingPage />} />
       </Routes>
     </Router>
   );

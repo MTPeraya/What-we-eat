@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { config } from './config';
 
 // API function to fetch user history (limited to 3 most recent)
 async function fetchUserHistory(limit = 3) {
     try {
         const qs = new URLSearchParams({ limit: String(limit) });
-        const res = await fetch(`/api/me/history?${qs.toString()}`, { 
+        const res = await fetch(`${config.apiUrl}/api/me/history?${qs.toString()}`, { 
             credentials: "include" 
         });
         
@@ -49,7 +51,7 @@ const customStyles = `
 
 const pen = (size="50px") => {
     return (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <path d="M15.4998 5.50067L18.3282 8.3291M13 21H21M3 21.0004L3.04745 20.6683C3.21536 19.4929 3.29932 18.9052 3.49029 18.3565C3.65975 17.8697 3.89124 17.4067 4.17906 16.979C4.50341 16.497 4.92319 16.0772 5.76274 15.2377L17.4107 3.58969C18.1918 2.80865 19.4581 2.80864 20.2392 3.58969C21.0202 4.37074 21.0202 5.63707 20.2392 6.41812L8.37744 18.2798C7.61579 19.0415 7.23497 19.4223 6.8012 19.7252C6.41618 19.994 6.00093 20.2167 5.56398 20.3887C5.07171 20.5824 4.54375 20.6889 3.48793 20.902L3 21.0004Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M15.4998 5.50067L18.3282 8.3291M13 21H21M3 21.0004L3.04745 20.6683C3.21536 19.4929 3.29932 18.9052 3.49029 18.3565C3.65975 17.8697 3.89124 17.4067 4.17906 16.979C4.50341 16.497 4.92319 16.0772 5.76274 15.2377L17.4107 3.58969C18.1918 2.80865 19.4581 2.80864 20.2392 3.58969C21.0202 4.37074 21.0202 5.63707 20.2392 6.41812L8.37744 18.2798C7.61579 19.0415 7.23497 19.4223 6.8012 19.7252C6.41618 19.994 6.00093 20.2167 5.56398 20.3887C5.07171 20.5824 4.54375 20.6889 3.48793 20.902L3 21.0004Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>)
 }
 
@@ -61,15 +63,34 @@ const gradient = {
     color: "white"
 };
 
-const Header = (Onclick = () => {}) => {
+const ProfileHeader = ({ onBackClick }) => {
     return(
-        <div className="w-100 bg-transparent" style={{height:"10vh"}}>
-            <button type="button" Onclick = {Onclick} className="bg-transparent">
-                <svg xmlns="http://www.w3.org/2000/svg" width="50px" height="50px" viewBox="0 0 24 24" fill="none">
-                <path d="M19 5L5 19M5.00001 5L19 19" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <div className="w-100 bg-transparent d-flex justify-content-between align-items-center px-3" style={{height:"10vh"}}>
+            <button 
+                type="button" 
+                onClick={onBackClick} 
+                className="btn btn-outline-light d-flex align-items-center gap-2"
+                style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    border: '2px solid white',
+                    borderRadius: '25px',
+                    padding: '8px 16px',
+                    transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                }}
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
                 </svg>
-        </button>
-            
+                <span style={{color: 'white', fontWeight: 'bold'}}>Back</span>
+            </button>
         </div>
     )
 }
@@ -556,6 +577,7 @@ function History({
 
 
 function UserPage(){
+    const navigate = useNavigate();
 
     const [displayName, setDisplayName] = useState("Default User");
     const [username, setUsername] = useState("defaultuser")
@@ -573,6 +595,45 @@ function UserPage(){
 
     const [userHistory, setUserHistory] = useState([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+    const [isLoadingUser, setIsLoadingUser] = useState(true);
+
+    // Back button handler
+    const handleBackClick = () => {
+        navigate('/');
+    };
+
+    // Fetch user profile on component mount
+    useEffect(() => {
+        const loadUserProfile = async () => {
+            setIsLoadingUser(true);
+            try {
+                const res = await fetch(`${config.endpoints.auth}/me`, {
+                    credentials: 'include'
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    const user = data.user;
+                    
+                    if (user) {
+                        setUsername(user.username || 'defaultuser');
+                        setDisplayName(user.displayName || user.username || 'Default User');
+                        setProfilePic(user.profilePicture || '/placeholderProfile.png');
+                        
+                        // Set temp values too
+                        setTempUsername(user.username || 'defaultuser');
+                        setTempDisplayName(user.displayName || user.username || 'Default User');
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load user profile:', error);
+            } finally {
+                setIsLoadingUser(false);
+            }
+        };
+
+        loadUserProfile();
+    }, []);
 
     // Fetch user history on component mount
     useEffect(() => {
@@ -582,12 +643,26 @@ function UserPage(){
                 const history = await fetchUserHistory(3); // Fetch 3 most recent
                 
                 // Transform API data to match your component structure
-                const transformedHistory = history.map(item => ({
-                    restaurant: item.restaurant?.name || item.restaurantName || 'Unknown Restaurant',
-                    locationUrl: item.restaurant?.locationUrl || item.locationUrl || '',
-                    date: item.date ? new Date(item.date).toLocaleDateString() : new Date().toLocaleDateString(),
-                    reviewUrl: item.restaurant?.reviewUrl || item.reviewUrl || ''
-                }));
+                const transformedHistory = history.map(item => {
+                    const restaurant = item.restaurant;
+                    
+                    // Create Google Maps URL
+                    const locationUrl = restaurant?.lat && restaurant?.lng
+                        ? `https://www.google.com/maps/search/?api=1&query=${restaurant.lat},${restaurant.lng}`
+                        : '';
+                    
+                    // Create review URL (navigate to rating page)
+                    const reviewUrl = restaurant?.id 
+                        ? `/rating/${restaurant.id}`
+                        : '';
+                    
+                    return {
+                        restaurant: restaurant?.name || 'Unknown Restaurant',
+                        locationUrl,
+                        date: item.decidedAt ? new Date(item.decidedAt).toLocaleDateString() : new Date().toLocaleDateString(),
+                        reviewUrl
+                    };
+                });
                 
                 setUserHistory(transformedHistory);
             } catch (error) {
@@ -614,19 +689,46 @@ function UserPage(){
         setIsEditing(false);
     }
 
-    const HandleSaveClick = () =>{
+    const HandleSaveClick = async () => {
+        const finalDisplayName = tempDisplayName.trim() || displayName;
+        const finalUsername = tempUsername.trim() || username;
 
-        const finalDisplayName = tempDisplayName.trim()
-        ? tempDisplayName   // Use new value if not blank
-        : displayName;      // Revert to old value if blank
+        try {
+            const response = await fetch(`${config.endpoints.auth}/profile`, {
+                method: 'PUT',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: finalUsername !== username ? finalUsername : undefined,
+                    displayName: finalDisplayName !== displayName ? finalDisplayName : undefined
+                })
+            });
 
-        const finalUsername = tempUsername.trim()
-        ? tempUsername      // Use new value if not blank
-        : username;
+            if (!response.ok) {
+                const error = await response.json();
+                if (error.error === 'USERNAME_TAKEN') {
+                    alert('Username is already taken. Please choose another one.');
+                } else {
+                    alert(`Failed to update profile: ${error.error || 'Unknown error'}`);
+                }
+                return;
+            }
 
-        setDisplayName(finalDisplayName);
-        setUsername(finalUsername);
-        setIsEditing(false);
+            const data = await response.json();
+            console.log('Profile updated successfully:', data);
+
+            // Update local state with saved values
+            setDisplayName(finalDisplayName);
+            setUsername(finalUsername);
+            setIsEditing(false);
+            
+            alert('Profile updated successfully!');
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            alert('Failed to update profile. Please try again.');
+        }
     };
 
     const handleInputChange = (name, value) => {
@@ -664,10 +766,75 @@ function UserPage(){
         input.click();
     };
 
-    const handleCropperSave = (croppedImageUrl) => {
-        setProfilePic(croppedImageUrl);
-        setShowCropper(false);
-        setSelectedImageFile(null);
+    const handleCropperSave = async (croppedImageUrl, croppedBlob) => {
+        try {
+            console.log('[UserPage] Uploading profile picture...');
+            
+            // Step 1: Get presigned URL
+            const presignRes = await fetch(`${config.endpoints.uploads}/presign`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    mime: 'image/jpeg'
+                })
+            });
+
+            if (!presignRes.ok) {
+                throw new Error('Failed to get presigned URL');
+            }
+
+            const presignData = await presignRes.json();
+            const { uploadUrl, key, publicUrl } = presignData;
+
+            // Step 2: Upload to storage
+            const uploadRes = await fetch(uploadUrl, {
+                method: 'PUT',
+                body: croppedBlob,
+                headers: {
+                    'Content-Type': 'image/jpeg'
+                },
+                credentials: 'include'
+            });
+
+            if (!uploadRes.ok) {
+                throw new Error('Failed to upload image');
+            }
+
+            console.log('[UserPage] Image uploaded:', key);
+
+            // Step 3: Update user profile with new image URL
+            const updateRes = await fetch(`${config.endpoints.auth}/profile`, {
+                method: 'PUT',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    profilePicture: publicUrl
+                })
+            });
+
+            if (!updateRes.ok) {
+                throw new Error('Failed to update profile picture');
+            }
+
+            console.log('[UserPage] Profile picture updated successfully');
+            
+            // Update local state
+            setProfilePic(publicUrl);
+            setShowCropper(false);
+            setSelectedImageFile(null);
+            
+            alert('Profile picture updated successfully!');
+        } catch (error) {
+            console.error('[UserPage] Error uploading profile picture:', error);
+            alert('Failed to upload profile picture. Please try again.');
+            
+            // Still close cropper but don't update picture
+            setShowCropper(false);
+            setSelectedImageFile(null);
+        }
     };
 
     const handleCropperClose = () => {
@@ -681,33 +848,46 @@ function UserPage(){
         <>
             <style>{customStyles}</style>
             <section className="position-relative p-3 d-flex flex-column align-items-center" style={gradient}>
-                <Header/>
-                <WhiteBorder>
-                    <UserProfile
-                        profilePic={profilePic}
-                        displayName={displayName}
-                        username={username}
-                        isEditing={isEditing}
-                        HandleEditClick={HandleEditClick}
-                        tempDisplayName={tempDisplayName}
-                        tempUsername={tempUsername}
-                        handleInputChange={handleInputChange}
-                        HandleSaveClick={HandleSaveClick}
-                        HandleCancelClick={HandleCancelClick}
-                        onProfilePicClick={handleProfilePicClick}
-                    />
-                </WhiteBorder>
-                <JustButton name="Account Management"/>
-                <JustButton name="Manage Post"/>
+                <ProfileHeader onBackClick={handleBackClick} />
+                {isLoadingUser ? (
+                    <WhiteBorder>
+                        <div className="text-center p-5">
+                            <div className="spinner-border text-light" role="status">
+                                <span className="visually-hidden">Loading profile...</span>
+                            </div>
+                            <p className="mt-3">Loading your profile...</p>
+                        </div>
+                    </WhiteBorder>
+                ) : (
+                    <>
+                        <WhiteBorder>
+                            <UserProfile
+                                profilePic={profilePic}
+                                displayName={displayName}
+                                username={username}
+                                isEditing={isEditing}
+                                HandleEditClick={HandleEditClick}
+                                tempDisplayName={tempDisplayName}
+                                tempUsername={tempUsername}
+                                handleInputChange={handleInputChange}
+                                HandleSaveClick={HandleSaveClick}
+                                HandleCancelClick={HandleCancelClick}
+                                onProfilePicClick={handleProfilePicClick}
+                            />
+                        </WhiteBorder>
+                        <JustButton name="Account Management"/>
+                        <JustButton name="Manage Post"/>
 
-                <WhiteBorder>
-                    <History 
-                        userHistory={userHistory}
-                        NoRepeat={NoRepeat}
-                        handleNoRepeatToggle={handleNoRepeatToggle}
-                        isLoadingHistory={isLoadingHistory}
-                    />
-                </WhiteBorder>
+                        <WhiteBorder>
+                            <History 
+                                userHistory={userHistory}
+                                NoRepeat={NoRepeat}
+                                handleNoRepeatToggle={handleNoRepeatToggle}
+                                isLoadingHistory={isLoadingHistory}
+                            />
+                        </WhiteBorder>
+                    </>
+                )}
             </section>
 
             {/* Profile Picture Cropper Modal */}

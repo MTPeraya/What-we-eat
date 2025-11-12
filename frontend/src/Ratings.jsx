@@ -5,6 +5,7 @@ import ReviewCard from './components/ReviewCard';
 import Header from './header';
 import Footer from './components/smallfooter';
 import { config } from './config';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 
 // CONSTANT VARIABLE
 
@@ -325,11 +326,18 @@ ReviewAdding.propTypes = {
 
 function RatingPage(){
     // Main Page
+    const { restaurantId } = useParams();
+    const location = useLocation();
+    const navigate = useNavigate();
     const [showReviewAdding, setShowReviewAdding] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
     const ratingApi = config.endpoints.ratings;
     console.log(ratingApi);
+
+    const handleGoBack = () => {
+        navigate(-1); // Go back to previous page
+    };
 
     useEffect(() => {
         const handleResize = () => {
@@ -339,8 +347,21 @@ function RatingPage(){
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    const restaurant = {imgURL: "../public/restaurant/restaurant1.jpg",
-                    name: "Restaurant 1"};
+    // Get restaurant data from navigation state or use fallback
+    const restaurantFromState = location.state?.restaurant;
+    const restaurant = restaurantFromState ? {
+        imgURL: restaurantFromState.url || "../public/restaurant/restaurant1.jpg",
+        name: restaurantFromState.name || "Restaurant",
+        rating: restaurantFromState.rating || 0,
+        address: restaurantFromState.address || "",
+        id: restaurantFromState.id || restaurantId
+    } : {
+        imgURL: "../public/restaurant/restaurant1.jpg",
+        name: "Restaurant 1",
+        rating: 0,
+        address: "",
+        id: restaurantId
+    };
 
     // Sample review data - replace this with your actual data source
     // TODO: make a integration function here
@@ -384,6 +405,40 @@ function RatingPage(){
         <div>
             {/* <Header/> */}
             <section className={`d-flex justify-content-center align-items-center ${isMobile?'flex-column' : ''}`} style={{height: isMobile ? showReviewAdding ? "90vh" : "180vh" : '80vh', backgroundColor:"603A2B", width:"100vw"}}>
+                {/* Back Button - positioned absolutely */}
+                <button 
+                    onClick={handleGoBack}
+                    className="btn btn-outline-light position-absolute"
+                    style={{
+                        top: '20px',
+                        left: '20px',
+                        zIndex: 1000,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                        border: '2px solid white',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        padding: '10px 20px',
+                        borderRadius: '25px',
+                        transition: 'all 0.3s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+                        e.target.style.transform = 'scale(1.05)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
+                        e.target.style.transform = 'scale(1)';
+                    }}
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                    Back
+                </button>
+
                 <div className={`d-flex ${isMobile?'flex-column h-100 mt-5 align-items-center' : 'h-75'} border w-75 border-secondary rounded`}>
                     <img src={restaurant.imgURL} alt={restaurant.name} className={`object-fit-cover ${isMobile ? 'w-100 h-25' : 'w-25 h-100'} rounded-start`}/>
                     <div className={`d-flex flex-column ${isMobile ? "w-100 dx-1 px-1" : "w-75"} m-2`}>
@@ -393,7 +448,7 @@ function RatingPage(){
                             </div>
                             <div className="d-flex mx-3 my-1 align-items-center gap-1">
                                 {stars({size: "4vh" , color: "#BB3D25"})}
-                                <h1 className="my-0">5.0</h1>
+                                <h1 className="my-0">{restaurant.rating ? restaurant.rating.toFixed(1) : "-"}</h1>
                             </div>
                         </div>
                         <hr className="mb-1 me-1"/>
