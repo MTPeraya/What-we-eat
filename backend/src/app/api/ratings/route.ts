@@ -2,45 +2,46 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db";
 import { requireAuth } from "@/lib/session";
-import type { Prisma } from "@prisma/client";
+import { Prisma, RatingStatus } from "@prisma/client"; // ✅ fixed import
 import { withCORS, preflight } from "@/lib/cors";
 
 // ---------- CORS ----------
 export async function OPTIONS(req: NextRequest) {
-  const origin = req.headers.get('origin');
-  return preflight('POST, OPTIONS', origin);
+  const origin = req.headers.get("origin");
+  return preflight("POST, OPTIONS", origin);
 }
 
 // ---------- Validation ----------
 const MAX_SIZE = Number(process.env.RATING_PHOTO_MAX_BYTES ?? 5_000_000); // 5MB
 
 // Accept either: restaurantId or placeId
-const BodySchema = z.object({
-  roomId: z.string().optional(),
-  restaurantId: z.string().optional(),
-  placeId: z.string().optional(),
-  score: z.number().int().min(1).max(5),
-  tags: z.array(z.string().min(1).max(20)).max(10).optional(),
-  comment: z.string().max(500).optional(),
-  photos: z
-    .array(
-      z.object({
-        storageKey: z.string(),
-        publicUrl: z.string().url().nullable().optional(),
-        width: z.number().int().positive().optional(),
-        height: z.number().int().positive().optional(),
-        mime: z.string().startsWith("image/"),
-        sizeBytes: z.number().int().positive().max(MAX_SIZE),
-      })
-    )
-    .max(3)
-    .optional(),
-})
-.refine(v => !!v.restaurantId || !!v.placeId, {
-  message: "restaurantId or placeId is required",
-  path: ["restaurantId"],
-})
-.strict();
+const BodySchema = z
+  .object({
+    roomId: z.string().optional(),
+    restaurantId: z.string().optional(),
+    placeId: z.string().optional(),
+    score: z.number().int().min(1).max(5),
+    tags: z.array(z.string().min(1).max(20)).max(10).optional(),
+    comment: z.string().max(500).optional(),
+    photos: z
+      .array(
+        z.object({
+          storageKey: z.string(),
+          publicUrl: z.string().url().nullable().optional(),
+          width: z.number().int().positive().optional(),
+          height: z.number().int().positive().optional(),
+          mime: z.string().startsWith("image/"),
+          sizeBytes: z.number().int().positive().max(MAX_SIZE),
+        })
+      )
+      .max(3)
+      .optional(),
+  })
+  .refine((v) => !!v.restaurantId || !!v.placeId, {
+    message: "restaurantId or placeId is required",
+    path: ["restaurantId"],
+  })
+  .strict();
 
 // ---------- GET /api/ratings ----------
 export async function GET(req: NextRequest) {
@@ -51,23 +52,20 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
 
+    // ✅ fix type-safe Prisma filter
     const where: Prisma.RatingWhereInput =
-      status !== null
-        ? { status } 
+      status && Object.values(RatingStatus).includes(status as RatingStatus)
+        ? { status: status as RatingStatus }
         : {};
 
     const ratings = await prisma.rating.findMany({
       where,
       include: {
         restaurant: {
-          select: {
-            name: true,
-          },
+          select: { name: true },
         },
         user: {
-          select: {
-            name: true,
-          },
+          select: { name: true },
         },
         photos: {
           select: {
@@ -116,7 +114,6 @@ export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin");
 
   try {
-    // ✅ Capture userId (fixes "unused variable" warning)
     const { userId } = await requireAuth(req);
 
     const json = (await req.json().catch(() => ({}))) as unknown;
@@ -153,7 +150,7 @@ export async function POST(req: NextRequest) {
       const created = await tx.rating.create({
         data: {
           roomId: roomId ?? null,
-          userId, // ✅ now used properly
+          userId,
           restaurantId: resolvedRestaurantId!,
           score,
           tags: tags ? (tags as unknown as Prisma.InputJsonValue) : undefined,
@@ -175,6 +172,7 @@ export async function POST(req: NextRequest) {
           })),
         });
       }
+
       return created.id;
     });
 
@@ -190,6 +188,7 @@ export async function POST(req: NextRequest) {
         origin
       );
     }
+
     return withCORS(
       NextResponse.json(
         { error: "RATING_CREATE_FAILED", details: msg },
