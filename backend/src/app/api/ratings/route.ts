@@ -51,9 +51,10 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status"); // optional filter
 
-    const where: Prisma.RatingWhereInput = status
-      ? { status: status as any }
-      : {};
+    const where: Prisma.RatingWhereInput =
+      status !== null
+        ? { status: status as Prisma.RatingStatus } // ✅ Properly typed
+        : {};
 
     const ratings = await prisma.rating.findMany({
       where,
@@ -76,7 +77,7 @@ export async function GET(req: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-      take: 100, // limit to avoid massive loads
+      take: 100,
     });
 
     const items = ratings.map((r) => ({
@@ -90,10 +91,7 @@ export async function GET(req: NextRequest) {
       createdAt: r.createdAt,
     }));
 
-    return withCORS(
-      NextResponse.json({ ok: true, items }),
-      origin
-    );
+    return withCORS(NextResponse.json({ ok: true, items }), origin);
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
     if (msg === "UNAUTHENTICATED") {
@@ -115,10 +113,11 @@ export async function GET(req: NextRequest) {
 
 // ---------- POST /api/ratings ----------
 export async function POST(req: NextRequest) {
-  const origin = req.headers.get('origin');
-  
+  const origin = req.headers.get("origin");
+
   try {
-    await requireAuth(req);
+    // ✅ Capture userId (fixes "unused variable" warning)
+    const { userId } = await requireAuth(req);
 
     const json = (await req.json().catch(() => ({}))) as unknown;
     const parsed = BodySchema.safeParse(json);
@@ -135,7 +134,6 @@ export async function POST(req: NextRequest) {
     const { roomId, restaurantId, placeId, score, tags, comment, photos = [] } =
       parsed.data;
 
-    // Convert placeId -> restaurantId if needed
     let resolvedRestaurantId = restaurantId ?? null;
     if (!resolvedRestaurantId && placeId) {
       const r = await prisma.restaurant.findUnique({
@@ -151,13 +149,12 @@ export async function POST(req: NextRequest) {
       resolvedRestaurantId = r.id;
     }
 
-    // Create rating + photos (status default = pending)
     const createdId = await prisma.$transaction(async (tx) => {
       const created = await tx.rating.create({
         data: {
           roomId: roomId ?? null,
-          userId,
-          restaurantId: resolvedRestaurantId!, // Resolved value guaranteed
+          userId, // ✅ now used properly
+          restaurantId: resolvedRestaurantId!,
           score,
           tags: tags ? (tags as unknown as Prisma.InputJsonValue) : undefined,
           comment: comment ?? null,
