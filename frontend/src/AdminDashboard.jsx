@@ -155,7 +155,7 @@ const OverviewStats = ({ overviewData, engagementData }) => {
                 paddingAngle={5}
                 labelLine={false}
               >
-                {ratingData.map((entry, index) => (
+                {ratingData.map((entry) => (
                   <Cell key={`cell-${entry.name}`} fill={entry.color} />
                 ))}
               </Pie>
