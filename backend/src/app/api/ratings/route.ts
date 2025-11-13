@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
   const origin = req.headers.get('origin');
   
   try {
-    const { userId } = await requireAuth(req);
+    await requireAuth(req);
 
     const json = (await req.json().catch(() => ({}))) as unknown;
     const parsed = BodySchema.safeParse(json);
