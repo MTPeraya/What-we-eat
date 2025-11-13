@@ -42,6 +42,77 @@ const BodySchema = z.object({
 })
 .strict();
 
+// ---------- GET /api/ratings ----------
+export async function GET(req: NextRequest) {
+  const origin = req.headers.get("origin");
+
+  try {
+    const { userId } = await requireAuth(req);
+    const { searchParams } = new URL(req.url);
+    const status = searchParams.get("status"); // optional filter
+
+    const where: Prisma.RatingWhereInput = status
+      ? { status: status as any }
+      : {};
+
+    const ratings = await prisma.rating.findMany({
+      where,
+      include: {
+        restaurant: {
+          select: {
+            name: true,
+          },
+        },
+        user: {
+          select: {
+            name: true,
+          },
+        },
+        photos: {
+          select: {
+            publicUrl: true,
+            mime: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100, // limit to avoid massive loads
+    });
+
+    const items = ratings.map((r) => ({
+      id: r.id,
+      restaurant: r.restaurant?.name ?? "Unknown",
+      author: r.user?.name ?? "Anonymous",
+      content: r.comment ?? "",
+      status: r.status,
+      photos: r.photos ?? [],
+      score: r.score,
+      createdAt: r.createdAt,
+    }));
+
+    return withCORS(
+      NextResponse.json({ ok: true, items }),
+      origin
+    );
+  } catch (e) {
+    const msg = (e as Error)?.message ?? String(e);
+    if (msg === "UNAUTHENTICATED") {
+      return withCORS(
+        NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }),
+        origin
+      );
+    }
+
+    return withCORS(
+      NextResponse.json(
+        { error: "RATING_FETCH_FAILED", details: msg },
+        { status: 500 }
+      ),
+      origin
+    );
+  }
+}
+
 // ---------- POST /api/ratings ----------
 export async function POST(req: NextRequest) {
   const origin = req.headers.get('origin');
