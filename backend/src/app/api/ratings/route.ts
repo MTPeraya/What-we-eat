@@ -47,13 +47,13 @@ export async function GET(req: NextRequest) {
   const origin = req.headers.get("origin");
 
   try {
-    const { userId } = await requireAuth(req);
+    await requireAuth(req);
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get("status"); // optional filter
+    const status = searchParams.get("status");
 
     const where: Prisma.RatingWhereInput =
       status !== null
-        ? { status: status as Prisma.RatingStatus } // ✅ Properly typed
+        ? { status } 
         : {};
 
     const ratings = await prisma.rating.findMany({
