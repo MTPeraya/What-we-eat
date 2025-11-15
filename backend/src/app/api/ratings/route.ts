@@ -65,7 +65,10 @@ export async function GET(req: NextRequest) {
           select: { name: true },
         },
         user: {
-          select: { name: true },
+          select: {
+            displayName: true,
+            username: true,
+          }
         },
         photos: {
           select: {
