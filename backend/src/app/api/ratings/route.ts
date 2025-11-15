@@ -65,7 +65,10 @@ export async function GET(req: NextRequest) {
           select: { name: true },
         },
         user: {
-          select: { name: true },
+          select: {
+            displayName: true,
+            username: true,
+          }
         },
         photos: {
           select: {
@@ -81,7 +84,10 @@ export async function GET(req: NextRequest) {
     const items = ratings.map((r) => ({
       id: r.id,
       restaurant: r.restaurant?.name ?? "Unknown",
-      author: r.user?.name ?? "Anonymous",
+      author: 
+        r.user
+          ? (r.user.displayName ?? r.user.username ?? "Anonymous")
+          : "Anonymous",
       content: r.comment ?? "",
       status: r.status,
       photos: r.photos ?? [],
