@@ -14,7 +14,7 @@ function addDays(d: Date, days: number) {
   return new Date(d.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
-/** อ่าน IP จาก header (รองรับ proxy/CDN) */
+/** Read IP from header (supports proxy/CDN) */
 function getClientIp(req?: NextRequest): string | undefined {
   if (!req) return undefined;
   const fwd = req.headers.get('x-forwarded-for'); // eg: "1.2.3.4, 5.6.7.8"
@@ -26,7 +26,7 @@ function getClientIp(req?: NextRequest): string | undefined {
   return real || undefined;
 }
 
-/** สร้างเซสชัน + set HttpOnly cookie */
+/** Create session + set HttpOnly cookie */
 export async function createSession(
   res: NextResponse,
   userId: string,
@@ -50,7 +50,7 @@ export async function createSession(
   res.cookies.set(COOKIE_NAME, raw, {
     httpOnly: true,
     secure: secureCookie,
-    sameSite: 'lax',
+    sameSite: 'none',
     path: '/',
     expires: expiresAt,
   });
@@ -58,7 +58,7 @@ export async function createSession(
   return { token: raw, expiresAt };
 }
 
-/** อ่านเซสชันจากคุกกี้ */
+/** Read session from cookie */
 export async function getSession(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
   if (!token) return null;
@@ -72,14 +72,14 @@ export async function getSession(req: NextRequest) {
   return { sessionId: s.id, userId: s.userId, user: s.user };
 }
 
-/** ต้องล็อกอินเท่านั้น */
+/** Require authentication only */
 export async function requireAuth(req: NextRequest) {
   const s = await getSession(req);
   if (!s) throw new Error('UNAUTHENTICATED');
   return s;
 }
 
-/** ลบเซสชัน + เคลียร์คุกกี้ */
+/** Destroy session + clear cookie */
 export async function destroySession(req: NextRequest, res: NextResponse) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
   if (token) {
@@ -90,7 +90,7 @@ export async function destroySession(req: NextRequest, res: NextResponse) {
   res.cookies.set(COOKIE_NAME, '', {
     httpOnly: true,
     secure: true,
-    sameSite: 'lax',
+    sameSite: 'none',
     path: '/',
     maxAge: 0,
   });

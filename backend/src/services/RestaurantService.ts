@@ -2,7 +2,7 @@
 import { prisma } from "@/lib/db";
 // import type { Prisma } from "@prisma/client";
 
-/** payload ที่ใช้ตอน upsert (มาจาก Google Places mapping) */
+/** Payload for upsert operation (from Google Places mapping) */
 export type RestaurantUpsertInput = {
   placeId: string;
   name: string;
@@ -17,18 +17,18 @@ export type RestaurantUpsertInput = {
 };
 
 export class RestaurantService {
-  /** ถ้าเป็น test หรือไม่มี DATABASE_URL → ข้ามการเขียน DB */
+  /** Skip DB writes if test mode or no DATABASE_URL configured */
   private shouldSkipDb(): boolean {
     return process.env.NODE_ENV === "test" || !process.env.DATABASE_URL;
   }
 
-  /** สร้างหรืออัปเดตร้านตาม placeId (หลายรายการ) */
+  /** Create or update restaurants by placeId (bulk operation) */
   async createOrUpdateMany(items: RestaurantUpsertInput[]) {
     if (!items?.length) return [];
 
     if (this.shouldSkipDb()) {
-      // หลีกเลี่ยงการเรียก DB ระหว่างเทสต์/บน CI ที่ไม่มี DATABASE_URL
-      // คืนค่า mock ที่หน้าตาเหมือน Restaurant พอประมาณ (ผู้ใช้ปลายทางใช้แค่ length)
+      // Skip DB calls during tests/CI without DATABASE_URL
+      // Return mock data resembling Restaurant model (consumers only use length)
       return items.map((i) => ({
         id: `test_${i.placeId}`,
         placeId: i.placeId,
@@ -44,7 +44,7 @@ export class RestaurantService {
       }));
     }
 
-    // โหมดปกติ → เขียน DB
+    // Normal mode → write to DB
     const ops = items.map((i) =>
       prisma.restaurant.upsert({
         where: { placeId: i.placeId },
@@ -76,7 +76,7 @@ export class RestaurantService {
     return Promise.all(ops);
   }
 
-  /** คิวรีรายการจาก DB (ใช้ในหน้า verify เป็นต้น) */
+  /** Query restaurant list from DB (used in verify page, etc.) */
   async list(args: { q?: string; page?: number; pageSize?: number }) {
     const { q, page = 1, pageSize = 20 } = args ?? {};
     const skip = (page - 1) * pageSize;

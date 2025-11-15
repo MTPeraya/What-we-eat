@@ -1,25 +1,14 @@
 // backend/src/lib/admin.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
+import { withCORS as corsWithCORS } from "@/lib/cors";
 
-export const FRONTEND_ORIGIN =
-  process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
-
-// CORS helper
-export function withCORS<T extends NextResponse>(res: T): T {
-  res.headers.set("Access-Control-Allow-Origin", FRONTEND_ORIGIN);
-  res.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.headers.set("Access-Control-Allow-Credentials", "true");
-  return res;
+// CORS helper wrapper (for backward compatibility with admin routes)
+export function withCORS<T extends NextResponse>(res: T, origin?: string | null): T {
+  return corsWithCORS(res, origin) as T;
 }
 
-// OPTIONS (preflight)
-export async function OPTIONS() {
-  return withCORS(new NextResponse(null, { status: 204 }));
-}
-
-// ต้องเป็น ADMIN เท่านั้น
+// Require ADMIN role only
 export async function requireAdmin(req: NextRequest) {
   const s = await getSession(req);
   if (!s) throw new Error("UNAUTHENTICATED");
@@ -27,7 +16,7 @@ export async function requireAdmin(req: NextRequest) {
   return { userId: s.user.id };
 }
 
-// parse ?from & ?to (default 30 วันล่าสุด)
+// parse ?from & ?to query params (default: last 30 days)
 export function parseRange(req: NextRequest, fallbackDays = 30) {
   const sp = Object.fromEntries(req.nextUrl.searchParams.entries());
   const fromRaw = sp.from ? new Date(sp.from) : new Date(Date.now() - fallbackDays * 86400e3);
@@ -37,12 +26,12 @@ export function parseRange(req: NextRequest, fallbackDays = 30) {
   return { from, to };
 }
 
-// JSON OK (ไม่มี any)
+// JSON OK response (type-safe)
 export function jsonOK(data: unknown, init?: ResponseInit) {
   return withCORS(NextResponse.json(data, { status: 200, ...(init ?? {}) }));
 }
 
-// JSON Error (ไม่มี any)
+// JSON Error response (type-safe)
 export function jsonError(
   message: string,
   status = 500,

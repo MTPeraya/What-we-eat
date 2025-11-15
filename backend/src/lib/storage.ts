@@ -39,5 +39,5 @@ const local: Storage = {
   },
 };
 
-const storage: Storage = local; // ตอนนี้ใช้ local อย่างเดียว
+const storage: Storage = local; // Currently using local only
 export default storage;

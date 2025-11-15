@@ -2,18 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/db";
 import { requireAuth } from "@/lib/session";
+import { withCORS, preflight } from "@/lib/cors";
 
 // ===== CORS =====
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
-function withCORS(res: NextResponse) {
-  res.headers.set("Access-Control-Allow-Origin", FRONTEND_ORIGIN);
-  res.headers.set("Access-Control-Allow-Methods", "POST, DELETE, OPTIONS");
-  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.headers.set("Access-Control-Allow-Credentials", "true");
-  return res;
-}
-export async function OPTIONS() {
-  return withCORS(new NextResponse(null, { status: 204 }));
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  return preflight('POST, DELETE, OPTIONS', origin);
 }
 
 // ===== Validation =====
@@ -31,17 +25,19 @@ export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ roomId: string }> }
 ) {
+  const origin = req.headers.get('origin');
+  
   try {
     const { roomId } = await ctx.params;
     const { userId } = await requireAuth(req);
 
-    // ต้องเป็นสมาชิกห้อง
+    // Must be room member
     const isMember = await prisma.roomParticipant.findFirst({
       where: { roomId, userId },
       select: { id: true },
     });
     if (!isMember) {
-      return withCORS(NextResponse.json({ error: "FORBIDDEN_NOT_MEMBER" }, { status: 403 }));
+      return withCORS(NextResponse.json({ error: "FORBIDDEN_NOT_MEMBER" }, { status: 403 }), origin);
     }
 
     let json: unknown = {};
@@ -49,20 +45,21 @@ export async function POST(
     const parsed = BodySchema.safeParse(json);
     if (!parsed.success) {
       return withCORS(
-        NextResponse.json({ error: "INVALID_BODY", details: parsed.error.flatten() }, { status: 400 })
+        NextResponse.json({ error: "INVALID_BODY", details: parsed.error.flatten() }, { status: 400 }),
+        origin
       );
     }
     const { restaurantId, value } = parsed.data;
 
-    // upsert โหวต (unique: roomId+userId+restaurantId)
+    // Upsert vote (unique: roomId+userId+restaurantId)
     const vote = await prisma.vote.upsert({
       where: { roomId_userId_restaurantId: { roomId, userId, restaurantId } },
-      update: { value }, // ถ้ามีอยู่แล้ว เปลี่ยนค่า
+      update: { value }, // If exists, update value
       create: { roomId, userId, restaurantId, value },
       select: { id: true, value: true, createdAt: true },
     });
 
-    // tally เฉพาะร้านนี้ในห้องนี้
+    // Tally votes for this restaurant in this room
     const grouped = await prisma.vote.groupBy({
       by: ["value"],
       where: { roomId, restaurantId },
@@ -79,33 +76,36 @@ export async function POST(
           tally: { accept, reject, netScore: accept - reject, total: accept + reject },
         },
         { status: 200 }
-      )
+      ),
+      origin
     );
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
     if (msg === "UNAUTHENTICATED") {
-      return withCORS(NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }));
+      return withCORS(NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }), origin);
     }
-    return withCORS(NextResponse.json({ error: "VOTE_FAILED", details: msg }, { status: 500 }));
+    return withCORS(NextResponse.json({ error: "VOTE_FAILED", details: msg }, { status: 500 }), origin);
   }
 }
 
-// ===== DELETE /api/rooms/:roomId/votes  (ยกเลิกโหวตของตัวเองสำหรับร้านหนึ่ง) =====
+// ===== DELETE /api/rooms/:roomId/votes  (Cancel own vote for a restaurant) =====
 export async function DELETE(
   req: NextRequest,
   ctx: { params: Promise<{ roomId: string }> }
 ) {
+  const origin = req.headers.get('origin');
+  
   try {
     const { roomId } = await ctx.params;
     const { userId } = await requireAuth(req);
 
-    // สมาชิกเท่านั้น
+    // Must be room member
     const isMember = await prisma.roomParticipant.findFirst({
       where: { roomId, userId },
       select: { id: true },
     });
     if (!isMember) {
-      return withCORS(NextResponse.json({ error: "FORBIDDEN_NOT_MEMBER" }, { status: 403 }));
+      return withCORS(NextResponse.json({ error: "FORBIDDEN_NOT_MEMBER" }, { status: 403 }), origin);
     }
 
     let json: unknown = {};
@@ -113,21 +113,22 @@ export async function DELETE(
     const parsed = DeleteSchema.safeParse(json);
     if (!parsed.success) {
       return withCORS(
-        NextResponse.json({ error: "INVALID_BODY", details: parsed.error.flatten() }, { status: 400 })
+        NextResponse.json({ error: "INVALID_BODY", details: parsed.error.flatten() }, { status: 400 }),
+        origin
       );
     }
     const { restaurantId } = parsed.data;
 
     await prisma.vote.delete({
       where: { roomId_userId_restaurantId: { roomId, userId, restaurantId } },
-    }).catch(() => undefined); // ถ้าไม่มีอยู่ก็เงียบๆ
+    }).catch(() => undefined); // Silently ignore if not exists
 
-    return withCORS(NextResponse.json({ ok: true }, { status: 200 }));
+    return withCORS(NextResponse.json({ ok: true }, { status: 200 }), origin);
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
     if (msg === "UNAUTHENTICATED") {
-      return withCORS(NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }));
+      return withCORS(NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }), origin);
     }
-    return withCORS(NextResponse.json({ error: "VOTE_DELETE_FAILED", details: msg }, { status: 500 }));
+    return withCORS(NextResponse.json({ error: "VOTE_DELETE_FAILED", details: msg }, { status: 500 }), origin);
   }
 }

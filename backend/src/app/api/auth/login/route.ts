@@ -2,23 +2,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z, ZodError } from 'zod';
 import argon2 from 'argon2';
-// NOTE: ให้ใช้ตามโปรเจกต์จริงของคุณ (default export หรือ named export)
+// NOTE: Use according to your project (default export or named export)
 import { prisma } from '@/lib/db';
 import { createSession } from '@/lib/session';
+import { withCORS, preflight } from '@/lib/cors';
 
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173';
-
-function withCORS(res: NextResponse) {
-  res.headers.set('Access-Control-Allow-Origin', FRONTEND_ORIGIN);
-  res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.headers.set('Access-Control-Allow-Credentials', 'true'); // ถ้าจะส่ง cookie
-  return res;
-}
-
-// รองรับ preflight
-export async function OPTIONS() {
-  return withCORS(new NextResponse(null, { status: 204 }));
+// Support preflight
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  return preflight('POST, OPTIONS', origin);
 }
 
 const schema = z.object({
@@ -27,6 +19,8 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  
   try {
     const { username, password } = schema.parse(await req.json());
 
@@ -36,23 +30,24 @@ export async function POST(req: NextRequest) {
     });
 
     if (!user?.password) {
-      return withCORS(NextResponse.json({ error: 'INVALID_CREDENTIALS' }, { status: 401 }));
+      return withCORS(NextResponse.json({ error: 'INVALID_CREDENTIALS' }, { status: 401 }), origin);
     }
 
     const ok = await argon2.verify(user.password, password);
     if (!ok) {
-      return withCORS(NextResponse.json({ error: 'INVALID_CREDENTIALS' }, { status: 401 }));
+      return withCORS(NextResponse.json({ error: 'INVALID_CREDENTIALS' }, { status: 401 }), origin);
     }
 
-    // สร้าง response ก่อน แล้วให้ createSession เซ็ต HttpOnly cookie ลงไป
+    // Create response first, then let createSession set HttpOnly cookie
     const res = withCORS(
       NextResponse.json(
         { user: { id: user.id, username: user.username, role: user.role } },
         { status: 200 }
-      )
+      ),
+      origin
     );
 
-    await createSession(res, user.id, req); // ควรตั้ง cookie เป็น SameSite=None; Secure ถ้าจะ cross-site
+    await createSession(res, user.id, req); // Should set SameSite=None; Secure for cross-site
 
     return res;
   } catch (err) {
@@ -61,14 +56,16 @@ export async function POST(req: NextRequest) {
         NextResponse.json(
           { error: 'VALIDATION_ERROR', details: err.flatten() },
           { status: 400 }
-        )
+        ),
+        origin
       );
     }
     return withCORS(
       NextResponse.json(
         { error: 'LOGIN_FAILED', details: err instanceof Error ? err.message : String(err) },
         { status: 500 }
-      )
+      ),
+      origin
     );
   }
 }

@@ -1,21 +1,51 @@
-import { useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import "./App.css";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import Header from './header.jsx';
+import { config } from './config';
 
 function EnterCode() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [code, setCode] = useState("");
-  const [displayName] = useState("Guest"); // replace with actual user display name
+  const [displayName, setDisplayName] = useState("Guest");
 
-  const API_BASE = "http://localhost:4001/api/rooms";
+  // Load current user to use username as displayName
+  useEffect(() => {
+    (async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        
+        const res = await fetch(`${config.endpoints.auth}/me`, { 
+          credentials: "include",
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!res.ok) return;
+        const data = await res.json();
+        const username = data?.user?.username;
+        if (username) setDisplayName(username);
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error("Error fetching user:", err);
+        }
+      }
+    })();
+  }, []);
 
   // --- JOIN ROOM ---
-  const handleJoin = async () => {
-    const trimmed = code.trim().toUpperCase();
-    if (!trimmed) return alert("Please enter a room code!");
+  const handleJoin = useCallback(async (codeToJoin = null) => {
+    const trimmed = codeToJoin || code.trim().toUpperCase();
+    if (!trimmed) {
+      if (!codeToJoin) alert("Please enter a room code!");
+      return;
+    }
 
     try {
-      const res = await fetch(`${API_BASE}/join`, {
+      const res = await fetch(`${config.endpoints.rooms}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: trimmed, displayName }),
@@ -24,22 +54,37 @@ function EnterCode() {
 
       if (!res.ok) {
         const err = await res.json();
-        return alert(err.error || "Room not found or closed");
+        if (!codeToJoin) alert(err.error || "Room not found or closed");
+        return;
       }
 
       const data = await res.json();
+      console.log("[JOIN OK] response =", data);
       // Navigate with both roomId (for API) and code (for sharing)
       navigate(`/create-room?roomId=${data.roomId}&code=${data.code}`);
     } catch (err) {
       console.error(err);
-      alert("Error connecting to server");
+      if (!codeToJoin) alert("Error connecting to server");
     }
-  };
+  }, [code, displayName, navigate]);
+
+  // Auto-read code from URL params and auto-join if provided
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const codeFromUrl = params.get("code");
+    if (codeFromUrl) {
+      setCode(codeFromUrl.trim().toUpperCase());
+      // Auto-join after a short delay to allow displayName to load
+      setTimeout(() => {
+        handleJoin(codeFromUrl.trim().toUpperCase());
+      }, 500);
+    }
+  }, [location, handleJoin]);
 
   // --- CREATE ROOM ---
   const handleCreateRoom = async () => {
     try {
-      const res = await fetch(`${API_BASE}`, {
+      const res = await fetch(`${config.endpoints.rooms}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ displayName }),
@@ -71,6 +116,8 @@ function EnterCode() {
   };
 
   return (
+    <>
+    <Header/>
     <div className="background">
       <h1 className="head-name">WHAT WE EAT</h1>
 
@@ -93,7 +140,7 @@ function EnterCode() {
         Paste from Clipboard
       </a>
 
-      <button className="green small-btn shadow" onClick={handleJoin}>
+      <button className="green small-btn shadow" onClick={() => handleJoin()}>
         Join Room
       </button>
 
@@ -101,6 +148,7 @@ function EnterCode() {
         Create Room
       </button>
     </div>
+    </>
   );
 }
 

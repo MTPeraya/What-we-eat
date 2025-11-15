@@ -5,19 +5,12 @@ import { finalDecide, writeMealHistory } from "@/services/decideService";
 import { requireAuth } from "@/lib/session";
 import { buildMapLinks } from "@/services/mapLink";
 import { emitToRoom } from "@/services/realtime";
+import { withCORS, preflight } from "@/lib/cors";
 
 // ================== CORS ==================
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
-function withCORS(res: NextResponse) {
-  res.headers.set("Access-Control-Allow-Origin", FRONTEND_ORIGIN);
-  res.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.headers.set("Access-Control-Allow-Credentials", "true");
-  return res;
-}
-
-export async function OPTIONS() {
-  return withCORS(new NextResponse(null, { status: 204 }));
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  return preflight('GET, POST, OPTIONS', origin);
 }
 
 // ================== Schemas ==================
@@ -32,29 +25,32 @@ const FinalBodySchema = z
   })
   .strict();
 
-// ================== POST: ตัดสินผล (ต้องเป็นสมาชิกห้อง) ==================
+// ================== POST: Finalize decision (must be room member) ==================
 export async function POST(
   req: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> } // Next.js v15: params เป็น Promise
+  ctx: { params: Promise<{ roomId: string }> } // Next.js v15: params is a Promise
 ) {
+  const origin = req.headers.get('origin');
+  
   try {
     const { roomId } = await ctx.params;
 
-    // ต้องล็อกอิน
+    // Must be authenticated
     const { userId } = await requireAuth(req);
 
-    // ต้องเป็นสมาชิกห้อง
+    // Must be room member
     const isMember = await prisma.roomParticipant.findFirst({
       where: { roomId, userId },
       select: { id: true },
     });
     if (!isMember) {
       return withCORS(
-        NextResponse.json({ error: "FORBIDDEN_NOT_MEMBER" }, { status: 403 })
+        NextResponse.json({ error: "FORBIDDEN_NOT_MEMBER" }, { status: 403 }),
+        origin
       );
     }
 
-    // รับ body (optional center)
+    // Parse body (optional center)
     let body: unknown = {};
     try {
       body = await req.json();
@@ -67,29 +63,31 @@ export async function POST(
         NextResponse.json(
           { error: "INVALID_BODY", details: parsed.error.flatten() },
           { status: 400 }
-        )
+        ),
+        origin
       );
     }
 
-    // คำนวณผลผู้ชนะ (tie-break ภายใน service: votes → rating → distance(center) → no-repeat)
+    // Calculate winner (tie-break in service: votes → rating → distance(center) → no-repeat)
     const result = await finalDecide(roomId, parsed.data.center);
     if (!result?.winner) {
       return withCORS(
-        NextResponse.json({ error: "NO_WINNER" }, { status: 400 })
+        NextResponse.json({ error: "NO_WINNER" }, { status: 400 }),
+        origin
       );
     }
 
-    // บันทึกประวัติการตัดสิน (สำหรับสมาชิกที่เกี่ยวข้อง — ภายใน service อาจ loop insert ต่อผู้ใช้/หรือ room-level)
+    // Save decision history (for affected members — service may loop insert per user/room-level)
     await writeMealHistory(roomId, result.winner.restaurantId);
 
-    // สร้างลิงก์แผนที่
+    // Build map links
     const mapLinks = buildMapLinks({
       lat: result.winner.lat,
       lng: result.winner.lng,
       name: result.winner.name,
     });
 
-    // Realtime แจ้งสมาชิกในห้อง
+    // Realtime notify room members
     await emitToRoom(roomId, "decision.finalized", {
       winner: result.winner,
       decidedAt: result.decidedAt ?? new Date().toISOString(),
@@ -103,33 +101,38 @@ export async function POST(
           mapLinks,
         },
         { status: 200 }
-      )
+      ),
+      origin
     );
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
     if (msg === "UNAUTHENTICATED") {
       return withCORS(
-        NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 })
+        NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }),
+        origin
       );
     }
     return withCORS(
       NextResponse.json(
         { error: "FINAL_DECIDE_FAILED", details: msg },
         { status: 500 }
-      )
+      ),
+      origin
     );
   }
 }
 
-// ================== GET: อ่านผลล่าสุดของห้อง (สาธารณะ) ==================
+// ================== GET: Read latest room decision (public) ==================
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ roomId: string }> }
 ) {
+  const origin = req.headers.get('origin');
+  
   try {
     const { roomId } = await ctx.params;
 
-    // อ่านประวัติล่าสุดของห้อง
+    // Read latest history entry for room
     const last = await prisma.mealHistory.findFirst({
       where: { roomId },
       orderBy: { decidedAt: "desc" },
@@ -141,11 +144,12 @@ export async function GET(
         NextResponse.json(
           { winner: null, decidedAt: null, mapLinks: null },
           { status: 200 }
-        )
+        ),
+        origin
       );
     }
 
-    // ดึงข้อมูลร้าน
+    // Fetch restaurant data
     const r = await prisma.restaurant.findUnique({
       where: { id: last.restaurantId },
       select: {
@@ -159,12 +163,13 @@ export async function GET(
     });
 
     if (!r) {
-      // กรณีร้านถูกลบหรือหาไม่เจอ
+      // Restaurant deleted or not found
       return withCORS(
         NextResponse.json(
           { winner: null, decidedAt: last.decidedAt, mapLinks: null },
           { status: 200 }
-        )
+        ),
+        origin
       );
     }
 
@@ -188,14 +193,16 @@ export async function GET(
           mapLinks,
         },
         { status: 200 }
-      )
+      ),
+      origin
     );
   } catch (e) {
     return withCORS(
       NextResponse.json(
         { error: "FINAL_GET_FAILED", details: String(e) },
         { status: 500 }
-      )
+      ),
+      origin
     );
   }
 }

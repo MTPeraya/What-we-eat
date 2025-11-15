@@ -3,17 +3,11 @@ import { z } from "zod";
 import prisma from "@/lib/db";
 import { requireAuth } from "@/lib/session";
 import { buildCandidates } from "@/services/recoService";
+import { withCORS, preflight } from "@/lib/cors";
 
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
-function withCORS(res: NextResponse) {
-  res.headers.set("Access-Control-Allow-Origin", FRONTEND_ORIGIN);
-  res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.headers.set("Access-Control-Allow-Credentials", "true");
-  return res;
-}
-export async function OPTIONS() {
-  return withCORS(new NextResponse(null, { status: 204 }));
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  return preflight('POST, OPTIONS', origin);
 }
 
 const BodySchema = z
@@ -32,17 +26,19 @@ export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ roomId: string }> }
 ) {
+  const origin = req.headers.get('origin');
+  
   try {
     const { roomId } = await ctx.params;
     const { userId } = await requireAuth(req);
 
-    // ต้องเป็นสมาชิกห้อง
+    // Must be room member
     const isMember = await prisma.roomParticipant.findFirst({
       where: { roomId, userId },
       select: { id: true },
     });
     if (!isMember) {
-      return withCORS(NextResponse.json({ error: "FORBIDDEN_NOT_MEMBER" }, { status: 403 }));
+      return withCORS(NextResponse.json({ error: "FORBIDDEN_NOT_MEMBER" }, { status: 403 }), origin);
     }
 
     // body
@@ -51,7 +47,8 @@ export async function POST(
     const parsed = BodySchema.safeParse(body);
     if (!parsed.success) {
       return withCORS(
-        NextResponse.json({ error: "INVALID_BODY", details: parsed.error.flatten() }, { status: 400 })
+        NextResponse.json({ error: "INVALID_BODY", details: parsed.error.flatten() }, { status: 400 }),
+        origin
       );
     }
 
@@ -63,7 +60,7 @@ export async function POST(
     });
     const tookMs = Date.now() - started;
 
-    // metrics เบื้องต้น
+    // Basic metrics
     console.log("[reco] candidates", {
       roomId,
       count: cands.length,
@@ -90,13 +87,14 @@ export async function POST(
           })),
         },
         { status: 200 }
-      )
+      ),
+      origin
     );
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
     if (msg === "UNAUTHENTICATED") {
-      return withCORS(NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }));
+      return withCORS(NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }), origin);
     }
-    return withCORS(NextResponse.json({ error: "CANDIDATES_FAILED", details: msg }, { status: 500 }));
+    return withCORS(NextResponse.json({ error: "CANDIDATES_FAILED", details: msg }, { status: 500 }), origin);
   }
 }

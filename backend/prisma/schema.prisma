@@ -1,6 +1,7 @@
 // ==================== Enums ====================
 enum RoomStatus {
   OPEN
+  STARTED
   CLOSED
 }
 
@@ -75,6 +76,8 @@ model User {
   username          String            @unique
   password          String
   role              Role              @default(USER)
+  displayName       String?
+  profilePicture    String?
 
   // Relations
   rooms             Room[]            @relation("HostRooms")
@@ -94,14 +97,16 @@ model User {
 model Room {
   id           String           @id @default(cuid())
   code         String           @unique @db.VarChar(8)
-  hostId       String
+  hostId       String?
   status       RoomStatus       @default(OPEN)
+  centerLat    Float?
+  centerLng    Float?
   expiresAt    DateTime?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
   // Relations
-  host                 User                 @relation("HostRooms", fields: [hostId], references: [id])
+  host                 User?                @relation("HostRooms", fields: [hostId], references: [id])
   participants         RoomParticipant[]
   votes                Vote[]
   assets               ImageAsset[]

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import "./App.css";
 import { Link, useNavigate} from "react-router-dom";
+import { config } from './config';
+import Header from "./header.jsx";
 
 
 function Register() {
@@ -9,12 +11,9 @@ function Register() {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [rePassword, setRePassword] = useState("");
-    const [error, setError] = useState("");
-    const [message, setMessage] = useState("");
 
     const handleRegister = async (e) => {
-        e.preventDefault()
-        setError("");
+        e.preventDefault();
 
         if (!username) {
             alert("Please enter your username !");
@@ -31,7 +30,7 @@ function Register() {
         // const payload = { username, password, rePassword };
 
         try {
-            const res = await fetch("http://localhost:4001/api/auth/register", {
+            const res = await fetch(`${config.endpoints.auth}/register`, {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 credentials: 'include',
@@ -43,7 +42,6 @@ function Register() {
 
             if (res.ok) {
                 // Backend uses HttpOnly cookie session; no token to store
-                setMessage("✅ ลงทะเบียนสำเร็จ!");
                 navigate("/create-room");
             } else {
                 // Show friendlier validation/duplicate messages
@@ -51,16 +49,16 @@ function Register() {
                     const fieldErr = data?.details?.fieldErrors || {};
                     const firstField = Object.keys(fieldErr)[0];
                     const firstMsg = firstField && Array.isArray(fieldErr[firstField]) ? fieldErr[firstField][0] : 'Validation failed';
-                    setMessage(`❌ ${firstMsg}`);
+                    alert(`❌ ${firstMsg}`);
                 } else if (data?.error === 'USERNAME_TAKEN') {
-                    setMessage('❌ Username is already taken');
+                    alert('❌ Username is already taken');
                 } else {
-                    setMessage(`❌ ${data?.error || "Registration failed"}`);
+                    alert(`❌ ${data?.error || "Registration failed"}`);
                 }
             }
         } catch (err) {
             console.log("err", err);
-            setMessage("🚨 ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+            alert("Cannot connect to server");
         }
 
     // navigate("/create-room");
@@ -69,6 +67,7 @@ function Register() {
 
     return (
         <>
+        <Header />
         <div className="background">
             <h1 className="head-name">WHAT WE EAT</h1>
             <div className="box" style={{ height: "440px" }}>

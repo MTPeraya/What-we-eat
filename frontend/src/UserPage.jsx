@@ -570,7 +570,6 @@ function History({
         </div>
                 <WhiteBorder>
         <div className="d-flex flex-column" style={{width:"98%"}}>
-            {/* {HistoryBlock(undefined, undefined, undefined, undefined, isMobile)} */}
             {isLoadingHistory ? (
                 <div className="text-center p-4">
                     <div className="spinner-border text-light" role="status">

@@ -1,25 +1,18 @@
 import React, {useState, useRef, useEffect, useCallback} from 'react';
-// eslint-disable-next-line no-unused-vars
 import { motion, useMotionValue,  useTransform, animate} from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import Button from "./swipeButton"
 
 const heart  = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 20 20"><path fill="#000000" d="m10 3.22l-.61-.6a5.5 5.5 0 0 0-7.78 7.77L10 18.78l8.39-8.4a5.5 5.5 0 0 0-7.78-7.77l-.61.61z"/></svg>
 
 const cross = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 8 8"><path fill="#000000" d="M1.41 0L0 1.41l.72.72L2.5 3.94L.72 5.72L0 6.41l1.41 1.44l.72-.72l1.81-1.81l1.78 1.81l.69.72l1.44-1.44l-.72-.69l-1.81-1.78l1.81-1.81l.72-.72L6.41 0l-.69.72L3.94 2.5L2.13.72L1.41 0z"/></svg>
 
+import { config } from '../config';
+
 const locationPin = <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 20 20"><path fill="white" d="M10 20S3 10.87 3 7a7 7 0 1 1 14 0c0 3.87-7 13-7 13zm0-11a2 2 0 1 0 0-4a2 2 0 0 0 0 4z"/></svg>
 
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4001/api';
-
-// Get room ID from props or URL params - you'll need to implement this based on your routing
-const getRoomId = () => {
-  // This should be implemented based on how you pass room ID to this component
-  // For now, using a placeholder
-  return "123456";
-};
-
-const RoomID = getRoomId();
+const API_BASE_URL = config.apiUrl + '/api';
 
 // API Functions
 const apiRequest = async (url, options = {}) => {
@@ -29,14 +22,13 @@ const apiRequest = async (url, options = {}) => {
         'Content-Type': 'application/json',
         ...options.headers,
       },
+      credentials: 'include',
       ...options,
     });
     
     if (!response.ok) {
-      console.log(response.status);
       throw new Error(`API Error: ${response.status}`);
     }
-    console.log(await response.json());
     return await response.json();
   } catch (error) {
     console.error('API Request failed:', error);
@@ -44,9 +36,16 @@ const apiRequest = async (url, options = {}) => {
   }
 };
 
-// Fetch restaurants from backend
-const fetchRestaurants = async () => {
-  return await apiRequest(`/restaurants`);
+// Fetch restaurants for a specific room (everyone in room gets same restaurants)
+const fetchRoomCandidates = async (roomId, center) => {
+  const body = center?.lat && center?.lng 
+    ? { center: { lat: center.lat, lng: center.lng }, limit: 20 }
+    : { limit: 20 };
+  
+  return await apiRequest(`/rooms/${roomId}/candidates`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 };
 
 // Send vote to backend
@@ -66,108 +65,169 @@ const checkRoomResults = async (roomId) => {
   return await apiRequest(`/rooms/${roomId}/decide/score`);
 };
 
-// Transform API restaurant data to match component format
-const transformRestaurantData = (apiData) => {
-  // Extract items array from API response { count, items }
+// Generate restaurant image URL
+const getRestaurantImageUrl = (restaurantId, index) => {
+  // Use local fallback images (reliable, no API calls)
+  return `/restaurant/restaurant${(index % 8) + 1}.jpg`;
+  
+  // Option: Use Unsplash Source API (free, beautiful food photos)
+  // Uncomment below to use Unsplash instead:
+  // const seed = restaurantId || index;
+  // return `https://source.unsplash.com/300x520/?food,restaurant&sig=${seed}`;
+};
+
+// Transform room candidates data to match component format
+const transformCandidatesData = (apiData) => {
+  // Extract items array from API response { roomId, count, items }
   const restaurants = apiData.items || [];
-  return restaurants.map((restaurant, index) => ({
-    id: restaurant.id,
-    url: `/restaurant/restaurant${(index % 8) + 1}.jpg`, // Fallback to local images
-    name: restaurant.name,
-    address: restaurant.address,
-    rating: restaurant.rating,
-    price: restaurant.price,
-    lat: restaurant.location?.lat,
-    lng: restaurant.location?.lng,
-    userRatingsTotal: restaurant.userRatingsTotal,
-    distance: calculateDistance(restaurant.location?.lat, restaurant.location?.lng),
-  }));
+  
+  const transformed = restaurants.map((restaurant, index) => {
+    const card = {
+      id: restaurant.restaurantId, // candidates API uses restaurantId instead of id
+      url: getRestaurantImageUrl(restaurant.restaurantId, index),
+      name: restaurant.name,
+      address: restaurant.address,
+      rating: restaurant.rating,
+      price: restaurant.priceLevel,
+      lat: restaurant.lat,
+      lng: restaurant.lng,
+      userRatingsTotal: restaurant.userRatingsTotal,
+      distance: restaurant.distanceM ? (restaurant.distanceM / 1000).toFixed(1) : null, // Convert meters to km
+    };
+    
+    return card;
+  });
+  
+  return transformed;
 };
 
-// Calculate distance (placeholder - implement based on user location)
-const calculateDistance = (lat, lng) => {
-  // This is a placeholder. Implement actual distance calculation based on user's location
-  return (lat * lng * 5).toFixed(1);
+// Safe format distance for display
+const formatDistance = (distance) => {
+  if (distance === null || distance === undefined) return "0.0";
+  const num = typeof distance === 'string' ? parseFloat(distance) : distance;
+  if (isNaN(num)) return "0.0";
+  return num.toFixed(1);
 };
 
 
-const RoomIDContainer = () =>{
-    return(<div 
-        className="brown button fw-bold"
-        style={{
-            textAlign: 'center',
-            margin: "10px",
-            padding: "5px"
-        }}>
-        {RoomID}
-    </div>)
-}
-
-const SwipeCards = () => {
+const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
+    const navigate = useNavigate();
     const [cards, setCards] = useState([]);
     const [isSwiping, setIsSwiping] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [showResults, setShowResults] = useState(false);
     const [results, setResults] = useState(null);
-    const [currentPage, setCurrentPage] = useState(1);
     const [hasMoreCards, setHasMoreCards] = useState(true);
+    const [totalRestaurants, setTotalRestaurants] = useState(0); // Track total for progress
+    const [allCardsCompleted, setAllCardsCompleted] = useState(false); // Track if swiped all 20
+    const MAX_RESTAURANTS = 20; // Limit to 20 restaurants
 
     const topCardRef = useRef(null); // ref to call programmatic swipe
-
-    // Fetch initial restaurant data when component mounts
+    const lastNotifiedCardId = useRef(null); // Track last notified card
+    const hasLoadedInitialCards = useRef(false); // Prevent multiple initial loads
+    
+    // Notify parent about current card changes (only when card actually changes)
     useEffect(() => {
-        loadInitialCards();
-    }, []);
+        if (onCurrentCardChange && cards.length > 0) {
+            const currentCard = cards[0];
+            // Only notify if card actually changed (different ID)
+            if (currentCard.id !== lastNotifiedCardId.current) {
+                lastNotifiedCardId.current = currentCard.id;
+                onCurrentCardChange(currentCard);
+            }
+        }
+    }, [cards, onCurrentCardChange]);
 
-    const loadInitialCards = async () => {
+    const loadInitialCards = useCallback(async () => {
+        // Prevent loading if already started loading
+        if (hasLoadedInitialCards.current) {
+            console.log('[SwipeCards] Skipping loadInitialCards - already started');
+            return;
+        }
+
         try {
+            hasLoadedInitialCards.current = true;
             setIsLoading(true);
-            console.log('Fetching restaurants from API...');
-            const response = await fetchRestaurants(1, 10);
-            console.log("fetchRestaurants Pass");
+            console.log('[SwipeCards] Fetching candidates for room:', roomId, { userCenter });
+            const response = await fetchRoomCandidates(roomId, userCenter);
+            console.log("[SwipeCards] fetchRoomCandidates Pass - received", response.items?.length, "items");
 
             if (response.items && response.items.length > 0) {
-                const transformedCards = transformRestaurantData(response);
-                console.log('Transformed cards:', transformedCards);
-                setCards(transformedCards);
-                setCurrentPage(1);
-                setHasMoreCards(response.items.length === 10);
+                const transformedCards = transformCandidatesData(response, userCenter);
+                // Sort by distance (closest first)
+                const sortedCards = transformedCards.sort((a, b) => {
+                    const distA = a.distance ?? Infinity;
+                    const distB = b.distance ?? Infinity;
+                    return distA - distB;
+                });
+                
+                // Limit to MAX_RESTAURANTS
+                const limitedCards = sortedCards.slice(0, MAX_RESTAURANTS);
+                console.log('[SwipeCards] Setting', limitedCards.length, 'cards');
+                setCards(limitedCards);
+                setTotalRestaurants(limitedCards.length);
+                // Don't load more if we've limited to max
+                setHasMoreCards(false);
+            } else {
+                console.warn('[SwipeCards] No restaurants found');
+                setCards([]);
+                setTotalRestaurants(0);
             }
         } catch (error) {
-            console.error('Failed to load initial cards:', error);
+            console.error('[SwipeCards] Failed to load initial cards:', error);
+            // Reset flag on error so it can be retried
+            hasLoadedInitialCards.current = false;
             // Fallback to local data if API fails
             setCards(cardData);
+            setTotalRestaurants(cardData.length);
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [roomId, userCenter]);
+
+    // Reset load flag when roomId or userCenter changes
+    useEffect(() => {
+        console.log('[SwipeCards] Room or location changed - resetting load flag');
+        hasLoadedInitialCards.current = false;
+    }, [roomId, userCenter]);
+
+    // Fetch initial restaurant data when component mounts or userCenter changes
+    useEffect(() => {
+        loadInitialCards();
+        
+        // Cleanup on unmount - allow re-loading if component mounts again
+        return () => {
+            console.log('[SwipeCards] Component unmounting - resetting load flag');
+            hasLoadedInitialCards.current = false;
+        };
+    }, [loadInitialCards]);
 
     const loadMoreCards = useCallback(async () => {
         if (!hasMoreCards) return;
         
         try {
-            const nextPage = currentPage + 1;
-            const response = await fetchRestaurants(nextPage, 10);
-            if (response.items && response.items.length > 0) {
-                const transformedCards = transformRestaurantData(response);
-                setCards(prev => [...prev, ...transformedCards]);
-                setCurrentPage(nextPage);
-                setHasMoreCards(response.items.length === 10);
-            } else {
-                setHasMoreCards(false);
-            }
+            // Note: This function is currently not used as we limit to 20 restaurants
+            // If you need pagination in the future, implement fetchRestaurants and transformRestaurantData
+            console.warn('loadMoreCards called but pagination is disabled');
+            setHasMoreCards(false);
         } catch (error) {
             console.error('Failed to load more cards:', error);
             setHasMoreCards(false);
         }
-    }, [hasMoreCards, currentPage]);
+    }, [hasMoreCards]);
 
     const handleVote = async (restaurantId, value) => {
         try {
-            await submitVote(RoomID, restaurantId, value);
+            await submitVote(roomId, restaurantId, value);
             console.log(`Vote submitted: ${value} for restaurant ${restaurantId}`);
             
-            // Check if results are ready after each vote
+            // Check if this was the last card (swiped all 20)
+            if (cards.length === 1) {
+                // Mark as completed - this will show button for host
+                setAllCardsCompleted(true);
+            }
+            
+            // Always check if results are ready (for multi-user scenario)
             await checkResults();
             
         } catch (error) {
@@ -177,19 +237,51 @@ const SwipeCards = () => {
 
     const checkResults = async () => {
         try {
-            const roomResults = await checkRoomResults(RoomID);
+            if (!roomId) return;
+            const roomResults = await checkRoomResults(roomId);
             
-            // Check if we have enough data to show results
-            // You can customize this logic based on your requirements
-            if (roomResults.scores && roomResults.scores.length > 0) {
-                const topScored = roomResults.scores.find(score => score.approval > 0.7); // 70% approval rate
-                if (topScored) {
+            // Check if we have enough votes to show results
+            // Require: มีร้านที่ถูกโหวตอย่างน้อย 30 ร้าน และมี votes รวมอย่างน้อย 40 ครั้ง
+            const totalVotes = roomResults.stats?.totalVotes || 0;
+            const totalRestaurants = roomResults.stats?.totalRestaurants || 0;
+            
+            if (totalRestaurants >= 30 && totalVotes >= 40 && roomResults.scores && roomResults.scores.length > 0) {
+                // Sort by approval rate and find best match
+                const sortedScores = [...roomResults.scores].sort((a, b) => b.approval - a.approval);
+                const topScored = sortedScores[0];
+                
+                // Require at least 80% approval rate for best match
+                if (topScored && topScored.approval >= 0.8) {
                     setResults(roomResults);
                     setShowResults(true);
                 }
             }
         } catch (error) {
             console.error('Failed to check results:', error);
+        }
+    };
+
+    const handleShowResults = async () => {
+        try {
+            if (!roomId) return;
+            
+            // Call API to mark room as "viewing results"
+            const API_BASE = 'http://localhost:4001/api';
+            await fetch(`${API_BASE}/rooms/${roomId}/view-results`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            
+            // Fetch and show results
+            const roomResults = await checkRoomResults(roomId);
+            
+            if (roomResults.scores && roomResults.scores.length > 0) {
+                setResults(roomResults);
+                setShowResults(true);
+            }
+        } catch (error) {
+            console.error('Failed to show results:', error);
         }
     };
 
@@ -221,35 +313,48 @@ const SwipeCards = () => {
       }
     };
 
-    // Show results screen if results are ready
-    if (showResults && results) {
-        return (
-            <div className="d-flex justify-content-center align-items-center" style={{
-                width: "100vw",
-                flexDirection: "column",
-                alignItems: "center",
-                minHeight: "90vh",
-                backgroundColor: "#FFE2C5"
-            }}>
-                <RoomIDContainer/>
-                <div style={{textAlign: "center", padding: "20px"}}>
-                    <h2>🎉 We found a match!</h2>
-                    <p>Based on everyone's votes, here are the results:</p>
-                    {results.scores.slice(0, 3).map((score, index) => (
-                        <div key={score.restaurantId} style={{
-                            margin: "10px 0",
-                            padding: "15px",
-                            backgroundColor: index === 0 ? "#4CAF50" : "#f0f0f0",
-                            color: index === 0 ? "white" : "black",
-                            borderRadius: "10px"
-                        }}>
-                            <strong>#{index + 1}</strong> - Approval: {(score.approval * 100).toFixed(1)}%
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
-    }
+    // Navigate to results page when results are ready
+    useEffect(() => {
+        if (showResults && results) {
+            navigate('/result', { 
+                state: { 
+                    roomId,
+                    results,
+                    userCenter 
+                } 
+            });
+        }
+    }, [showResults, results, navigate, roomId, userCenter]);
+    
+    // Poll room status to detect when host triggers result viewing (for non-host members)
+    useEffect(() => {
+        if (!roomId || isHost || !allCardsCompleted) return;
+        
+        const pollInterval = setInterval(async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/decide/score`, {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    // If we get scores with votes, host has triggered results
+                    if (data.scores && data.scores.length > 0 && data.stats.totalVotes > 0) {
+                        console.log('Results ready, navigating to result page');
+                        setResults(data);
+                        setShowResults(true);
+                    }
+                }
+            } catch (error) {
+                console.error('Error polling results:', error);
+            }
+        }, 2000); // Poll every 2 seconds
+        
+        return () => clearInterval(pollInterval);
+    }, [roomId, isHost, allCardsCompleted]);
+
+    // Calculate current card number (total - remaining + 1)
+    const currentCardNumber = totalRestaurants - cards.length + 1;
 
     return(
       <div className="d-flex justify-content-start align-items-center" style={{
@@ -257,10 +362,30 @@ const SwipeCards = () => {
         flexDirection: "column",
         alignItems: "center",
         minHeight: "90vh",
-        Height: "90vh",
-        backgroundColor: "#FFE2C5"
+        height: "90vh",
+        backgroundColor: "#FFE2C5",
+        paddingTop: "10vh"
       }}>
-        <RoomIDContainer/>
+        {/* Progress indicator */}
+        {totalRestaurants > 0 && cards.length > 0 && (
+          <div style={{
+            marginTop: "20px",
+            marginBottom: "10px",
+            fontSize: "1.2rem",
+            fontWeight: "bold",
+            color: "#801F08"
+          }}>
+            {currentCardNumber} / {totalRestaurants}
+          </div>
+        )}
+        
+        {/* <RoomIDContainer/> */}
+        {isLoading && <div style={{fontSize: "1.5rem", color: "#801F08"}}>Loading restaurants...</div>}
+        
+        {!isLoading && cards.length === 0 && !allCardsCompleted && (
+          <div style={{fontSize: "1.5rem", color: "#801F08"}}>No restaurants found</div>
+        )}
+        
         <div className="" style={{display: "grid", placeItems: "center"}}>
           {cards.length > 1 && (
             <Card
@@ -268,6 +393,8 @@ const SwipeCards = () => {
               id={cards[1].id}
               url={cards[1].url}
               isBack
+              name={cards[1].name}
+              location={formatDistance(cards[1].distance)}
             />
           )}
           {cards.length > 0 && (
@@ -278,12 +405,44 @@ const SwipeCards = () => {
               setCards={setCards}
               ref={topCardRef}
               name={cards[0].name}
+              location={formatDistance(cards[0].distance)}
               onVote={handleVote}
             />
           )}
-          {cards.length === 0 && (
-            <div style={{fontSize: "2rem", color: "#888", maxHeight: "520px",height: "60vh", }}>No more cards</div>
-          )}
+           {cards.length === 0 && allCardsCompleted && (
+             <div style={{
+               fontSize: "1.5rem", 
+               color: "#801F08", 
+               maxHeight: "520px",
+               height: "60vh",
+               display: "flex",
+               flexDirection: "column",
+               alignItems: "center",
+               justifyContent: "center",
+               textAlign: "center",
+               padding: "20px"
+             }}>
+               <div style={{marginBottom: "20px"}}>🎉</div>
+               <div style={{fontWeight: "bold", marginBottom: "10px"}}>All Done!</div>
+               {isHost ? (
+                 <div style={{marginTop: "20px"}}>
+                   <button 
+                     className="green button"
+                     onClick={handleShowResults}
+                     style={{
+                       padding: "15px 30px",
+                       fontSize: "1.2rem",
+                       cursor: "pointer"
+                     }}
+                   >
+                     View Results
+                   </button>
+                 </div>
+               ) : (
+                 <div style={{fontSize: "1rem", color: "#666"}}>Waiting for host to view results...</div>
+               )}
+             </div>
+           )}
         </div>
 
         <div style={{
@@ -291,8 +450,8 @@ const SwipeCards = () => {
             width: "300px",
             justifyContent: "space-between"
         }}>
-        <Button id="LEFT" onClick={swipeLeft} disabled={isSwiping} children={cross}/>
-        <Button id="RIGHT" onClick={swipeRight} disabled={isSwiping} children={heart}/>
+        <Button id="LEFT" onClick={swipeLeft} disabled={isSwiping}>{cross}</Button>
+        <Button id="RIGHT" onClick={swipeRight} disabled={isSwiping}>{heart}</Button>
         </div>
       </div>
     )
@@ -390,6 +549,7 @@ const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0",
     )
 });
 
+Card.displayName = 'Card';
 
 export default SwipeCards
 // change data later
