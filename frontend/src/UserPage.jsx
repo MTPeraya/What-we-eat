@@ -408,10 +408,11 @@ function UserProfile({
     handleInputChange,
     HandleSaveClick,
     HandleCancelClick,
-    onProfilePicClick
+    onProfilePicClick,
+    IsMobile
 }) {
     return (
-    <div className="d-flex align-items-center mx-5 my-3">
+    <div className={`d-flex align-items-center mx-5 my-3 flex-wrap ${IsMobile? "justify-content-center": ""}`}>
         <div className="me-3 position-relative">
             <img
                 src={profilePic}
@@ -502,11 +503,25 @@ const HistoryBlock = (
     restaurant = "placeholder01",
     locationUrl = "",
     date = "xx/xx/xx",
-    reviewUrl=""
+    reviewUrl="",
+    isMobile = false
     ) => {
     return(
-        <div className="d-flex justify-content-between border border-2 rounded-3 justify-content-between px-5 py-1 m-2 w-100" style={{backgroundColor: "rgba(255, 255, 255, 0.2)"}}>
+        <div className={`d-flex justify-content-between border border-2 rounded-3 justify-content-between  py-1 m-2 w-100 ${isMobile? "ps-1": "px-5"}`} style={{backgroundColor: "rgba(255, 255, 255, 0.2)"}}>
+            {isMobile? 
+            <>
+                <div className="d-flex flex-column w-100">
+                   <a href={locationUrl} style={{color: "white", textDecoration: "underline"}}><h3 className="my-0">{restaurant}</h3></a>
+                    <div className="d-flex justify-content-between px-1">
+                        <a href={reviewUrl} style={{color: "white", textDecoration: "underline"}}>reviews</a>
+                        <p className="my-0">{date}</p>
+                    </div>
+                   
+                </div>
+            </> 
+            :<>
             <div className="d-flex flex-column">
+                {/* {isMobile? <></>: <>dflkjshihkafhf</>} */}
                 <h3 className="my-0">{restaurant}</h3>
                 <p className="my-0">
                     <a href={locationUrl} style={{color: "white", textDecoration: "underline"}}>location</a>
@@ -518,6 +533,7 @@ const HistoryBlock = (
                 </h3>
                 <p className="my-0">{date}</p>
             </div>
+            </>}
 
         </div>
     )
@@ -527,7 +543,8 @@ function History({
     userHistory = [], 
     NoRepeat = false, 
     handleNoRepeatToggle = () => {},
-    isLoadingHistory = false
+    isLoadingHistory = false,
+    isMobile = false
 }){
     return (<div className="d-flex flex-column align-items-center">
         <div className="d-flex justify-content-between align-items-center px-3 pt-2" style={{width:"100%"}}>
@@ -563,7 +580,13 @@ function History({
             ) : userHistory.length > 0 ? (
                 userHistory.map((item, index) => (
                     <div key={index}>
-                        {HistoryBlock(item.restaurant, item.locationUrl, item.date, item.reviewUrl)}
+                        {HistoryBlock(
+                            item.restaurant,
+                            item.locationUrl,
+                            item.date,
+                            item.reviewUrl,
+                            isMobile
+                        )}
                     </div>
                 ))
             ) : (
@@ -596,6 +619,22 @@ function UserPage(){
     const [userHistory, setUserHistory] = useState([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(true);
     const [isLoadingUser, setIsLoadingUser] = useState(true);
+
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+    useEffect(() => {
+    const handleResize = () => {
+        const mobile = window.innerWidth <= 768;
+        setIsMobile(mobile);
+        // console.log('isMobile ->', mobile, 'innerWidth ->', window.innerWidth);
+    };
+    window.addEventListener('resize', handleResize);
+
+    // ensure state is correct on mount (and handle cases where initial render used a stale value)
+    handleResize();
+
+    return () => window.removeEventListener('resize', handleResize);
+}, []);
 
     // Back button handler
     const handleBackClick = () => {
@@ -873,9 +912,10 @@ function UserPage(){
                                 HandleSaveClick={HandleSaveClick}
                                 HandleCancelClick={HandleCancelClick}
                                 onProfilePicClick={handleProfilePicClick}
+                                IsMobile={isMobile}
                             />
                         </WhiteBorder>
-                        <JustButton name="Account Management"/>
+                        <JustButton name="Account Management" onClick={HandleEditClick}/>
                         <JustButton name="Manage Post"/>
 
                         <WhiteBorder>
@@ -884,6 +924,7 @@ function UserPage(){
                                 NoRepeat={NoRepeat}
                                 handleNoRepeatToggle={handleNoRepeatToggle}
                                 isLoadingHistory={isLoadingHistory}
+                                isMobile = {isMobile}
                             />
                         </WhiteBorder>
                     </>
