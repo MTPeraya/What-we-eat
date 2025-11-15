@@ -50,7 +50,7 @@ export async function createSession(
   res.cookies.set(COOKIE_NAME, raw, {
     httpOnly: true,
     secure: secureCookie,
-    sameSite: 'none',
+    sameSite: secureCookie ? 'none' : 'lax',
     path: '/',
     expires: expiresAt,
   });
