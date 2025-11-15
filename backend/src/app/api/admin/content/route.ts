@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
 
     const items = ratings.map((r) => ({
       id: r.id,
-      content: r.content ?? "",
+      content: r.comment ?? "",
       status: r.status ?? "pending",
       restaurantName: r.restaurant?.name ?? "Unknown",
       author: r.user?.displayName ?? r.user?.username ?? "Anonymous",
