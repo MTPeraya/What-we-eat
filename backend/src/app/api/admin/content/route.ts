@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
-        content: true,
+        comment: true,
         status: true,
         createdAt: true,
         restaurant: {
