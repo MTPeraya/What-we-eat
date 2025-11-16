@@ -13,7 +13,9 @@ import ResultPage from "./ResultPage";
 import AdminDash from "./AdminDashboard";
 import UserPage from "./UserPage";
 import RatingPage from "./Ratings";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import DrawPage from "./DrawPage";
+import { AuthProvider } from "./context/AuthContext";
+import { useAuth } from "./hooks/useAuth";
 
 function AuthDebugLogger() {
   const { user, isLoggedIn, isAdmin, authChecked, loading } = useAuth();
@@ -38,6 +40,8 @@ function App() {
           <Route path="/enter-code" element={<EnterCode />} />
           <Route path="/create-room" element={<CreateRoom />} />
           <Route path="/foodtinder" element={<FoodTinder />} />
+          <Route path="/draw" element={<DrawPage />} />
+          <Route path="/draw/*" element={<DrawPage />} />
           <Route path="/result" element={<ResultPage />} />
           <Route path="/admin-dashboard" element={<AdminDash />} />
           <Route path="/profile" element={<UserPage />} />

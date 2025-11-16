@@ -84,6 +84,21 @@ const fetchFinalDecision = async (roomId) => {
   });
 };
 
+// Fetch room info (participants)
+const fetchRoomInfo = async (roomId) => {
+  return await apiRequest(`/rooms/${roomId}`, { method: 'GET' });
+};
+
+// Mark that host is viewing results
+const markHostViewing = async (roomId) => {
+  return await apiRequest(`/rooms/${roomId}/decide/view`, { method: 'POST' });
+};
+
+// Check if host is viewing results
+const checkHostViewing = async (roomId) => {
+  return await apiRequest(`/rooms/${roomId}/decide/view`, { method: 'GET' });
+};
+
 // Generate restaurant image URL
 const getRestaurantImageUrl = (restaurantId, index) => {
   // Use local fallback images (reliable, no API calls)
@@ -141,6 +156,7 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
     const [allCardsCompleted, setAllCardsCompleted] = useState(false); // Track if swiped all 20
     const [canFinalize, setCanFinalize] = useState(false);
     const [isFinalizing, setIsFinalizing] = useState(false);
+    const [totalParticipants, setTotalParticipants] = useState(0);
     const [finalizeRequirements, setFinalizeRequirements] = useState({
         restaurantsNeeded: MAX_RESTAURANTS_PER_SESSION,
         votesNeeded: MAX_RESTAURANTS_PER_SESSION,
@@ -216,6 +232,27 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
         hasLoadedInitialCards.current = false;
     }, [roomId, userCenter]);
 
+    // Fetch room info to get participant count
+    useEffect(() => {
+        if (!roomId) return;
+        
+        const loadRoomInfo = async () => {
+            try {
+                const roomInfo = await fetchRoomInfo(roomId);
+                const participants = Array.isArray(roomInfo?.participants) ? roomInfo.participants : [];
+                setTotalParticipants(participants.length);
+            } catch (error) {
+                console.error('[SwipeCards] Failed to load room info:', error);
+            }
+        };
+        
+        loadRoomInfo();
+        
+        // Poll for participant count updates
+        const interval = setInterval(loadRoomInfo, 5000);
+        return () => clearInterval(interval);
+    }, [roomId]);
+
     // Fetch initial restaurant data when component mounts or userCenter changes
     useEffect(() => {
         loadInitialCards();
@@ -252,10 +289,8 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
                 setAllCardsCompleted(true);
             }
             
-            // Host checks readiness to finalize after each vote
-            if (isHost) {
-                await checkResults();
-            }
+            // Check readiness to finalize after each vote (both host and non-host)
+            await checkResults();
             
         } catch (error) {
             console.error('Failed to submit vote:', error);
@@ -267,19 +302,26 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
         const totalRestaurantsVoted = roomResults.stats?.totalRestaurants || 0;
 
         const restaurantsNeeded = totalRestaurants || MAX_RESTAURANTS_PER_SESSION;
-        const votesNeeded = Math.max(restaurantsNeeded, MAX_RESTAURANTS_PER_SESSION);
+        // Calculate expected votes: each participant should vote on all restaurants
+        const expectedVotes = totalParticipants * restaurantsNeeded;
+        const votesNeeded = expectedVotes;
 
         setFinalizeRequirements({ restaurantsNeeded, votesNeeded });
 
+        // Ready when:
+        // 1. All restaurants have been voted on
+        // 2. All participants have voted on all restaurants (totalVotes >= expectedVotes)
+        // 3. We have scores to work with
         const ready =
             totalRestaurantsVoted >= restaurantsNeeded &&
             totalVotes >= votesNeeded &&
+            totalParticipants > 0 && // Must have participants
             Array.isArray(roomResults.scores) &&
             roomResults.scores.length > 0;
 
         setCanFinalize(ready);
         return ready;
-    }, []);
+    }, [totalRestaurants, totalParticipants]);
 
     const checkResults = useCallback(async () => {
         try {
@@ -321,6 +363,30 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
         []
     );
 
+    // Check if there are tied restaurants (same netScore)
+    const checkForTiedScores = useCallback((roomResults) => {
+        if (!roomResults?.scores || roomResults.scores.length < 2) return null;
+
+        // Sort with the same rules as backend (netScore → approval → accept)
+        const sorted = [...roomResults.scores].sort(
+            (a, b) =>
+                b.netScore - a.netScore ||
+                b.approval - a.approval ||
+                (b.accept ?? 0) - (a.accept ?? 0)
+        );
+
+        const a = sorted[0];
+        const b = sorted[1];
+        if (!a || !b) return null;
+
+        const isTie =
+            a.netScore === b.netScore &&
+            a.approval === b.approval &&
+            (a.accept ?? 0) === (b.accept ?? 0);
+
+        return isTie ? [a, b] : null;
+    }, []);
+
     const handleShowResults = async () => {
         if (!roomId || isFinalizing) return;
 
@@ -331,9 +397,48 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
 
             if (!ready) {
                 alert('Need more votes before finalizing the meal.');
+                setIsFinalizing(false);
                 return;
             }
 
+            // Mark that host is viewing results (so non-hosts know to follow)
+            if (isHost) {
+                try {
+                    await markHostViewing(roomId);
+                } catch (error) {
+                    console.warn('[SwipeCards] Failed to mark host viewing:', error);
+                    // Continue anyway
+                }
+            }
+
+            // Check for tied scores
+            const tiedRestaurants = checkForTiedScores(roomResults);
+            
+            if (tiedRestaurants && tiedRestaurants.length >= 2) {
+                // Navigate to DrawPage with tied restaurants
+                console.log('[SwipeCards] Found tied restaurants, navigating to DrawPage');
+                navigate('/draw', {
+                    state: {
+                        roomId,
+                        isHost,
+                        tiedRestaurants: tiedRestaurants.map(score => ({
+                            restaurantId: score.restaurantId,
+                            name: score.name,
+                            address: score.address,
+                            netScore: score.netScore,
+                            approval: score.approval,
+                            location: score.location,
+                            rating: score.rating,
+                            userRatingsTotal: score.userRatingsTotal,
+                            placeId: score.placeId
+                        })),
+                        userCenter
+                    }
+                });
+                return;
+            }
+
+            // No tie, proceed with finalization
             const finalResponse = await finalizeRoomDecision(roomId, userCenter);
             const combinedResults = buildFinalResultsPayload(finalResponse, roomResults);
 
@@ -394,24 +499,71 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
 
         const pollInterval = setInterval(async () => {
             try {
+                // Check if all participants have voted
+                const roomResults = await checkRoomResults(roomId);
+                const ready = isReadyForFinal(roomResults);
+                
+                if (!ready) {
+                    // Not all participants have voted yet, keep waiting
+                    return;
+                }
+                
+                // All participants have voted, check if host has clicked "View Results"
+                const hostViewing = await checkHostViewing(roomId);
+                if (!hostViewing?.isViewing) {
+                    // Host hasn't clicked "View Results" yet, keep waiting
+                    return;
+                }
+                
+                // Host has clicked "View Results", now check where they went
+                // First check if there's a final decision (host finalized and went to result)
                 const finalDecision = await fetchFinalDecision(roomId);
                 if (finalDecision?.winner) {
-                    const scoreData = await checkRoomResults(roomId);
                     const combinedResults = buildFinalResultsPayload(
                         finalDecision,
-                        scoreData
+                        roomResults
                     );
                     setResults(combinedResults);
                     setShowResults(true);
                     clearInterval(pollInterval);
+                    return;
                 }
+                
+                // Check if there are tied scores (host navigated to draw page)
+                const tiedRestaurants = checkForTiedScores(roomResults);
+                if (tiedRestaurants && tiedRestaurants.length >= 2) {
+                    // Host has navigated to draw page, follow them
+                    console.log('[SwipeCards] Non-host following host to DrawPage');
+                    navigate('/draw', {
+                        state: {
+                            roomId,
+                            isHost: false,
+                            tiedRestaurants: tiedRestaurants.map(score => ({
+                                restaurantId: score.restaurantId,
+                                name: score.name,
+                                address: score.address,
+                                netScore: score.netScore,
+                                approval: score.approval,
+                                location: score.location,
+                                rating: score.rating,
+                                userRatingsTotal: score.userRatingsTotal,
+                                placeId: score.placeId
+                            })),
+                            userCenter
+                        }
+                    });
+                    clearInterval(pollInterval);
+                    return;
+                }
+                
+                // Host clicked "View Results" but no tie and no final decision yet
+                // This shouldn't happen, but keep polling just in case
             } catch (error) {
                 console.error('Error polling results:', error);
             }
-        }, 4000);
-
+        }, 2000); // Poll more frequently for better synchronization
         return () => clearInterval(pollInterval);
-    }, [roomId, isHost, allCardsCompleted, buildFinalResultsPayload, checkRoomResults]);
+    }, [roomId, isHost, allCardsCompleted, buildFinalResultsPayload, isReadyForFinal, checkForTiedScores, navigate, userCenter]);
 
     // Calculate current card number (total - remaining + 1)
     const currentCardNumber = totalRestaurants - cards.length + 1;
@@ -501,8 +653,11 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
                    </button>
                    {!canFinalize && (
                      <div style={{marginTop: "10px", fontSize: "0.9rem", color: "#555"}}>
-                       Need at least {finalizeRequirements.restaurantsNeeded} restaurants
-                       and {finalizeRequirements.votesNeeded} total votes.
+                       {totalParticipants > 0 ? (
+                         <>Waiting for all {totalParticipants} participants to vote on all {finalizeRequirements.restaurantsNeeded} restaurants...</>
+                       ) : (
+                         <>Need at least {finalizeRequirements.restaurantsNeeded} restaurants and {finalizeRequirements.votesNeeded} total votes.</>
+                       )}
                      </div>
                    )}
                  </div>

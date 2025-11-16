@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
+import React, { createContext, useState, useCallback, useMemo, useEffect } from 'react';
 import { config } from '../config';
 
-const AuthContext = createContext({
+export const AuthContext = createContext({
   user: null,
   isLoggedIn: false,
   isAdmin: false,
@@ -78,9 +78,5 @@ export function AuthProvider({ children }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }
 

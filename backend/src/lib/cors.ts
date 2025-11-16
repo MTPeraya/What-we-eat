@@ -3,16 +3,15 @@ import { NextResponse } from "next/server";
 // Support multiple origins for development and production
 const ALLOWED_ORIGINS = [
   "http://localhost:5173",
-  "http://localhost:3000", 
-  "https://what-we-eat.vercel.app",
-  process.env.FRONTEND_ORIGIN, // Allow custom origin from env
+  "http://127.0.0.1:5173",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  process.env.FRONTEND_ORIGIN,
 ].filter(Boolean) as string[];
 
 export function withCORS(res: NextResponse, requestOrigin?: string | null) {
-  // Use provided origin or fallback to first allowed origin
-  const origin = requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin) 
-    ? requestOrigin 
-    : ALLOWED_ORIGINS[0];
+  // Echo request origin if present (best for dev with credentials); else fallback
+  const origin = requestOrigin || ALLOWED_ORIGINS[0];
   
   res.headers.set("Access-Control-Allow-Origin", origin);
   res.headers.set("Vary", "Origin");

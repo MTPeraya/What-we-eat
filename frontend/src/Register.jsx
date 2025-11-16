@@ -3,7 +3,7 @@ import "./App.css";
 import { Link, useNavigate} from "react-router-dom";
 import { config } from './config';
 import Header from "./header.jsx";
-import { useAuth } from "./context/AuthContext";
+import { useAuth } from "./hooks/useAuth";
 
 
 function Register() {
@@ -16,7 +16,8 @@ function Register() {
 
     useEffect(() => {
         if (authChecked && isLoggedIn) {
-            navigate("/profile", { replace: true });
+            // After register, return to homepage; host will press Start to proceed
+            navigate("/", { replace: true });
         }
     }, [authChecked, isLoggedIn, navigate]);
 
@@ -51,7 +52,7 @@ function Register() {
             if (res.ok) {
                 // Backend uses HttpOnly cookie session; no token to store
                 await refreshAuth();
-                navigate("/create-room");
+                navigate("/");
             } else {
                 // Show friendlier validation/duplicate messages
                 if (data?.error === 'VALIDATION_ERROR') {

@@ -56,7 +56,6 @@ const calculateCombinedRating = (
 const formatRating = (value) =>
   typeof value === "number" ? value.toFixed(1) : "-";
 const createEmptyDistribution = () => [0, 0, 0, 0, 0];
-const emptyDistribution = createEmptyDistribution();
 
 const palette = {
   background: "#FCEEE3",

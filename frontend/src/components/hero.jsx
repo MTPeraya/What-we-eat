@@ -2,55 +2,28 @@ import { useNavigate } from "react-router-dom";
 import React, { useState, useCallback } from "react";
 import "../App.css";
 import preview from "/wwePreview.png";
-import { useAuth } from "../context/AuthContext";
-import { config } from "../config";
+import { useAuth } from "../hooks/useAuth";
 
 function HeroSection() {
   const navigate = useNavigate();
-  const { isLoggedIn, authChecked, user } = useAuth();
+  const { isLoggedIn, authChecked } = useAuth();
   const [isStarting, setIsStarting] = useState(false);
 
   const handleStartNow = useCallback(async () => {
     if (!authChecked) return;
 
     if (!isLoggedIn) {
+      // Not logged in → go to login first
       navigate("/login");
       return;
     }
 
-    try {
-      setIsStarting(true);
-      const displayName = user?.displayName || user?.username || "Host";
-      const res = await fetch(`${config.endpoints.rooms}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ displayName })
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        console.error("[Hero] Failed to create room:", err);
-        navigate("/enter-code");
-        return;
-      }
-
-      const data = await res.json();
-      const roomId = data?.room?.id;
-      const roomCode = data?.room?.code;
-
-      if (roomId && roomCode) {
-        navigate(`/create-room?roomId=${roomId}&code=${roomCode}`);
-      } else {
-        navigate("/enter-code");
-      }
-    } catch (error) {
-      console.error("[Hero] Error starting room:", error);
-      navigate("/enter-code");
-    } finally {
-      setIsStarting(false);
-    }
-  }, [authChecked, isLoggedIn, user, navigate]);
+    // Logged in → go to enter-code screen to choose Create / Join
+    setIsStarting(true);
+    navigate("/enter-code");
+    // Small delay to show button feedback before re-enable
+    setTimeout(() => setIsStarting(false), 300);
+  }, [authChecked, isLoggedIn, navigate]);
 
   const textWWE =
     "fun, fast, and fair way to choose the meal with your companion!!";

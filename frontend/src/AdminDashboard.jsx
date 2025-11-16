@@ -90,8 +90,9 @@ const StatusTag = ({ status }) => {
  * Displays core overview metrics and rating status distribution.
  */
 const OverviewStats = ({ overviewData, engagementData }) => {
-  const data = overviewData || {}; 
   const engagement = engagementData || {}; 
+
+  const data = useMemo(() => overviewData || {}, [overviewData]);
 
   const ratingData = useMemo(() => {
     const r = data.ratings || { approved: 0, pending: 0, rejected: 0 };

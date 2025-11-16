@@ -1,10 +1,26 @@
 import React, { useState, useEffect } from "react";
 import "./App.css";
 import { Link } from "react-router-dom";
-import { useAuth } from "./context/AuthContext";
+import { useAuth } from "./hooks/useAuth";
 
-function Profile() {
-  return <div className="profile-s Margin1vh"></div>;
+function Profile({ user, isLoggedIn }) {
+  const src =
+    (isLoggedIn && user?.profilePicture) ? user.profilePicture : "/placeholderProfile.png";
+  return (
+    <Link to="/profile" aria-label="Profile" className="Margin1vh" style={{ textDecoration: 'none' }}>
+      <img
+        src={src}
+        alt="profile"
+        className="rounded-circle"
+        style={{
+          width: '44px',
+          height: '44px',
+          objectFit: 'cover',
+          border: '2px solid white'
+        }}
+      />
+    </Link>
+  );
 }
 
 function MenuIcon({ isAdmin = false, isLoggedIn = false, authChecked = false }) {
@@ -114,12 +130,12 @@ function MenuIcon({ isAdmin = false, isLoggedIn = false, authChecked = false }) 
 }
 
 function Header() {
-  const { isLoggedIn, isAdmin, authChecked } = useAuth();
+  const { isLoggedIn, isAdmin, authChecked, user } = useAuth();
 
   return (
     <div className="header">
       <MenuIcon isAdmin={isAdmin} isLoggedIn={isLoggedIn} authChecked={authChecked} />
-      <Profile />
+      <Profile user={user} isLoggedIn={isLoggedIn} />
     </div>
   );
 }
