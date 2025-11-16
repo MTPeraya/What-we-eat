@@ -19,8 +19,8 @@ function HeroSection() {
     }
 
     // Logged in → go to enter-code screen to choose Create / Join
-    setIsStarting(true);
-    navigate("/enter-code");
+      setIsStarting(true);
+        navigate("/enter-code");
     // Small delay to show button feedback before re-enable
     setTimeout(() => setIsStarting(false), 300);
   }, [authChecked, isLoggedIn, navigate]);

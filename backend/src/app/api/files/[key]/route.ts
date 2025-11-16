@@ -27,27 +27,27 @@ export async function GET(
   const origin = req.headers.get('origin');
   
   try {
-    const { key: rawKey } = await ctx.params;
-    const key = decodeURIComponent(rawKey);
+  const { key: rawKey } = await ctx.params;
+  const key = decodeURIComponent(rawKey);
 
-    if (storage.exists && !(await storage.exists(key))) {
+  if (storage.exists && !(await storage.exists(key))) {
       return withCORS(
         NextResponse.json({ error: "NOT_FOUND" }, { status: 404 }),
         origin
       );
-    }
+  }
 
     const buf = await storage.getBuffer(key);
     const body = new Uint8Array(buf);
 
-    const ext = extname(key);
+  const ext = extname(key);
     const res = new NextResponse(body, {
-      status: 200,
-      headers: {
-        "Content-Type": mimeFromExt(ext),
-        "Cache-Control": "public, max-age=31536000, immutable",
-      },
-    });
+    status: 200,
+    headers: {
+      "Content-Type": mimeFromExt(ext),
+      "Cache-Control": "public, max-age=31536000, immutable",
+    },
+  });
     
     return withCORS(res, origin);
   } catch (e) {

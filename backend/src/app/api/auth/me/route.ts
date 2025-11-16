@@ -14,41 +14,41 @@ export async function OPTIONS(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const origin = req.headers.get('origin');
   try {
-    const s = await getSession(req);
-    
-    if (!s) {
-      return withCORS(
-        NextResponse.json({ user: null }, { status: 200 }),
-        origin
-      );
-    }
-    
-    // Fetch full user data from database
-    const user = await prisma.user.findUnique({
-      where: { id: s.user.id },
-      select: {
-        id: true,
-        username: true,
-        displayName: true,
-        profilePicture: true,
-        role: true
-      }
-    });
-    
-    if (!user) {
-      return withCORS(
-        NextResponse.json({ user: null }, { status: 200 }),
-        origin
-      );
-    }
-    
+  const s = await getSession(req);
+
+  if (!s) {
     return withCORS(
-      NextResponse.json(
-        { user },
-        { status: 200 }
-      ),
+      NextResponse.json({ user: null }, { status: 200 }),
       origin
     );
+  }
+
+  // Fetch full user data from database
+  const user = await prisma.user.findUnique({
+    where: { id: s.user.id },
+    select: {
+      id: true,
+      username: true,
+      displayName: true,
+      profilePicture: true,
+      role: true
+    }
+  });
+
+  if (!user) {
+    return withCORS(
+      NextResponse.json({ user: null }, { status: 200 }),
+      origin
+    );
+  }
+
+  return withCORS(
+    NextResponse.json(
+      { user },
+      { status: 200 }
+    ),
+    origin
+  );
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
     return withCORS(

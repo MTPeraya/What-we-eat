@@ -152,7 +152,7 @@ const styles = {
 };
 
 stars.propTypes = {
-  size: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    size: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
   color: PropTypes.string.isRequired,
 };
 
@@ -183,11 +183,11 @@ function ReviewSection({
         className="d-flex justify-content-between flex-shrink-0"
         style={{ width: "98%" }}
       >
-        <h4 className="my-0">Reviews</h4>
-        <div>
-          <button
-            type="button"
-            className="bg-transparent btn btn-outline-dark text-dark h-75 d-flex align-items-center"
+            <h4 className="my-0">Reviews</h4>
+            <div>
+                <button 
+                    type="button" 
+                    className="bg-transparent btn btn-outline-dark text-dark h-75 d-flex align-items-center"
             onClick={onSwitchToAdding}
           >
             {" "}
@@ -268,8 +268,8 @@ function ReviewSection({
               </div>
             )}
           </div>
+            </div>
         </div>
-      </div>
 
       <div
         className="flex-grow-1 overflow-auto px-2"
@@ -294,27 +294,27 @@ function ReviewSection({
           >
             {reviewInformation.map((review, index) => (
               <div className="col" key={index}>
-                <ReviewCard
-                  isMobile={responsive}
-                  userinfo={review.userinfo}
-                  reviewInfo={review.reviewInfo}
-                />
+                        <ReviewCard 
+                            isMobile={responsive} 
+                            userinfo={review.userinfo}
+                            reviewInfo={review.reviewInfo}
+                        />
               </div>
             ))}
           </div>
-        ) : (
+                ) : (
           <div className="text-center p-4">
             <p>No reviews yet. Be the first to review!</p>
-          </div>
-        )}
-      </div>
+                    </div>
+                )}
+            </div>
     </section>
   );
 }
 
 ReviewSection.propTypes = {
-  onSwitchToAdding: PropTypes.func.isRequired,
-  responsive: PropTypes.bool.isRequired,
+    onSwitchToAdding: PropTypes.func.isRequired,
+    responsive: PropTypes.bool.isRequired,
   reviewInformation: PropTypes.array.isRequired,
   isLoading: PropTypes.bool,
   stats: PropTypes.shape({
@@ -333,7 +333,7 @@ function ReviewAdding({
   restaurantId,
   onReviewSubmitted,
 }) {
-  const [uploadedImages, setUploadedImages] = useState([]);
+    const [uploadedImages, setUploadedImages] = useState([]);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
@@ -341,15 +341,15 @@ function ReviewAdding({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef(null);
 
-  const handleImageUpload = (event) => {
-    const files = Array.from(event.target.files);
+    const handleImageUpload = (event) => {
+        const files = Array.from(event.target.files);
     const remainingSlots = 3 - uploadedImages.length;
     const filesToAdd = files.slice(0, remainingSlots);
 
     const newImageUrls = filesToAdd.map((file) => URL.createObjectURL(file));
     setUploadedImages([...uploadedImages, ...newImageUrls]);
     setUploadedFiles([...uploadedFiles, ...filesToAdd]);
-  };
+    };
 
   const removeImage = (indexToRemove) => {
     setUploadedImages(
@@ -358,9 +358,9 @@ function ReviewAdding({
     setUploadedFiles(
       uploadedFiles.filter((_, index) => index !== indexToRemove)
     );
-  };
+    };
 
-  const triggerFileInput = () => {
+    const triggerFileInput = () => {
     if (uploadedImages.length >= 3) return;
     fileInputRef.current?.click();
   };
@@ -368,12 +368,12 @@ function ReviewAdding({
   const handleSubmitReview = async () => {
     if (rating === 0) {
       alert("Please select a rating");
-      return;
-    }
-    if (!reviewText.trim()) {
+            return;
+        }
+        if (!reviewText.trim()) {
       alert("Please write a review");
-      return;
-    }
+            return;
+        }
 
     try {
       setIsSubmitting(true);
@@ -448,7 +448,7 @@ function ReviewAdding({
       setRating(0);
       setHoveredRating(0);
       setReviewText("");
-      setUploadedImages([]);
+        setUploadedImages([]);
       setUploadedFiles([]);
 
       if (onReviewSubmitted) {
@@ -473,46 +473,46 @@ function ReviewAdding({
     >
       <div className="d-flex justify-content-between" style={{ width: "98%" }}>
         <h4 className="my-0">Leave a Review</h4>
-        <div>
-          <button
-            type="button"
-            className="bg-transparent btn btn-outline-dark text-dark h-75 d-flex align-items-center"
-            onClick={onSwitchToReading}
-          >
+            <div>
+                <button 
+                    type="button" 
+                    className="bg-transparent btn btn-outline-dark text-dark h-75 d-flex align-items-center"
+                    onClick={onSwitchToReading}
+                >
             Back to reviews
-          </button>
-        </div>
-      </div>
-      <div className="mb-2">
-        <div className="d-flex align-items-center">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <svg
-              key={star}
-              className="mx-1"
-              xmlns="http://www.w3.org/2000/svg"
-              width="40"
-              height="40"
-              viewBox="0 0 432 408"
+                </button>
+            </div>
+            </div>
+            <div className="mb-2">
+                <div className="d-flex align-items-center">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                        <svg 
+                            key={star}
+                            className="mx-1" 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            width="40" 
+                            height="40" 
+                            viewBox="0 0 432 408"
               style={{ cursor: "pointer" }}
-              onClick={() => setRating(star)}
+                            onClick={() => setRating(star)}
               onMouseEnter={() => setHoveredRating(star)}
               onMouseLeave={() => setHoveredRating(0)}
-            >
-              <path
+                        >
+                            <path 
                 fill={star <= displayRating ? "#BB3D25" : "white"}
-                stroke="#BB3D25"
-                strokeWidth="20"
-                d="M213 328L81 408l35-150L0 157l153-13L213 3l60 141l154 13l-117 101l35 150z"
-              />
-            </svg>
-          ))}
+                                stroke="#BB3D25"
+                                strokeWidth="20"
+                                d="M213 328L81 408l35-150L0 157l153-13L213 3l60 141l154 13l-117 101l35 150z" 
+                            />
+                        </svg>
+                    ))}
           <span className="ms-2 text-secondary">
             {displayRating > 0
               ? `${displayRating} star${displayRating > 1 ? "s" : ""}`
               : "Select rating"}
           </span>
-        </div>
-      </div>
+                </div>
+            </div>
       <div
         className={`d-flex ${
           responsive ? "flex-column align-items-center mb-3" : ""
@@ -524,24 +524,24 @@ function ReviewAdding({
             responsive ? "mb-3 w-100" : ""
           }`}
         >
-          <textarea
-            className="form-control border border-2 border-dashed border-secondary"
-            id="RestaurantReview"
-            placeholder="Write your review here..."
-            rows="8"
-            maxLength="500"
-            value={reviewText}
-            onChange={(e) => setReviewText(e.target.value)}
-            style={{
+                    <textarea 
+                        className="form-control border border-2 border-dashed border-secondary" 
+                        id="RestaurantReview"
+                        placeholder="Write your review here..."
+                        rows="8"
+                        maxLength="500"
+                        value={reviewText}
+                        onChange={(e) => setReviewText(e.target.value)}
+                        style={{
               resize: "vertical",
               minHeight: "120px",
               maxHeight: "250px",
               overflow: "auto",
               scrollbarWidth: "thin",
               scrollbarColor: "#BB3D25 #f1f1f1",
-            }}
-          ></textarea>
-          <div className="position-absolute bottom-0 end-0 me-2 mb-2">
+                        }}
+                    ></textarea>
+                    <div className="position-absolute bottom-0 end-0 me-2 mb-2">
             <small
               className={`text-${
                 reviewText.length >= 450
@@ -551,35 +551,35 @@ function ReviewAdding({
                   : "secondary"
               }`}
             >
-              {reviewText.length}/500
-            </small>
-          </div>
-        </div>
+                            {reviewText.length}/500
+                        </small>
+                    </div>
+                </div>
 
         <div
           className={`${responsive ? "w-100 mb-5" : "ms-3"}`}
           style={{ width: "200px", height: responsive ? "100px" : "200px" }}
         >
-          {uploadedImages.length > 0 && (
-            <div className="text-end mb-2">
-              <small className="text-secondary">
-                Photos: {uploadedImages.length}/3
-              </small>
-            </div>
-          )}
-
-          {uploadedImages.length === 0 ? (
-            <div
-              className="d-flex justify-content-center align-items-center border border-2 border-dashed border-secondary h-100 w-100 rounded"
+                    {uploadedImages.length > 0 && (
+                        <div className="text-end mb-2">
+                            <small className="text-secondary">
+                                Photos: {uploadedImages.length}/3
+                            </small>
+                        </div>
+                    )}
+                    
+                    {uploadedImages.length === 0 ? (
+                        <div 
+                            className="d-flex justify-content-center align-items-center border border-2 border-dashed border-secondary h-100 w-100 rounded"
               style={{ backgroundColor: "white", cursor: "pointer" }}
-              onClick={triggerFileInput}
-            >
-              <div className="text-center">
+                            onClick={triggerFileInput}
+                        >
+                            <div className="text-center">
                 <div style={{ fontSize: "48px", color: "#BB3D25" }}>+</div>
-                <p className="text-secondary m-0">Add Photos</p>
-              </div>
-            </div>
-          ) : (
+                                <p className="text-secondary m-0">Add Photos</p>
+                            </div>
+                        </div>
+                    ) : (
             <div
               className="d-grid h-100 w-100 gap-1"
               style={{
@@ -589,87 +589,87 @@ function ReviewAdding({
                 gridTemplateRows: responsive ? "1fr" : "repeat(2, 1fr)",
               }}
             >
-              {uploadedImages.map((image, index) => (
+                            {uploadedImages.map((image, index) => (
                 <div
                   key={index}
                   className="position-relative border rounded overflow-hidden"
                 >
-                  <img
+                                    <img 
                     src={image}
-                    alt={`Upload ${index + 1}`}
-                    className="w-100 h-100 object-fit-cover"
-                  />
-                  <button
-                    className="position-absolute top-0 end-0 btn btn-danger btn-sm rounded-circle"
-                    style={{
+                                        alt={`Upload ${index + 1}`}
+                                        className="w-100 h-100 object-fit-cover"
+                                    />
+                                    <button
+                                        className="position-absolute top-0 end-0 btn btn-danger btn-sm rounded-circle"
+                                        style={{
                       width: "20px",
                       height: "20px",
                       fontSize: "12px",
                       padding: "0",
                       lineHeight: "1",
                       margin: "2px",
-                    }}
+                                        }}
                     onClick={() => removeImage(index)}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-
-              {uploadedImages.length < 3 && (
-                <div
-                  className="d-flex justify-content-center align-items-center border border-2 border-dashed border-secondary rounded"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            ))}
+                            
+                            {uploadedImages.length < 3 && (
+                                <div 
+                                    className="d-flex justify-content-center align-items-center border border-2 border-dashed border-secondary rounded"
                   style={{ backgroundColor: "white", cursor: "pointer" }}
-                  onClick={triggerFileInput}
-                >
-                  <div className="text-center">
+                                    onClick={triggerFileInput}
+                                >
+                                    <div className="text-center">
                     <div style={{ fontSize: "24px", color: "#BB3D25" }}>+</div>
-                    <p className="text-secondary m-0 small">Add</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          <input
+                                        <p className="text-secondary m-0 small">Add</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    
+                    <input
             ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
+                        type="file"
+                        accept="image/*"
+                        multiple
             style={{ display: "none" }}
-            onChange={handleImageUpload}
-          />
-        </div>
-      </div>
+                        onChange={handleImageUpload}
+                    />
+                </div>
+            </div>
 
-      <div className="d-flex justify-content-end mt-3">
-        <button
-          className="btn btn-primary px-4 py-2"
+            <div className="d-flex justify-content-end mt-3">
+                <button 
+                    className="btn btn-primary px-4 py-2"
           style={{ backgroundColor: "#BB3D25", borderColor: "#BB3D25" }}
-          onClick={handleSubmitReview}
+                    onClick={handleSubmitReview}
           disabled={isSubmitting}
-        >
+                >
           {isSubmitting ? "Submitting..." : "Submit Review"}
-        </button>
-      </div>
-    </section>
+                </button>
+            </div>
+        </section>
   );
 }
 
 ReviewAdding.propTypes = {
-  onSwitchToReading: PropTypes.func.isRequired,
+    onSwitchToReading: PropTypes.func.isRequired,
   responsive: PropTypes.bool.isRequired,
   restaurantId: PropTypes.string.isRequired,
   onReviewSubmitted: PropTypes.func,
 };
 
 function RatingPage() {
-  // Main Page
-  const { restaurantId } = useParams();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [showReviewAdding, setShowReviewAdding] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+    // Main Page
+    const { restaurantId } = useParams();
+    const location = useLocation();
+    const navigate = useNavigate();
+    const [showReviewAdding, setShowReviewAdding] = useState(false);
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [reviewInformation, setReviewInformation] = useState([]);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
   const [userReviewStats, setUserReviewStats] = useState({
@@ -678,20 +678,20 @@ function RatingPage() {
     distribution: createEmptyDistribution(),
   });
 
-  const handleGoBack = () => {
-    navigate(-1); // Go back to previous page
-  };
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
+    const handleGoBack = () => {
+        navigate(-1); // Go back to previous page
     };
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, []);
+    }, []);
 
-  // Get restaurant data from navigation state or use fallback
-  const restaurantFromState = location.state?.restaurant;
+    // Get restaurant data from navigation state or use fallback
+    const restaurantFromState = location.state?.restaurant;
   const resolvedRestaurantId = restaurantFromState?.id || restaurantId;
   const restaurant = restaurantFromState
     ? {
@@ -748,12 +748,12 @@ function RatingPage() {
           .filter(Boolean);
 
         return {
-          userinfo: {
+            userinfo: {
             username: review.user?.username || "Anonymous",
             profileURL: "/placeholderProfile.png",
             isVerified: review.status === "approved",
-          },
-          reviewInfo: {
+            },
+            reviewInfo: {
             star: review.score || 0,
             review: review.comment || "",
             image: photoUrls,
@@ -844,7 +844,7 @@ function RatingPage() {
   );
 
   return (
-    <div>
+        <div>
       <section style={styles.pageWrapper}>
         <div style={styles.content}>
           <button style={styles.backButton} onClick={handleGoBack}>
@@ -860,9 +860,9 @@ function RatingPage() {
               strokeLinejoin="round"
             >
               <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-            Back
-          </button>
+                    </svg>
+                    Back
+                </button>
 
           <div style={styles.heroCard}>
             <div style={styles.heroImage}>
@@ -897,7 +897,7 @@ function RatingPage() {
                 style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}
               >
                 {stars({ size: "46px", color: palette.accent })}
-                <div>
+                            <div>
                   <div style={{ fontSize: "2.5rem", fontWeight: 700 }}>
                     {formatRating(overallRating)}
                   </div>
@@ -921,20 +921,20 @@ function RatingPage() {
                     Have photos? Share them with the community.
                   </span>
                 )}
-              </div>
-            </div>
-          </div>
+                            </div>
+                            </div>
+                        </div>
 
           <div style={styles.reviewWrapper}>
             <div style={styles.reviewCard}>
-              {showReviewAdding ? (
+                        {showReviewAdding ? (
                 <ReviewAdding
                   onSwitchToReading={() => setShowReviewAdding(false)}
                   responsive={isMobile}
                   restaurantId={restaurant.id}
                   onReviewSubmitted={handleReviewSubmitted}
                 />
-              ) : (
+                        ) : (
                 <ReviewSection
                   onSwitchToAdding={() => setShowReviewAdding(true)}
                   responsive={isMobile}
@@ -942,16 +942,16 @@ function RatingPage() {
                   isLoading={isLoadingReviews}
                   stats={reviewSectionStats}
                 />
-              )}
-            </div>
+                        )}
+                    </div>
           </div>
-        </div>
-      </section>
+                </div>
+            </section>
       <Footer
         location="Your Location"
         review={overallRating ? ` ${overallRating.toFixed(1)}` : " -"}
       />
-    </div>
+        </div>
   );
 }
 

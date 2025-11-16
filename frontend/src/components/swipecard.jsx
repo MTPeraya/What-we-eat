@@ -443,7 +443,7 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
             const combinedResults = buildFinalResultsPayload(finalResponse, roomResults);
 
             setResults(combinedResults);
-            setShowResults(true);
+                setShowResults(true);
         } catch (error) {
             console.error('Failed to finalize results:', error);
             alert('Failed to finalize results. Please try again.');
@@ -496,7 +496,7 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
     // Poll room status to detect when host triggers result viewing (for non-host members)
     useEffect(() => {
         if (!roomId || isHost || !allCardsCompleted) return;
-
+        
         const pollInterval = setInterval(async () => {
             try {
                 // Check if all participants have voted
@@ -524,7 +524,7 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
                         roomResults
                     );
                     setResults(combinedResults);
-                    setShowResults(true);
+                        setShowResults(true);
                     clearInterval(pollInterval);
                     return;
                 }
