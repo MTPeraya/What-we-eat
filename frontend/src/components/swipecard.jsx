@@ -13,6 +13,7 @@ const locationPin = <svg xmlns="http://www.w3.org/2000/svg" width="18" height="1
 
 // API Configuration
 const API_BASE_URL = config.apiUrl + '/api';
+const MAX_RESTAURANTS_PER_SESSION = 20;
 
 // API Functions
 const apiRequest = async (url, options = {}) => {
@@ -63,6 +64,24 @@ const submitVote = async (roomId, restaurantId, value) => {
 // Check if room results are ready
 const checkRoomResults = async (roomId) => {
   return await apiRequest(`/rooms/${roomId}/decide/score`);
+};
+
+// Finalize decision (host only)
+const finalizeRoomDecision = async (roomId, center) => {
+  const body =
+    center?.lat != null && center?.lng != null ? { center } : {};
+
+  return await apiRequest(`/rooms/${roomId}/decide/final`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+};
+
+// Fetch latest finalized decision (non-host polling)
+const fetchFinalDecision = async (roomId) => {
+  return await apiRequest(`/rooms/${roomId}/decide/final`, {
+    method: 'GET',
+  });
 };
 
 // Generate restaurant image URL
@@ -120,6 +139,12 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
     const [hasMoreCards, setHasMoreCards] = useState(true);
     const [totalRestaurants, setTotalRestaurants] = useState(0); // Track total for progress
     const [allCardsCompleted, setAllCardsCompleted] = useState(false); // Track if swiped all 20
+    const [canFinalize, setCanFinalize] = useState(false);
+    const [isFinalizing, setIsFinalizing] = useState(false);
+    const [finalizeRequirements, setFinalizeRequirements] = useState({
+        restaurantsNeeded: MAX_RESTAURANTS_PER_SESSION,
+        votesNeeded: MAX_RESTAURANTS_PER_SESSION,
+    });
     const MAX_RESTAURANTS = 20; // Limit to 20 restaurants
 
     const topCardRef = useRef(null); // ref to call programmatic swipe
@@ -162,7 +187,7 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
                 });
                 
                 // Limit to MAX_RESTAURANTS
-                const limitedCards = sortedCards.slice(0, MAX_RESTAURANTS);
+                const limitedCards = sortedCards.slice(0, MAX_RESTAURANTS_PER_SESSION);
                 console.log('[SwipeCards] Setting', limitedCards.length, 'cards');
                 setCards(limitedCards);
                 setTotalRestaurants(limitedCards.length);
@@ -227,61 +252,98 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
                 setAllCardsCompleted(true);
             }
             
-            // Always check if results are ready (for multi-user scenario)
-            await checkResults();
+            // Host checks readiness to finalize after each vote
+            if (isHost) {
+                await checkResults();
+            }
             
         } catch (error) {
             console.error('Failed to submit vote:', error);
         }
     };
 
-    const checkResults = async () => {
+    const isReadyForFinal = useCallback((roomResults) => {
+        const totalVotes = roomResults.stats?.totalVotes || 0;
+        const totalRestaurantsVoted = roomResults.stats?.totalRestaurants || 0;
+
+        const restaurantsNeeded = totalRestaurants || MAX_RESTAURANTS_PER_SESSION;
+        const votesNeeded = Math.max(restaurantsNeeded, MAX_RESTAURANTS_PER_SESSION);
+
+        setFinalizeRequirements({ restaurantsNeeded, votesNeeded });
+
+        const ready =
+            totalRestaurantsVoted >= restaurantsNeeded &&
+            totalVotes >= votesNeeded &&
+            Array.isArray(roomResults.scores) &&
+            roomResults.scores.length > 0;
+
+        setCanFinalize(ready);
+        return ready;
+    }, []);
+
+    const checkResults = useCallback(async () => {
         try {
             if (!roomId) return;
             const roomResults = await checkRoomResults(roomId);
-            
-            // Check if we have enough votes to show results
-            // Require: มีร้านที่ถูกโหวตอย่างน้อย 30 ร้าน และมี votes รวมอย่างน้อย 40 ครั้ง
-            const totalVotes = roomResults.stats?.totalVotes || 0;
-            const totalRestaurants = roomResults.stats?.totalRestaurants || 0;
-            
-            if (totalRestaurants >= 30 && totalVotes >= 40 && roomResults.scores && roomResults.scores.length > 0) {
-                // Sort by approval rate and find best match
-                const sortedScores = [...roomResults.scores].sort((a, b) => b.approval - a.approval);
-                const topScored = sortedScores[0];
-                
-                // Require at least 80% approval rate for best match
-                if (topScored && topScored.approval >= 0.8) {
-                    setResults(roomResults);
-                    setShowResults(true);
-                }
-            }
+            isReadyForFinal(roomResults);
         } catch (error) {
             console.error('Failed to check results:', error);
         }
-    };
+    }, [roomId, isReadyForFinal]);
+
+    const buildFinalResultsPayload = useCallback(
+        (finalResponse, scoreData) => {
+            if (!scoreData) return finalResponse;
+
+            const winnerFromFinal = finalResponse?.winner;
+            const winnerFromScores = winnerFromFinal
+                ? scoreData.scores?.find(
+                      (s) => s.restaurantId === winnerFromFinal.restaurantId
+                  )
+                : null;
+
+            const mergedWinner = winnerFromFinal
+                ? {
+                      ...winnerFromScores,
+                      ...winnerFromFinal,
+                      restaurantId: winnerFromFinal.restaurantId,
+                  }
+                : winnerFromScores ?? null;
+
+            return {
+                ...scoreData,
+                winner: mergedWinner,
+                decidedAt: finalResponse?.decidedAt ?? scoreData.generatedAt,
+                reason: finalResponse?.reason ?? null,
+                mapLinks: finalResponse?.mapLinks ?? null,
+            };
+        },
+        []
+    );
 
     const handleShowResults = async () => {
+        if (!roomId || isFinalizing) return;
+
         try {
-            if (!roomId) return;
-            
-            // Call API to mark room as "viewing results"
-            const API_BASE = 'http://localhost:4001/api';
-            await fetch(`${API_BASE}/rooms/${roomId}/view-results`, {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-            });
-            
-            // Fetch and show results
+            setIsFinalizing(true);
             const roomResults = await checkRoomResults(roomId);
-            
-            if (roomResults.scores && roomResults.scores.length > 0) {
-                setResults(roomResults);
-                setShowResults(true);
+            const ready = isReadyForFinal(roomResults);
+
+            if (!ready) {
+                alert('Need more votes before finalizing the meal.');
+                return;
             }
+
+            const finalResponse = await finalizeRoomDecision(roomId, userCenter);
+            const combinedResults = buildFinalResultsPayload(finalResponse, roomResults);
+
+            setResults(combinedResults);
+            setShowResults(true);
         } catch (error) {
-            console.error('Failed to show results:', error);
+            console.error('Failed to finalize results:', error);
+            alert('Failed to finalize results. Please try again.');
+        } finally {
+            setIsFinalizing(false);
         }
     };
 
@@ -329,29 +391,27 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
     // Poll room status to detect when host triggers result viewing (for non-host members)
     useEffect(() => {
         if (!roomId || isHost || !allCardsCompleted) return;
-        
+
         const pollInterval = setInterval(async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/decide/score`, {
-                    credentials: 'include'
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    // If we get scores with votes, host has triggered results
-                    if (data.scores && data.scores.length > 0 && data.stats.totalVotes > 0) {
-                        console.log('Results ready, navigating to result page');
-                        setResults(data);
-                        setShowResults(true);
-                    }
+                const finalDecision = await fetchFinalDecision(roomId);
+                if (finalDecision?.winner) {
+                    const scoreData = await checkRoomResults(roomId);
+                    const combinedResults = buildFinalResultsPayload(
+                        finalDecision,
+                        scoreData
+                    );
+                    setResults(combinedResults);
+                    setShowResults(true);
+                    clearInterval(pollInterval);
                 }
             } catch (error) {
                 console.error('Error polling results:', error);
             }
-        }, 2000); // Poll every 2 seconds
-        
+        }, 4000);
+
         return () => clearInterval(pollInterval);
-    }, [roomId, isHost, allCardsCompleted]);
+    }, [roomId, isHost, allCardsCompleted, buildFinalResultsPayload, checkRoomResults]);
 
     // Calculate current card number (total - remaining + 1)
     const currentCardNumber = totalRestaurants - cards.length + 1;
@@ -429,14 +489,22 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
                    <button 
                      className="green button"
                      onClick={handleShowResults}
+                     disabled={!canFinalize || isFinalizing}
                      style={{
                        padding: "15px 30px",
                        fontSize: "1.2rem",
-                       cursor: "pointer"
+                       cursor: canFinalize && !isFinalizing ? "pointer" : "not-allowed",
+                       opacity: canFinalize ? 1 : 0.7
                      }}
                    >
-                     View Results
+                     {isFinalizing ? 'Finalizing...' : 'View Results'}
                    </button>
+                   {!canFinalize && (
+                     <div style={{marginTop: "10px", fontSize: "0.9rem", color: "#555"}}>
+                       Need at least {finalizeRequirements.restaurantsNeeded} restaurants
+                       and {finalizeRequirements.votesNeeded} total votes.
+                     </div>
+                   )}
                  </div>
                ) : (
                  <div style={{fontSize: "1rem", color: "#666"}}>Waiting for host to view results...</div>

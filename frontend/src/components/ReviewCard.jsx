@@ -32,11 +32,14 @@ function ReviewCard(
     };
 
     return(
-        <div className="d-flex flex-column border border-secondary rounded mb-2 px-2" style = {{
-            width: isMobile ? "100%" : "40%", 
-            height: isMobile ? "auto" : "100%",
-            minHeight: isMobile ? "150px" : "200px",
-            maxHeight: isMobile ? "none" : "90%"
+        <div className="d-flex flex-column rounded-4 h-100" style = {{
+            width: "100%", 
+            minHeight: isMobile ? "200px" : "230px",
+            background: '#FFF7EF',
+            border: '2px solid #8A3A1A',
+            boxShadow: '0 8px 18px rgba(67,24,8,0.08)',
+            padding: '18px',
+            color: '#4A1F0C'
         }}>
             <div className="d-flex flex-shrink-0">{/* header*/}
                 <div> {/* profile picture*/}
@@ -59,7 +62,7 @@ function ReviewCard(
                                 <span key={i}>
                                     {stars({
                                         size: "20px",
-                                        color: i < reviewInfo.star ? "#BB3D25" : "white"
+                                        color: i < reviewInfo.star ? "#C0471C" : "#E4B38B"
                                     })}
                                 </span>
                             ))}
@@ -82,7 +85,8 @@ function ReviewCard(
                     overflow: isMobile ? 'visible' : 'auto',
                     maxHeight: isMobile ? 'none' : '350px',
                     minHeight: isMobile ? 'none' : '100px',
-                    padding: '8px 0'
+                    padding: '8px 0',
+                    color: '#4A1F0C'
                 }}
             >
                 {reviewInfo.review}

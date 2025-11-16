@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -12,24 +13,38 @@ import ResultPage from "./ResultPage";
 import AdminDash from "./AdminDashboard";
 import UserPage from "./UserPage";
 import RatingPage from "./Ratings";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+
+function AuthDebugLogger() {
+  const { user, isLoggedIn, isAdmin, authChecked, loading } = useAuth();
+
+  useEffect(() => {
+    console.log('[AuthDebug] authChecked:', authChecked, '| loading:', loading, '| isLoggedIn:', isLoggedIn, '| isAdmin:', isAdmin, '| user:', user);
+  }, [user, isLoggedIn, isAdmin, authChecked, loading]);
+
+  return null;
+}
 
 function App() {
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/enter-code" element={<EnterCode />} />
-        <Route path="/create-room" element={<CreateRoom />} />
-        <Route path="/foodtinder" element={<FoodTinder />} />
-        <Route path="/result" element={<ResultPage />} />
-        <Route path="/admin-dashboard" element={<AdminDash />} />
-        <Route path="/profile" element={<UserPage />} />
-        <Route path="/rating/:restaurantId" element={<RatingPage />} />
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <AuthDebugLogger />
+      <Router>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/enter-code" element={<EnterCode />} />
+          <Route path="/create-room" element={<CreateRoom />} />
+          <Route path="/foodtinder" element={<FoodTinder />} />
+          <Route path="/result" element={<ResultPage />} />
+          <Route path="/admin-dashboard" element={<AdminDash />} />
+          <Route path="/profile" element={<UserPage />} />
+          <Route path="/rating/:restaurantId" element={<RatingPage />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 

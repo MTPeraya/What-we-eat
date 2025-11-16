@@ -3,9 +3,11 @@ import "./App.css";
 import { Link, useNavigate } from "react-router-dom";
 import { config } from "./config";
 import Header from "./header.jsx";
+import { useAuth } from "./context/AuthContext";
 
 function Login() {
   const navigate = useNavigate();
+  const { isLoggedIn, authChecked, refreshAuth } = useAuth();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -18,6 +20,12 @@ function Login() {
       setRemember(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (authChecked && isLoggedIn) {
+      navigate("/profile", { replace: true });
+    }
+  }, [authChecked, isLoggedIn, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -51,6 +59,7 @@ function Login() {
         if (remember) {
           localStorage.setItem("WhatWeEatUsername", username);
         }
+        await refreshAuth();
         navigate("/enter-code");
       } else {
         alert(`❌ ${data.error || "password or username incorrect"}`);

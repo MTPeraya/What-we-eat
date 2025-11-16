@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { config } from './config';
+import { useAuth } from './context/AuthContext';
 
 // API function to fetch user history (limited to 3 most recent)
 async function fetchUserHistory(limit = 3) {
@@ -147,8 +148,17 @@ function ChangeProfile({ placeholder = "Enter value...", value = "", name = "", 
 const JustButton = ({
     name = "feature",
     onClick = () => console.log("Button clicked!"),
+    disabled = false,
 }) => {
-    return <button className={`btn btn-outline-light w-75 text-start fs-4 px-3 mb-2`} onClick={onClick}>&ensp;{name}</button>
+    return (
+        <button 
+            className={`btn btn-outline-light w-75 text-start fs-4 px-3 mb-2`} 
+            onClick={onClick}
+            disabled={disabled}
+        >
+            &ensp;{name}
+        </button>
+    );
 }
 
 // Profile Picture Cropper Modal Component
@@ -601,6 +611,7 @@ function History({
 
 function UserPage(){
     const navigate = useNavigate();
+    const { refreshAuth } = useAuth();
 
     const [displayName, setDisplayName] = useState("Default User");
     const [username, setUsername] = useState("defaultuser")
@@ -619,6 +630,7 @@ function UserPage(){
     const [userHistory, setUserHistory] = useState([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(true);
     const [isLoadingUser, setIsLoadingUser] = useState(true);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
@@ -881,6 +893,29 @@ function UserPage(){
         setSelectedImageFile(null);
     };
 
+    const handleLogout = async () => {
+        if (isLoggingOut) return;
+        setIsLoggingOut(true);
+        try {
+            const res = await fetch(`${config.endpoints.auth}/logout`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+            if (!res.ok) {
+                throw new Error('Failed to logout');
+            }
+            if (typeof refreshAuth === 'function') {
+                await refreshAuth();
+            }
+            navigate('/login');
+        } catch (error) {
+            console.error('[UserPage] Failed to logout:', error);
+            alert('Failed to logout. Please try again.');
+        } finally {
+            setIsLoggingOut(false);
+        }
+    };
+
     // UserProfile is no longer defined here
 
     return(
@@ -917,6 +952,11 @@ function UserPage(){
                         </WhiteBorder>
                         <JustButton name="Account Management" onClick={HandleEditClick}/>
                         <JustButton name="Manage Post"/>
+                        <JustButton 
+                            name={isLoggingOut ? "Logging out..." : "Logout"} 
+                            onClick={handleLogout}
+                            disabled={isLoggingOut}
+                        />
 
                         <WhiteBorder>
                             <History 

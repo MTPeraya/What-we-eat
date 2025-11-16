@@ -41,6 +41,7 @@ export async function GET(
         lat: true,
         lng: true,
         rating: true,
+        userRatingsTotal: true,
       }
     });
 
@@ -57,6 +58,7 @@ export async function GET(
           ? { lat: restaurant.lat, lng: restaurant.lng }
           : null,
         rating: restaurant?.rating || null,
+        userRatingsTotal: restaurant?.userRatingsTotal ?? null,
       };
     });
 
