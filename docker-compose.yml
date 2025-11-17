@@ -20,10 +20,6 @@ services:
       # CORS
       FRONTEND_ORIGIN: "http://localhost:5173"
 
-      # Session/Cookie (iron-session)
-      IRON_SESSION_COOKIE_NAME: ${IRON_SESSION_COOKIE_NAME}
-      IRON_SESSION_PASSWORD: ${IRON_SESSION_PASSWORD}
-
     volumes:
       - ./backend/storage:/app/storage
 

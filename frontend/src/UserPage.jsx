@@ -2,11 +2,13 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { config } from './config';
+import { useAuth } from './hooks/useAuth';
 
-// API function to fetch user history (limited to 3 most recent)
-async function fetchUserHistory(limit = 3) {
+// API function to fetch user history (supports cursor pagination; defaults to 20 most recent)
+async function fetchUserHistory(limit = 20, cursor = null) {
     try {
         const qs = new URLSearchParams({ limit: String(limit) });
+        if (cursor) qs.set('cursor', String(cursor));
         const res = await fetch(`${config.apiUrl}/api/me/history?${qs.toString()}`, { 
             credentials: "include" 
         });
@@ -16,10 +18,13 @@ async function fetchUserHistory(limit = 3) {
         }
         
         const data = await res.json();
-        return data.items || [];
+        return {
+            items: data.items || [],
+            nextCursor: data.nextCursor ?? null
+        };
     } catch (error) {
         console.error('Error fetching user history:', error);
-        return [];
+        return { items: [], nextCursor: null };
     }
 }
 
@@ -56,11 +61,13 @@ const pen = (size="50px") => {
 }
 
 const gradient = {
-    height: "100vh",
+    height: "auto",
     width: "100vw",
     background: 'linear-gradient(45deg, rgba(196, 112, 90, 1) 24%, rgba(225, 152, 132, 1) 75%)',
     minHeight: "100vh",
-    color: "white"
+    color: "white",
+    paddingBottom: "110px",
+    boxSizing: "border-box"
 };
 
 const ProfileHeader = ({ onBackClick }) => {
@@ -147,8 +154,17 @@ function ChangeProfile({ placeholder = "Enter value...", value = "", name = "", 
 const JustButton = ({
     name = "feature",
     onClick = () => console.log("Button clicked!"),
+    disabled = false,
 }) => {
-    return <button className={`btn btn-outline-light w-75 text-start fs-4 px-3 mb-2`} onClick={onClick}>&ensp;{name}</button>
+    return (
+        <button 
+            className={`btn btn-outline-light w-75 text-start fs-4 px-3 mb-2`} 
+            onClick={onClick}
+            disabled={disabled}
+        >
+            &ensp;{name}
+        </button>
+    );
 }
 
 // Profile Picture Cropper Modal Component
@@ -601,6 +617,7 @@ function History({
 
 function UserPage(){
     const navigate = useNavigate();
+    const { refreshAuth } = useAuth();
 
     const [displayName, setDisplayName] = useState("Default User");
     const [username, setUsername] = useState("defaultuser")
@@ -618,7 +635,9 @@ function UserPage(){
 
     const [userHistory, setUserHistory] = useState([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+    const [showAllHistory, setShowAllHistory] = useState(false);
     const [isLoadingUser, setIsLoadingUser] = useState(true);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
@@ -679,10 +698,10 @@ function UserPage(){
         const loadUserHistory = async () => {
             setIsLoadingHistory(true);
             try {
-                const history = await fetchUserHistory(3); // Fetch 3 most recent
+                const { items } = await fetchUserHistory(20); // Fetch up to 20 most recent
                 
                 // Transform API data to match your component structure
-                const transformedHistory = history.map(item => {
+                const transformedHistory = items.map(item => {
                     const restaurant = item.restaurant;
                     
                     // Create Google Maps URL
@@ -696,6 +715,8 @@ function UserPage(){
                         : '';
                     
                     return {
+                        id: item.id,
+                        restaurantId: restaurant?.id ?? null,
                         restaurant: restaurant?.name || 'Unknown Restaurant',
                         locationUrl,
                         date: item.decidedAt ? new Date(item.decidedAt).toLocaleDateString() : new Date().toLocaleDateString(),
@@ -704,6 +725,7 @@ function UserPage(){
                 });
                 
                 setUserHistory(transformedHistory);
+                // We keep nextCursor unused as we cap at 20 on first load
             } catch (error) {
                 console.error('Failed to load user history:', error);
                 // Fallback to empty array or default data
@@ -715,6 +737,10 @@ function UserPage(){
 
         loadUserHistory();
     }, []); // Empty dependency array means this runs once on mount
+
+    const handleLoadMoreHistory = () => {
+        setShowAllHistory(true);
+    };
 
     const HandleEditClick = () =>{
         setTempDisplayName(displayName);
@@ -881,6 +907,29 @@ function UserPage(){
         setSelectedImageFile(null);
     };
 
+    const handleLogout = async () => {
+        if (isLoggingOut) return;
+        setIsLoggingOut(true);
+        try {
+            const res = await fetch(`${config.endpoints.auth}/logout`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+            if (!res.ok) {
+                throw new Error('Failed to logout');
+            }
+            if (typeof refreshAuth === 'function') {
+                await refreshAuth();
+            }
+            navigate('/login');
+        } catch (error) {
+            console.error('[UserPage] Failed to logout:', error);
+            alert('Failed to logout. Please try again.');
+        } finally {
+            setIsLoggingOut(false);
+        }
+    };
+
     // UserProfile is no longer defined here
 
     return(
@@ -917,16 +966,56 @@ function UserPage(){
                         </WhiteBorder>
                         <JustButton name="Account Management" onClick={HandleEditClick}/>
                         <JustButton name="Manage Post"/>
+                        <JustButton 
+                            name={isLoggingOut ? "Logging out..." : "Logout"} 
+                            onClick={handleLogout}
+                            disabled={isLoggingOut}
+                        />
 
                         <WhiteBorder>
                             <History 
-                                userHistory={userHistory}
+                                userHistory={(function getDisplayHistory() {
+                                    // Apply no-repeat first
+                                    const baseList = (function filterNoRepeat(list) {
+                                        if (!NoRepeat) return list;
+                                        const seen = new Set();
+                                        const out = [];
+                                        for (const item of list) {
+                                            const key = item.restaurantId ?? `name:${item.restaurant}`;
+                                            if (seen.has(key)) continue;
+                                            seen.add(key);
+                                            out.push(item);
+                                        }
+                                        return out;
+                                    })(userHistory);
+
+                                    // Then limit initial view to 5 until "Load more"
+                                    return showAllHistory ? baseList : baseList.slice(0, 5);
+                                })()}
                                 NoRepeat={NoRepeat}
                                 handleNoRepeatToggle={handleNoRepeatToggle}
                                 isLoadingHistory={isLoadingHistory}
                                 isMobile = {isMobile}
                             />
                         </WhiteBorder>
+                        {!showAllHistory && (function hasMore() {
+                            const base = (function filterNoRepeat(list){
+                                if (!NoRepeat) return list;
+                                const s = new Set(); const out = [];
+                                for (const i of list) { const k = i.restaurantId ?? `name:${i.restaurant}`; if (s.has(k)) continue; s.add(k); out.push(i); }
+                                return out;
+                            })(userHistory);
+                            return base.length > 5;
+                        })() && (
+                            <div className="text-center mb-3">
+                                <button 
+                                    className="btn btn-outline-light"
+                                    onClick={handleLoadMoreHistory}
+                                >
+                                    Show all
+                                </button>
+                            </div>
+                        )}
                     </>
                 )}
             </section>

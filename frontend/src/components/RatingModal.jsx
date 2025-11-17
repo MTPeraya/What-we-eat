@@ -1,16 +1,50 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import ReviewCard from './ReviewCard';
 import { config } from '../config';
 
 const stars = ({size, color}) => <svg className="mx-2" xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 432 408"><path fill={color} d="M213 328L81 408l35-150L0 157l153-13L213 3l60 141l154 13l-117 101l35 150z" /></svg>
 
+const calculateCombinedRating = (googleRating, googleCount, localRating, localCount) => {
+    let totalScore = 0;
+    let totalCount = 0;
+
+    if (typeof googleRating === 'number') {
+        const weight = googleCount && googleCount > 0 ? googleCount : 1;
+        totalScore += googleRating * weight;
+        totalCount += weight;
+    }
+
+    if (typeof localRating === 'number') {
+        const weight = localCount && localCount > 0 ? localCount : 1;
+        totalScore += localRating * weight;
+        totalCount += weight;
+    }
+
+    return totalCount > 0 ? totalScore / totalCount : null;
+};
+
+const formatRating = (value) => (typeof value === 'number' ? value.toFixed(1) : '-');
+const createEmptyDistribution = () => [0, 0, 0, 0, 0];
+const emptyDistribution = createEmptyDistribution();
+
 stars.propTypes = {
     size: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
     color: PropTypes.string.isRequired
 };
 
-function ReviewSection({onSwitchToAdding, responsive, reviewInformation, isLoading}){
+function ReviewSection({onSwitchToAdding, responsive, reviewInformation, isLoading, stats}){ 
+    const distribution = stats?.distribution && stats.distribution.length === 5
+        ? stats.distribution
+        : emptyDistribution;
+    const totalCommunityReviews = stats?.userRatingCount ?? distribution.reduce((acc, val) => acc + val, 0);
+
+    const starBreakdown = [5, 4, 3, 2, 1].map((star) => {
+        const count = distribution[star - 1] || 0;
+        const percent = totalCommunityReviews > 0 ? (count / totalCommunityReviews) * 100 : 0;
+        return { star, count, percent };
+    });
+
     return(
     <section className="h-100 d-flex flex-column">
         <div className="d-flex justify-content-between flex-shrink-0" style={{width:"98%"}}>
@@ -23,40 +57,86 @@ function ReviewSection({onSwitchToAdding, responsive, reviewInformation, isLoadi
             </div>
         </div>
 
-        <div className="container overflow-auto flex-grow-1" style={{
-            width:"95%",
+        <div className="py-3 px-2 w-100">
+            <div 
+                className={`rounded-4 shadow-sm mb-3 p-3 ${responsive ? '' : 'd-flex gap-3'}`} 
+                style={{
+                    background: '#FFF7EF',
+                    border: '2px solid #8A3A1A',
+                    color: '#4A1F0C'
+                }}
+            >
+                <div className={`${responsive ? 'mb-3 text-center' : 'text-center'}`} style={{minWidth: responsive ? 'auto' : '220px'}}>
+                    <div className="text-uppercase small" style={{opacity: 0.8}}>Average rating</div>
+                    <div className="display-4 fw-bold">{formatRating(stats?.combinedRating)}</div>
+                    <div className="d-flex justify-content-center align-items-center gap-2">
+                        {stars({size: "36px", color: "#C0471C"})}
+                    </div>
+                    <div className="mt-2 small">
+                        Avg from Google {formatRating(stats?.googleRating)}
+                        {stats?.googleRatingCount ? ` · ${stats.googleRatingCount.toLocaleString()} reviews` : ''}
+                        <br/>
+                        + Community {formatRating(stats?.userRating)}
+                        {stats?.userRatingCount ? ` · ${stats?.userRatingCount} review${stats?.userRatingCount > 1 ? 's' : ''}` : ''}
+                    </div>
+                </div>
+                <div className="flex-grow-1">
+                    {starBreakdown.map(({ star, count, percent }) => (
+                        <div key={star} className="d-flex align-items-center gap-2 mb-2">
+                            <div style={{width: '35px'}} className="text-end fw-semibold">{star}</div>
+                            <div className="flex-grow-1 rounded-pill" style={{height: '10px', overflow: 'hidden', backgroundColor: '#FFE6D1', border: '1px solid #C47B4E'}}>
+                                <div 
+                                    className="h-100 rounded-pill" 
+                                    style={{
+                                        width: `${percent}%`,
+                                        backgroundColor: '#C0471C',
+                                        transition: 'width 0.3s ease'
+                                    }}
+                                />
+                            </div>
+                            <div style={{width: '30px'}} className="text-start small">{count}</div>
+                        </div>
+                    ))}
+                    {totalCommunityReviews === 0 && (
+                        <div className="small mt-2" style={{opacity: 0.75}}>
+                            Community ratings will appear after the first review.
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+
+        <div className="flex-grow-1 overflow-auto px-2" style={{
+            width:"100%",
             maxHeight: "100%",
             scrollbarWidth: 'thin',
             scrollbarColor: '#BB3D25 #f1f1f1',
             paddingBottom: '10px'
         }}>
-            <div className={`${responsive ? 'col' : 'row'} flex-nowrap gap-2 ${responsive? "" : ""}`} style={{
-                display: 'flex',
-                flexWrap: 'nowrap',
-                overflowX: responsive ? 'hidden' : 'auto'
-            }}>
-                {isLoading ? (
-                    <div className="text-center p-4 w-100">
-                        <div className="spinner-border text-light" role="status">
-                            <span className="visually-hidden">Loading...</span>
+            {isLoading ? (
+                <div className="text-center p-4 w-100">
+                    <div className="spinner-border text-light" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <p className="mt-2">Loading reviews...</p>
+                </div>
+            ) : reviewInformation && reviewInformation.length > 0 ? (
+                <div className={`row row-cols-1 ${responsive ? '' : 'row-cols-2'} g-3`}>
+                    {reviewInformation.map((review, index) => (
+                        <div className="col" key={index}>
+                            <ReviewCard 
+                                isMobile={responsive} 
+                                userinfo={review.userinfo}
+                                reviewInfo={review.reviewInfo}
+                            />
                         </div>
-                        <p className="mt-2">Loading reviews...</p>
-                    </div>
-                ) : reviewInformation && reviewInformation.length > 0 ? (
-                    reviewInformation.map((review, index) => (
-                        <ReviewCard 
-                            key={index}
-                            isMobile={responsive} 
-                            userinfo={review.userinfo}
-                            reviewInfo={review.reviewInfo}
-                        />
-                    ))
-                ) : (
-                    <div className="text-center p-4">
-                        <p>No reviews yet. Be the first to review!</p>
-                    </div>
-                )}
-            </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center p-4">
+                    <p>No reviews yet. Be the first to review!</p>
+                </div>
+            )}
         </div>
     </section>
     )
@@ -66,7 +146,15 @@ ReviewSection.propTypes = {
     onSwitchToAdding: PropTypes.func.isRequired,
     responsive: PropTypes.bool.isRequired,
     reviewInformation: PropTypes.array.isRequired,
-    isLoading: PropTypes.bool
+    isLoading: PropTypes.bool,
+    stats: PropTypes.shape({
+        combinedRating: PropTypes.number,
+        googleRating: PropTypes.number,
+        googleRatingCount: PropTypes.number,
+        userRating: PropTypes.number,
+        userRatingCount: PropTypes.number,
+        distribution: PropTypes.arrayOf(PropTypes.number)
+    })
 };
 
 function ReviewAdding({onSwitchToReading, responsive, restaurantId, onReviewSubmitted}){
@@ -409,6 +497,7 @@ function RatingModal({ isOpen, onClose, restaurant }) {
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
     const [reviewInformation, setReviewInformation] = useState([]);
     const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+    const [userReviewStats, setUserReviewStats] = useState({ avg: null, count: 0, distribution: createEmptyDistribution() });
 
     useEffect(() => {
         const handleResize = () => {
@@ -470,10 +559,28 @@ function RatingModal({ isOpen, onClose, restaurant }) {
             });
             
             setReviewInformation(transformedReviews);
+
+            if (reviews.length > 0) {
+                const totalScore = reviews.reduce((sum, review) => sum + (review.score || 0), 0);
+                const distribution = createEmptyDistribution();
+                reviews.forEach((review) => {
+                    const rawScore = typeof review.score === 'number' ? review.score : 0;
+                    const clamped = Math.min(Math.max(Math.round(rawScore), 1), 5);
+                    distribution[clamped - 1] += 1;
+                });
+                setUserReviewStats({
+                    avg: totalScore / reviews.length,
+                    count: reviews.length,
+                    distribution
+                });
+            } else {
+                setUserReviewStats({ avg: null, count: 0, distribution: createEmptyDistribution() });
+            }
         } catch (error) {
             console.error('[RatingModal] Error fetching reviews:', error.message);
             // Don't fail the modal, just show empty reviews
             setReviewInformation([]);
+            setUserReviewStats({ avg: null, count: 0, distribution: createEmptyDistribution() });
         } finally {
             setIsLoadingReviews(false);
         }
@@ -508,6 +615,31 @@ function RatingModal({ isOpen, onClose, restaurant }) {
         fetchReviews();
     };
 
+    const googleRatingValue = typeof restaurant?.googleRating === 'number' ? restaurant.googleRating : null;
+    const googleRatingCount = restaurant?.googleRatingCount ?? 0;
+    const userRatingValue = userReviewStats.avg ?? restaurant?.userRating ?? null;
+    const userRatingCount = userReviewStats.count > 0 
+        ? userReviewStats.count 
+        : (restaurant?.userRatingCount ?? 0);
+
+    const overallRating = useMemo(() => {
+        return calculateCombinedRating(
+            googleRatingValue,
+            googleRatingCount,
+            userRatingValue,
+            userRatingCount
+        );
+    }, [googleRatingValue, googleRatingCount, userRatingValue, userRatingCount]);
+
+    const reviewSectionStats = useMemo(() => ({
+        combinedRating: overallRating,
+        googleRating: googleRatingValue,
+        googleRatingCount,
+        userRating: userRatingValue,
+        userRatingCount,
+        distribution: userReviewStats.distribution ?? createEmptyDistribution()
+    }), [overallRating, googleRatingValue, googleRatingCount, userRatingValue, userRatingCount, userReviewStats.distribution]);
+
     if (!isOpen || !restaurant) return null;
 
     return (
@@ -532,11 +664,12 @@ function RatingModal({ isOpen, onClose, restaurant }) {
                 <div 
                     className="modal-content"
                     style={{ 
-                        backgroundColor: '#603A2B',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '15px',
-                        overflow: 'hidden'
+                        backgroundColor: '#FFF7EF',
+                        color: '#4A1F0C',
+                        border: '2px solid #8A3A1A',
+                        borderRadius: '18px',
+                        overflow: 'hidden',
+                        boxShadow: '0 25px 45px rgba(74,31,12,0.25)'
                     }}
                 >
                     {/* Close Button */}
@@ -555,33 +688,50 @@ function RatingModal({ isOpen, onClose, restaurant }) {
 
                     <div className={`d-flex ${isMobile ? 'flex-column' : ''}`} style={{ minHeight: isMobile ? '80vh' : '70vh' }}>
                         {/* Restaurant Image */}
-                        <img 
-                            src={restaurant.url} 
-                            alt={restaurant.name} 
-                            className={`object-fit-cover ${isMobile ? 'w-100' : 'w-25'}`}
-                            style={{ 
-                                height: isMobile ? '200px' : 'auto',
-                                borderRadius: isMobile ? '0' : '0'
+                        <div
+                            className={isMobile ? 'w-100' : ''}
+                            style={{
+                                flex: isMobile ? '0 0 auto' : '0 0 30%',
+                                minHeight: isMobile ? '200px' : '100%',
+                                backgroundColor: '#F5D5B5'
                             }}
-                        />
+                        >
+                            <img 
+                                src={restaurant.url} 
+                                alt={restaurant.name} 
+                                style={{ 
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'cover'
+                                }}
+                            />
+                        </div>
                         
                         {/* Content */}
-                        <div className={`d-flex flex-column ${isMobile ? "w-100" : "w-75"} p-3`}>
+                        <div 
+                            className={`d-flex flex-column ${isMobile ? "w-100" : ""} p-3`} 
+                            style={{
+                                backgroundColor: '#FFF7EF',
+                                flex: isMobile ? '1 1 auto' : '1 1 70%'
+                            }}
+                        >
                             {/* Header */}
-                            <div className="d-flex justify-content-between align-items-center mb-2">
+                            <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
                                 <div>
-                                    <h2 className="my-1">{restaurant.name}</h2>
+                                    <h2 className="my-1" style={{color: '#4A1F0C'}}>{restaurant.name}</h2>
                                     {restaurant.address && (
-                                        <p className="text-light small mb-0">{restaurant.address}</p>
+                                        <p className="small mb-0" style={{color: '#7A4B31'}}>{restaurant.address}</p>
                                     )}
                                 </div>
-                                <div className="d-flex align-items-center gap-1">
-                                    {stars({size: "4vh", color: "#BB3D25"})}
-                                    <h2 className="my-0">{restaurant.rating ? restaurant.rating.toFixed(1) : "-"}</h2>
+                                <div className="text-end">
+                                    <div className="d-flex align-items-center gap-1 justify-content-end">
+                                        {stars({size: "4vh", color: "#C0471C"})}
+                                        <h2 className="my-0" style={{color: '#4A1F0C'}}>{formatRating(overallRating)}</h2>
+                                    </div>
                                 </div>
                             </div>
                             
-                            <hr className="mb-2" style={{ borderColor: 'rgba(255,255,255,0.3)' }} />
+                            <hr className="mb-2" style={{ borderColor: '#E7C2A3' }} />
 
                             {/* Review Section */}
                             <div className="flex-grow-1 overflow-hidden">
@@ -598,6 +748,7 @@ function RatingModal({ isOpen, onClose, restaurant }) {
                                         responsive={isMobile} 
                                         reviewInformation={reviewInformation}
                                         isLoading={isLoadingReviews}
+                                        stats={reviewSectionStats}
                                     />
                                 )}
                             </div>
@@ -612,7 +763,18 @@ function RatingModal({ isOpen, onClose, restaurant }) {
 RatingModal.propTypes = {
     isOpen: PropTypes.bool.isRequired,
     onClose: PropTypes.func.isRequired,
-    restaurant: PropTypes.object
+    restaurant: PropTypes.shape({
+        id: PropTypes.string.isRequired,
+        name: PropTypes.string,
+        address: PropTypes.string,
+        url: PropTypes.string,
+        rating: PropTypes.number,
+        distance: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+        googleRating: PropTypes.number,
+        googleRatingCount: PropTypes.number,
+        userRating: PropTypes.number,
+        userRatingCount: PropTypes.number
+    })
 };
 
 export default RatingModal;

@@ -3,8 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { withCORS, preflight } from "@/lib/cors";
 
-const PUBLIC_BASE = process.env.PUBLIC_FILES_BASE || "http://localhost:4001/api/files";
-
 function newKey(mime: string) {
   const ext = mime.split("/")[1] || "bin";
   const ymd = new Date().toISOString().slice(0, 10);
@@ -31,7 +29,9 @@ export async function POST(req: NextRequest) {
     
     const key = newKey(mime);
     const uploadUrl = `${req.nextUrl.origin}/api/uploads/${encodeURIComponent(key)}`;
-    const publicUrl = `${PUBLIC_BASE}/${encodeURIComponent(key)}`;
+    // Prefer env if provided; otherwise serve through this same backend
+    const publicBase = process.env.PUBLIC_FILES_BASE || `${req.nextUrl.origin}/api/files`;
+    const publicUrl = `${publicBase}/${encodeURIComponent(key)}`;
 
     return withCORS(
       NextResponse.json({ key, uploadUrl, publicUrl }, { status: 200 }),

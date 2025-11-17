@@ -1,16 +1,25 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./App.css";
 import { Link, useNavigate} from "react-router-dom";
 import { config } from './config';
 import Header from "./header.jsx";
+import { useAuth } from "./hooks/useAuth";
 
 
 function Register() {
     const navigate = useNavigate();
+    const { isLoggedIn, authChecked, refreshAuth } = useAuth();
 
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [rePassword, setRePassword] = useState("");
+
+    useEffect(() => {
+        if (authChecked && isLoggedIn) {
+            // After register, return to homepage; host will press Start to proceed
+            navigate("/", { replace: true });
+        }
+    }, [authChecked, isLoggedIn, navigate]);
 
     const handleRegister = async (e) => {
         e.preventDefault();
@@ -42,7 +51,8 @@ function Register() {
 
             if (res.ok) {
                 // Backend uses HttpOnly cookie session; no token to store
-                navigate("/create-room");
+                await refreshAuth();
+                navigate("/");
             } else {
                 // Show friendlier validation/duplicate messages
                 if (data?.error === 'VALIDATION_ERROR') {

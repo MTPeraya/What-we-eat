@@ -1,10 +1,29 @@
 import { useNavigate } from "react-router-dom";
-import React from "react";
+import React, { useState, useCallback } from "react";
 import "../App.css";
 import preview from "/wwePreview.png";
+import { useAuth } from "../hooks/useAuth";
 
 function HeroSection() {
   const navigate = useNavigate();
+  const { isLoggedIn, authChecked } = useAuth();
+  const [isStarting, setIsStarting] = useState(false);
+
+  const handleStartNow = useCallback(async () => {
+    if (!authChecked) return;
+
+    if (!isLoggedIn) {
+      // Not logged in → go to login first
+      navigate("/login");
+      return;
+    }
+
+    // Logged in → go to enter-code screen to choose Create / Join
+      setIsStarting(true);
+        navigate("/enter-code");
+    // Small delay to show button feedback before re-enable
+    setTimeout(() => setIsStarting(false), 300);
+  }, [authChecked, isLoggedIn, navigate]);
 
   const textWWE =
     "fun, fast, and fair way to choose the meal with your companion!!";
@@ -26,10 +45,10 @@ function HeroSection() {
           <p className="hero-text">{textWWE}</p>
           <button
             className="button green shadow hero-button"
-            onClick={() => navigate("/Login")}
+            onClick={handleStartNow}
+            disabled={isStarting}
           >
-            {" "}
-            Start Now!{" "}
+            {isStarting ? "Starting..." : "Start Now!"}
           </button>
         </div>
       </div>

@@ -13,6 +13,7 @@ export async function OPTIONS(req: NextRequest) {
 // ✅ Get user info from session
 export async function GET(req: NextRequest) {
   const origin = req.headers.get('origin');
+  try {
   const s = await getSession(req);
 
   if (!s) {
@@ -48,4 +49,11 @@ export async function GET(req: NextRequest) {
     ),
     origin
   );
+  } catch (e) {
+    const msg = (e as Error)?.message ?? String(e);
+    return withCORS(
+      NextResponse.json({ error: "AUTH_ME_FAILED", details: msg }, { status: 500 }),
+      origin
+    );
+  }
 }

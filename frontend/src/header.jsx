@@ -1,10 +1,26 @@
 import React, { useState, useEffect } from "react";
 import "./App.css";
-import { Link, useLocation } from "react-router-dom";
-import { config } from "./config";
+import { Link } from "react-router-dom";
+import { useAuth } from "./hooks/useAuth";
 
-function Profile() {
-  return <div className="profile-s Margin1vh"></div>;
+function Profile({ user, isLoggedIn }) {
+  const src =
+    (isLoggedIn && user?.profilePicture) ? user.profilePicture : "/placeholderProfile.png";
+  return (
+    <Link to="/profile" aria-label="Profile" className="Margin1vh" style={{ textDecoration: 'none' }}>
+      <img
+        src={src}
+        alt="profile"
+        className="rounded-circle"
+        style={{
+          width: '44px',
+          height: '44px',
+          objectFit: 'cover',
+          border: '2px solid white'
+        }}
+      />
+    </Link>
+  );
 }
 
 function MenuIcon({ isAdmin = false, isLoggedIn = false, authChecked = false }) {
@@ -114,70 +130,12 @@ function MenuIcon({ isAdmin = false, isLoggedIn = false, authChecked = false }) 
 }
 
 function Header() {
-  const location = useLocation(); // Track route changes
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
-
-  useEffect(() => {
-    // Check auth status on every route change
-    (async () => {
-      setAuthChecked(false); // Reset on route change
-      try {
-        console.log('[Header] Checking auth status...');
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
-
-        const res = await fetch(`${config.endpoints.auth}/me`, {
-          credentials: "include",
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-
-        console.log('[Header] Auth response status:', res.status);
-
-        if (!res.ok) {
-          // Not logged in - reset states
-          console.log('[Header] Not logged in - response not OK');
-          setIsLoggedIn(false);
-          setIsAdmin(false);
-          setAuthChecked(true);
-          return;
-        }
-        
-        const data = await res.json();
-        console.log('[Header] Auth data received:', data);
-        
-        if (data?.user) {
-          console.log('[Header] User logged in:', data.user.username, '| Role:', data.user.role);
-          setIsLoggedIn(true);
-          setIsAdmin(data.user.role === "ADMIN");
-        } else {
-          // No user data - reset states
-          console.log('[Header] No user data in response');
-          setIsLoggedIn(false);
-          setIsAdmin(false);
-        }
-        setAuthChecked(true);
-      } catch (err) {
-        if (err.name !== "AbortError") {
-          console.error("[Header] Error verifying user:", err);
-        } else {
-          console.log('[Header] Auth check timed out');
-        }
-        // On error, assume not logged in
-        setIsLoggedIn(false);
-        setIsAdmin(false);
-        setAuthChecked(true);
-      }
-    })();
-  }, [location.pathname]); // Re-check when route changes
+  const { isLoggedIn, isAdmin, authChecked, user } = useAuth();
 
   return (
     <div className="header">
       <MenuIcon isAdmin={isAdmin} isLoggedIn={isLoggedIn} authChecked={authChecked} />
-      <Profile />
+      <Profile user={user} isLoggedIn={isLoggedIn} />
     </div>
   );
 }

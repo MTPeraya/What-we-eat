@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Header from './header.jsx'
 import Footer from './components/smallfooter.jsx'
 import DrawBox from './components/drawbox.jsx'
@@ -15,15 +16,6 @@ const heart = <svg xmlns="http://www.w3.org/2000/svg" width="80%" height="80%" v
 // API Configuration
 const API_BASE_URL = config.apiUrl + '/api';
 
-// Get room ID - you'll need to implement this based on your routing
-const getRoomId = () => {
-  // This should be implemented based on how you pass room ID to this component
-  // For now, using a placeholder
-  return "123456";
-};
-
-const RoomID = getRoomId();
-
 // API Functions
 const apiRequest = async (url, options = {}) => {
   try {
@@ -32,6 +24,7 @@ const apiRequest = async (url, options = {}) => {
         'Content-Type': 'application/json',
         ...options.headers,
       },
+      credentials: 'include',
       ...options,
     });
     
@@ -48,11 +41,6 @@ const apiRequest = async (url, options = {}) => {
   }
 };
 
-// Fetch restaurants from backend
-const fetchRestaurants = async () => {
-  return await apiRequest(`/restaurants`);
-};
-
 // Send vote to backend
 const submitVote = async (roomId, restaurantId, value) => {
   return await apiRequest('/votes', {
@@ -65,139 +53,305 @@ const submitVote = async (roomId, restaurantId, value) => {
   });
 };
 
+// Finalize decision (host only)
+const finalizeRoomDecision = async (roomId, center) => {
+  const body = center?.lat != null && center?.lng != null ? { center } : {};
+  return await apiRequest(`/rooms/${roomId}/decide/final`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+};
+
 // Check if room results are ready
 const checkRoomResults = async (roomId) => {
   return await apiRequest(`/rooms/${roomId}/decide/score`);
 };
 
-// Transform API restaurant data to match component format
-const transformRestaurantData = (apiData) => {
-  // Extract items array from API response { count, items }
-  const restaurants = apiData.items || [];
-  return restaurants.map((restaurant, index) => ({
-    id: restaurant.id,
-    name: restaurant.name,
-    km: (restaurant.location?.lat * restaurant.location?.lng * 5).toFixed(1) || '2.5',
-    img: `/restaurant/restaurant${(index % 8) + 1}.jpg`, // Fallback to local images
-    address: restaurant.address,
-    rating: restaurant.rating,
-  }));
+// Generate restaurant image URL
+const getRestaurantImageUrl = (restaurantId, index) => {
+  return `/restaurant/restaurant${(index % 8) + 1}.jpg`;
+};
+
+// Room participants
+const fetchRoomInfo = async (roomId) => {
+  return await apiRequest(`/rooms/${roomId}`, { method: 'GET' });
+};
+
+// Fetch votes for one restaurant (with voter names)
+const fetchVotesForRestaurant = async (roomId, restaurantId) => {
+  return await apiRequest(`/rooms/${roomId}/votes/${restaurantId}`, { method: 'GET' });
 };
 
 function DrawPage(){
-    const [candidate1, setCandidate1] = useState({
-        id: '01',
-        name: 'Restaurant2',
-        km: 20,
-        img: '/restaurant/restaurant2.jpg'
-    });
-
-    const [candidate2, setCandidate2] = useState({
-        id: '02',
-        name: 'Restaurant3',
-        km: 10,
-        img: '/restaurant/restaurant3.jpg'
-    });
-
+    const location = useLocation();
+    const navigate = useNavigate();
+    
+    const { roomId, tiedRestaurants, userCenter, isHost } = location.state || {};
+    
+    const [candidate1, setCandidate1] = useState(null);
+    const [candidate2, setCandidate2] = useState(null);
     const [isVoting, setIsVoting] = useState(true);
-    const [isLoading, setIsLoading] = useState(false);
-    const [results, setResults] = useState(null);
-    const [showResults, setShowResults] = useState(false);
-    const resultCheckInterval = useRef(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [hasVoted, setHasVoted] = useState(false);
+    const [totalParticipants, setTotalParticipants] = useState(0);
+    const [numVoted, setNumVoted] = useState(0);
 
-    // Load candidates from backend when component mounts
+    // Load candidates from location state
     useEffect(() => {
-        loadCandidates();
-    }, []);
-
-    // Start checking for results every 5 seconds after voting
-    useEffect(() => {
-        if (!isVoting && !showResults) {
-            resultCheckInterval.current = setInterval(() => {
-                checkResults();
-            }, 5000);
-        } else {
-            if (resultCheckInterval.current) {
-                clearInterval(resultCheckInterval.current);
-            }
+        if (!tiedRestaurants || tiedRestaurants.length < 2) {
+            console.error('[DrawPage] Missing tied restaurants data');
+            // Fallback: navigate back or show error
+            navigate('/foodtinder', { state: { roomId } });
+            return;
         }
 
-        // Cleanup interval on component unmount
-        return () => {
-            if (resultCheckInterval.current) {
-                clearInterval(resultCheckInterval.current);
-            }
-        };
-    }, [isVoting, showResults]);
+        // Set candidates from tied restaurants
+        const r1 = tiedRestaurants[0];
+        const r2 = tiedRestaurants[1];
+        
+        setCandidate1({
+            id: r1.restaurantId,
+            name: r1.name || 'Restaurant 1',
+            km: r1.location?.lat && r1.location?.lng && userCenter?.lat && userCenter?.lng
+                ? calculateDistance(userCenter, r1.location).toFixed(1)
+                : '0.0',
+            img: getRestaurantImageUrl(r1.restaurantId, 0),
+            address: r1.address,
+            rating: r1.rating,
+            restaurantId: r1.restaurantId
+        });
 
-    const loadCandidates = async () => {
-        try {
-            setIsLoading(true);
-            console.log('Fetching restaurants from API...');
-            const response = await fetchRestaurants();
+        setCandidate2({
+            id: r2.restaurantId,
+            name: r2.name || 'Restaurant 2',
+            km: r2.location?.lat && r2.location?.lng && userCenter?.lat && userCenter?.lng
+                ? calculateDistance(userCenter, r2.location).toFixed(1)
+                : '0.0',
+            img: getRestaurantImageUrl(r2.restaurantId, 1),
+            address: r2.address,
+            rating: r2.rating,
+            restaurantId: r2.restaurantId
+        });
 
-            if (response.items && response.items.length >= 2) {
-                const transformedCandidates = transformRestaurantData(response);
+        setIsLoading(false);
+    }, [tiedRestaurants, userCenter, navigate, roomId]);
+
+    // Calculate distance between two points
+    const calculateDistance = (from, to) => {
+        if (!from?.lat || !from?.lng || !to?.lat || !to?.lng) return 0;
+        const R = 6371; // Earth's radius in km
+        const dLat = ((to.lat - from.lat) * Math.PI) / 180;
+        const dLng = ((to.lng - from.lng) * Math.PI) / 180;
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos((from.lat * Math.PI) / 180) *
+            Math.cos((to.lat * Math.PI) / 180) *
+            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    };
+
+    // Poll vote progress: how many unique voters have voted among the two candidates vs total participants
+    useEffect(() => {
+        if (!roomId || !candidate1 || !candidate2) return;
+        // Start polling
+        const interval = setInterval(async () => {
+            try {
+                const room = await fetchRoomInfo(roomId);
+                const participants = Array.isArray(room?.participants) ? room.participants : [];
+                setTotalParticipants(participants.length);
+
+                const [v1, v2] = await Promise.all([
+                    fetchVotesForRestaurant(roomId, candidate1.restaurantId || candidate1.id),
+                    fetchVotesForRestaurant(roomId, candidate2.restaurantId || candidate2.id),
+                ]);
+
+                const voters = new Set();
+                // Use voterName as identifier (displayName/username). In practice this is unique in-room.
+                (v1?.votes || []).forEach(v => voters.add(v.voterName));
+                (v2?.votes || []).forEach(v => voters.add(v.voterName));
+                setNumVoted(voters.size);
                 
-                // Set the first two restaurants as candidates
-                setCandidate1(transformedCandidates[0]);
-                setCandidate2(transformedCandidates[1]);
-            }
-        } catch (error) {
-            console.error('Failed to load candidates:', error);
-            // Keep using the default candidates if API fails
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleVote = async (candidateName) => {
-        try {
-            console.log(`Voted for: ${candidateName}`);
-            
-            // Find which candidate was selected
-            const selectedCandidate = candidateName === candidate1.name ? candidate1 : candidate2;
-            
-            // Submit vote to backend
-            await submitVote(RoomID, selectedCandidate.id, 'accept');
-            console.log(`Vote submitted for restaurant ${selectedCandidate.id}`);
-            
-            setIsVoting(false);
-            
-            // Start checking for results immediately after voting
-            checkResults();
-        } catch (error) {
-            console.error('Failed to submit vote:', error);
-            setIsVoting(false); // Still proceed to waiting state even if vote fails
-        }
-    };
-
-    const checkResults = async () => {
-        try {
-            const roomResults = await checkRoomResults(RoomID);
-            
-            // Check if we have enough data to show results
-            if (roomResults.scores && roomResults.scores.length > 0) {
-                const topScored = roomResults.scores.find(score => score.approval > 0.7); // 70% approval rate
-                if (topScored) {
-                    setResults(roomResults);
-                    setShowResults(true);
-                    
-                    // Stop checking for results
-                    if (resultCheckInterval.current) {
-                        clearInterval(resultCheckInterval.current);
+                // For non-host: if all participants have voted and host hasn't finalized yet, start polling
+                if (!isHost && hasVoted && voters.size >= participants.length) {
+                    // All participants have voted, check if host has finalized
+                    try {
+                        const finalDecision = await apiRequest(`/rooms/${roomId}/decide/final`, { method: 'GET' });
+                        if (finalDecision?.winner) {
+                            // Host has finalized, navigate to result
+                            const scoreData = await checkRoomResults(roomId);
+                            navigate('/result', {
+                                state: {
+                                    roomId,
+                                    results: {
+                                        ...scoreData,
+                                        winner: finalDecision.winner,
+                                        decidedAt: finalDecision.decidedAt,
+                                        mapLinks: finalDecision.mapLinks
+                                    },
+                                    userCenter
+                                }
+                            });
+                        }
+                    } catch {
+                        // Final decision not ready yet, continue polling
                     }
                 }
+            } catch (e) {
+                console.warn('[DrawPage] Failed to poll vote progress', e);
             }
+        }, 3000);
+        return () => clearInterval(interval);
+    }, [roomId, candidate1, candidate2, isHost, hasVoted, navigate, userCenter]);
+
+    const handleVote = async (selectedCandidate) => {
+        if (!roomId || !selectedCandidate || isSubmitting || hasVoted) return;
+
+        try {
+            setIsSubmitting(true);
+            console.log('[DrawPage] Voting for:', selectedCandidate.name);
+            
+            // Submit vote to backend
+            await submitVote(roomId, selectedCandidate.restaurantId || selectedCandidate.id, 'accept');
+            // In draw mode, ensure the other candidate is explicitly rejected by this voter
+            const other =
+                (candidate1 && (selectedCandidate.restaurantId || selectedCandidate.id) !== (candidate1.restaurantId || candidate1.id))
+                    ? candidate1
+                    : candidate2;
+            if (other) {
+                await submitVote(roomId, other.restaurantId || other.id, 'reject');
+            }
+            console.log('[DrawPage] Vote submitted for restaurant:', selectedCandidate.restaurantId || selectedCandidate.id);
+            
+            setHasVoted(true);
+            setIsVoting(false);
+            
+            // Wait a bit for vote to process, then check if we can finalize
+            setTimeout(async () => {
+                try {
+                    // Check current scores
+                    const roomResults = await checkRoomResults(roomId);
+
+                    // Compare ONLY the two candidates participating in this draw
+                    const byId = new Map(roomResults.scores.map(s => [s.restaurantId, s]));
+                    const s1 = byId.get((candidate1?.restaurantId) || (candidate1?.id));
+                    const s2 = byId.get((candidate2?.restaurantId) || (candidate2?.id));
+
+                    if (s1 && s2) {
+                        const stillTied =
+                            s1.netScore === s2.netScore &&
+                            s1.approval === s2.approval &&
+                            s1.accept === s2.accept;
+
+                        if (stillTied) {
+                            console.log('[DrawPage] Still tied between the two candidates, waiting for more votes...');
+                            // No auto-random; show waiting screen and host can press Finalize
+                            // Non-host should start polling if they haven't voted yet or if they just voted
+                            if (!isHost && !hasVoted) {
+                                // Non-host hasn't voted yet, will poll after voting
+                            } else if (!isHost) {
+                                // Non-host has voted, start polling for final decision
+                                pollForFinalDecision();
+                            }
+                        } else {
+                            console.log('[DrawPage] Tie resolved between the two candidates.');
+                            if (isHost) {
+                                console.log('[DrawPage] Host waiting to press Finalize after all votes are in...');
+                                // Host will press the Finalize button manually (button is gated by numVoted === totalParticipants)
+                            } else {
+                                console.log('[DrawPage] Non-host waiting for host to finalize...');
+                                pollForFinalDecision();
+                            }
+                        }
+                    } else {
+                        // If we cannot find both scores, fall back to finalize to avoid getting stuck
+                        console.warn('[DrawPage] Candidate scores missing from results; waiting based on role.');
+                        if (!isHost) pollForFinalDecision();
+                    }
+                } catch (error) {
+                    console.error('[DrawPage] Error checking results:', error);
+                    // Fallback: poll for final decision
+                    pollForFinalDecision();
+                } finally {
+                    // Allow host to click Finalize; submitting phase is done
+                    setIsSubmitting(false);
+                }
+            }, 2000);
         } catch (error) {
-            console.error('Failed to check results:', error);
+            console.error('[DrawPage] Failed to submit vote:', error);
+            alert('Failed to submit vote. Please try again.');
+            setIsSubmitting(false);
+        }
+    };
+
+    const pollForFinalDecision = () => {
+        const pollInterval = setInterval(async () => {
+            try {
+                const finalDecision = await apiRequest(`/rooms/${roomId}/decide/final`, { method: 'GET' });
+                if (finalDecision?.winner) {
+                    clearInterval(pollInterval);
+                    // Navigate to result page
+                    const scoreData = await checkRoomResults(roomId);
+                    navigate('/result', {
+                        state: {
+                            roomId,
+                            results: {
+                                ...scoreData,
+                                winner: finalDecision.winner,
+                                decidedAt: finalDecision.decidedAt,
+                                mapLinks: finalDecision.mapLinks
+                            },
+                            userCenter
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('[DrawPage] Error polling final decision:', error);
+            }
+        }, 3000);
+
+        // Cleanup after 60 seconds
+        setTimeout(() => clearInterval(pollInterval), 60000);
+    };
+
+    // Removed auto-random countdown. Host will press finalize manually.
+
+    const finalizeAndNavigate = async () => {
+        try {
+            const finalResponse = await finalizeRoomDecision(roomId, userCenter);
+            const scoreData = await checkRoomResults(roomId);
+            
+            navigate('/result', {
+                state: {
+                    roomId,
+                    results: {
+                        ...scoreData,
+                        winner: finalResponse.winner,
+                        decidedAt: finalResponse.decidedAt,
+                        mapLinks: finalResponse.mapLinks
+                    },
+                    userCenter
+                }
+            });
+        } catch (error) {
+            console.error('[DrawPage] Failed to finalize:', error);
+            alert('Failed to finalize decision. Please try again.');
         }
     };
 
     return (
         <div>
             <Header/>
-            <section className="d-flex align-items-center justify-content-center position-relative overflow-hidden" style={{height: "90vh"}}>
+            <section 
+                className="d-flex align-items-center justify-content-center position-relative overflow-hidden"
+                style={{
+                    minHeight: "100vh",
+                    paddingTop: "80px",      // space for fixed header
+                    paddingBottom: "110px",  // space for sticky footer
+                    boxSizing: "border-box"
+                }}
+            >
 
                 {isVoting?(<span 
                     className="position-absolute top-50 start-50 translate-middle"
@@ -232,50 +386,37 @@ function DrawPage(){
                         </div>
                         <h3 className="mt-3">Loading restaurants...</h3>
                     </div>
-                ) : showResults ? (
-                    <div className="text-center">
-                        <h2>🎉 We have a winner! 🎉</h2>
-                        <div className="card mx-auto mt-4" style={{maxWidth: '400px'}}>
-                            <div className="card-body">
-                                <h5 className="card-title">{results?.scores?.[0]?.restaurant?.name}</h5>
-                                <p className="card-text">{results?.scores?.[0]?.restaurant?.address}</p>
-                                <p className="text-muted">Approval Rate: {(results?.scores?.[0]?.approval * 100).toFixed(1)}%</p>
+                ) : isVoting && candidate1 && candidate2 ? (
+                    <div className="w-100" style={{zIndex: 2}}>
+                        <div className="container">
+                            <div className="row justify-content-center align-items-stretch">
+                                <div className="col-12">
+                                    <h1 className="text-center mt-0 mb-4" style={{fontSize: "clamp(1.4rem, 2.5vw, 2.2rem)"}}>It's a draw!! Vote one!!</h1>
+                                </div>
+                                <div className="col-12 d-flex justify-content-center align-items-center gap-4 mt-2">
+                                    <DrawBox 
+                                        name={candidate1.name} 
+                                        km={candidate1.km} 
+                                        imgUrl={candidate1.img} 
+                                        icon={star} 
+                                        bcolor="#BB3D25" 
+                                        b2color="#B33821"
+                                        onClick={() => handleVote(candidate1)}
+                                        disabled={isSubmitting || hasVoted}
+                                    />
+                                    <DrawBox 
+                                        name={candidate2.name} 
+                                        km={candidate2.km} 
+                                        imgUrl={candidate2.img} 
+                                        icon={heart} 
+                                        bcolor="#517824" 
+                                        b2color="#4A6B23"
+                                        onClick={() => handleVote(candidate2)}
+                                        disabled={isSubmitting || hasVoted}
+                                    />
+                                </div>
                             </div>
                         </div>
-                        <button 
-                            className="btn btn-success mt-3"
-                            onClick={() => window.location.href = '/'}
-                        >
-                            Back to Home
-                        </button>
-                    </div>
-                ) : isVoting ? (
-                    <div className="d-flex flex-column w-100 align-items-center justify-content-around" style={{zIndex: 2}}>
-                        <div style={{height:"2vh"}}></div>
-                        <div>
-                            <h1 className="text-center mt-0 mb-3">It's a draw!! Vote one!!</h1>
-                        </div>
-                        <div className="h-75 w-75 d-flex justify-content-around align-items-center position-relative" style={{zIndex: 2}}>
-                            <DrawBox 
-                                name={candidate1.name} 
-                                km={candidate1.km} 
-                                imgUrl={candidate1.img} 
-                                icon={star} 
-                                bcolor="#BB3D25" 
-                                b2color="#B33821"
-                                onClick={() => handleVote(candidate1.name)}
-                            />
-                            <DrawBox 
-                                name={candidate2.name} 
-                                km={candidate2.km} 
-                                imgUrl={candidate2.img} 
-                                icon={heart} 
-                                bcolor="#517824" 
-                                b2color="#4A6B23"
-                                onClick={() => handleVote(candidate2.name)}
-                            />
-                        </div>
-                        <div style={{height:"3vh"}}></div>
                     </div>
                 ) : (
                     <div className="text-center">
@@ -283,20 +424,28 @@ function DrawPage(){
                             <span className="visually-hidden">Loading...</span>
                         </div>
                         <h2>Voting Complete!</h2>
-                        <p>Checking for results every 5 seconds...</p>
-                        <p className="text-muted">Waiting for other participants to vote...</p>
-                        <button 
-                            className="btn btn-secondary mt-3"
-                            onClick={() => {
-                                setIsVoting(true);
-                                setShowResults(false);
-                                if (resultCheckInterval.current) {
-                                    clearInterval(resultCheckInterval.current);
-                                }
-                            }}
-                        >
-                            Vote Again
-                        </button>
+                        <p className="mb-1">Progress: {numVoted} / {totalParticipants} voted</p>
+                        {isHost ? (
+                            <>
+                                <p className="mb-2">
+                                    {numVoted < totalParticipants
+                                        ? 'Waiting for all participants to vote before you can finalize...'
+                                        : 'All participants have voted. Press finalize to proceed.'}
+                                </p>
+                                <button 
+                                    className="btn btn-success"
+                                    onClick={finalizeAndNavigate}
+                                    disabled={isSubmitting || numVoted < totalParticipants}
+                                >
+                                    Finalize
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <p>Waiting for host to finalize...</p>
+                                <p className="text-muted">You will be redirected automatically.</p>
+                            </>
+                        )}
                     </div>
                 )}
             </section>
