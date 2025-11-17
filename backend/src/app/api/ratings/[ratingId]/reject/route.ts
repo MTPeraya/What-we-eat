@@ -11,7 +11,7 @@ export async function OPTIONS(req: NextRequest) {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { ratingId: string } }
+  ctx: { params: Promise<{ ratingId: string }> }
 ) {
   const origin = req.headers.get("origin");
 
@@ -21,8 +21,10 @@ export async function POST(
     if (s.user.role !== "ADMIN")
       return withCORS(NextResponse.json({ error: "FORBIDDEN" }, { status: 403 }), origin);
 
+    const { ratingId } = await ctx.params;
+
     await prisma.rating.update({
-      where: { id: params.ratingId },
+      where: { id: ratingId },
       data: { status: "rejected" },
     });
 
