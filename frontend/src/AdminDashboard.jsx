@@ -1163,6 +1163,7 @@ const ContentModeration = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("pending");
 
+  // Fetch content from backend
   const fetchContent = useCallback(async () => {
     setLoading(true);
     try {
@@ -1171,7 +1172,6 @@ const ContentModeration = () => {
       });
       if (!res.ok) throw new Error("Failed to fetch content");
       const data = await res.json();
-      // Handle both array and object-with-items response structures
       const items = Array.isArray(data) ? data : data.items ?? [];
       setContentList(items);
     } catch (err) {
@@ -1183,38 +1183,37 @@ const ContentModeration = () => {
 
   useEffect(() => {
     fetchContent();
-  }, [fetchContent]); // Dependency array includes the stable fetchContent
+  }, [fetchContent]);
 
+  // Filter content based on selected filter
   const filteredContent = useMemo(() => {
     return contentList.filter((item) => {
-      // Ensure item.status exists
       if (!item.status) return false;
-
-      // 'all' shows everything
       if (filter === "all") return true;
-
-      // 'pending' filter should also include 'reported' items for action
-      if (filter === "pending") {
-        return item.status === "pending" || item.status === "reported";
-      }
-
-      // Default filter by exact status match
+      if (filter === "pending") return item.status === "pending" || item.status === "reported";
       return item.status === filter;
     });
   }, [contentList, filter]);
 
+  // Handle approve, reject, delete actions
   const handleAction = async (id, action) => {
-    // Only allow action on items that aren't already in the final state
     const currentItem = contentList.find((i) => i.id === id);
     if (!currentItem || currentItem.status === action) return;
 
     try {
       let endpoint = "";
+      let method = "POST";
+
       switch (action) {
         case "approved":
+          endpoint = `${config.endpoints.ratings}/${id}/approved`;
+          break;
         case "rejected":
+          endpoint = `${config.endpoints.ratings}/${id}/rejected`;
+          break;
         case "deleted":
-          endpoint = `${config.endpoints.ratings}/${id}/${action}`;
+          endpoint = `${config.endpoints.ratings}/${id}/deleted`;
+          method = "DELETE";
           break;
         default:
           console.warn("Unknown action:", action);
@@ -1222,23 +1221,19 @@ const ContentModeration = () => {
       }
 
       const res = await fetch(endpoint, {
-        method: "POST",
+        method,
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: method !== "DELETE" ? { "Content-Type": "application/json" } : undefined,
       });
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || `Action failed with status: ${res.status}`
-        );
+        throw new Error(errorData.error || `Action failed with status ${res.status}`);
       }
 
       // Optimistic UI update
       setContentList((prev) =>
-        prev.map((item) =>
-          item.id === id ? { ...item, status: action } : item
-        )
+        prev.map((item) => (item.id === id ? { ...item, status: action } : item))
       );
     } catch (err) {
       console.error(`Moderation action (${action}) error:`, err);
@@ -1248,7 +1243,6 @@ const ContentModeration = () => {
 
   const statusOptions = ["all", "pending", "approved", "rejected", "reported"];
 
-  // Calculate counts for filter buttons
   const getFilterCount = useCallback(
     (s) => {
       return contentList.filter(
@@ -1260,11 +1254,9 @@ const ContentModeration = () => {
 
   return (
     <div>
+      {/* Header */}
       <div className="mb-8">
-        <h2
-          className="text-3xl sm:text-4xl font-bold mb-2"
-          style={{ color: THEME_COLORS.textPrimary }}
-        >
+        <h2 className="text-3xl sm:text-4xl font-bold mb-2" style={{ color: THEME_COLORS.textPrimary }}>
           💬 Content Moderation & Reports
         </h2>
         <p style={{ color: THEME_COLORS.textSecondary }}>
@@ -1273,13 +1265,7 @@ const ContentModeration = () => {
       </div>
 
       {/* Filter Buttons */}
-      <div
-        className="mb-6"
-        style={{
-          ...CARD_STYLES,
-          padding: "1.5rem",
-        }}
-      >
+      <div className="mb-6" style={{ ...CARD_STYLES, padding: "1.5rem" }}>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex flex-wrap gap-2">
             {statusOptions.map((s) => (
@@ -1288,28 +1274,17 @@ const ContentModeration = () => {
                 onClick={() => setFilter(s)}
                 className="px-4 py-2 text-sm font-semibold transition whitespace-nowrap"
                 style={{
-                  backgroundColor:
-                    s === filter
-                      ? THEME_COLORS.accent
-                      : THEME_COLORS.background,
+                  backgroundColor: s === filter ? THEME_COLORS.accent : THEME_COLORS.background,
                   color: s === filter ? "white" : THEME_COLORS.textPrimary,
-                  border: `2px solid ${
-                    s === filter ? THEME_COLORS.accent : THEME_COLORS.border
-                  }`,
+                  border: `2px solid ${s === filter ? THEME_COLORS.accent : THEME_COLORS.border}`,
                   borderRadius: "14px",
-                  boxShadow:
-                    s === filter ? "0 8px 20px rgba(187,61,37,.25)" : "none",
+                  boxShadow: s === filter ? "0 8px 20px rgba(187,61,37,.25)" : "none",
                 }}
                 onMouseEnter={(e) => {
-                  if (s !== filter) {
-                    e.currentTarget.style.backgroundColor = THEME_COLORS.card;
-                  }
+                  if (s !== filter) e.currentTarget.style.backgroundColor = THEME_COLORS.card;
                 }}
                 onMouseLeave={(e) => {
-                  if (s !== filter) {
-                    e.currentTarget.style.backgroundColor =
-                      THEME_COLORS.background;
-                  }
+                  if (s !== filter) e.currentTarget.style.backgroundColor = THEME_COLORS.background;
                 }}
               >
                 {s.charAt(0).toUpperCase() + s.slice(1)} ({getFilterCount(s)})
@@ -1317,50 +1292,22 @@ const ContentModeration = () => {
             ))}
           </div>
           <p className="text-sm" style={{ color: THEME_COLORS.textSecondary }}>
-            Displaying{" "}
-            <strong style={{ color: THEME_COLORS.textPrimary }}>
-              {filteredContent.length}
-            </strong>{" "}
-            items.
+            Displaying <strong style={{ color: THEME_COLORS.textPrimary }}>{filteredContent.length}</strong> items.
           </p>
         </div>
       </div>
 
+      {/* Content List */}
       {loading ? (
-        <div
-          className="text-center py-20"
-          style={{
-            ...CARD_STYLES,
-            padding: "3rem",
-          }}
-        >
-          <div
-            className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 mb-4"
-            style={{ borderColor: THEME_COLORS.accent }}
-          ></div>
-          <p style={{ color: THEME_COLORS.textSecondary }}>
-            Loading content list...
-          </p>
+        <div className="text-center py-20" style={{ ...CARD_STYLES, padding: "3rem" }}>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 mb-4" style={{ borderColor: THEME_COLORS.accent }}></div>
+          <p style={{ color: THEME_COLORS.textSecondary }}>Loading content list...</p>
         </div>
       ) : filteredContent.length === 0 ? (
-        <div
-          className="text-center p-12"
-          style={{
-            ...CARD_STYLES,
-            padding: "3rem",
-            backgroundColor: THEME_COLORS.card,
-          }}
-        >
+        <div className="text-center p-12" style={{ ...CARD_STYLES, padding: "3rem", backgroundColor: THEME_COLORS.card }}>
           <div className="text-5xl mb-4">🎉</div>
-          <p
-            className="text-xl font-bold mb-2"
-            style={{ color: THEME_COLORS.textPrimary }}
-          >
-            All clear!
-          </p>
-          <p style={{ color: THEME_COLORS.textSecondary }}>
-            No {filter} content to moderate. Great job!
-          </p>
+          <p className="text-xl font-bold mb-2" style={{ color: THEME_COLORS.textPrimary }}>All clear!</p>
+          <p style={{ color: THEME_COLORS.textSecondary }}>No {filter} content to moderate. Great job!</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -1368,137 +1315,77 @@ const ContentModeration = () => {
             <div
               key={item.id}
               className="flex flex-col sm:flex-row justify-between items-start sm:items-center"
-              style={{
-                ...CARD_STYLES,
-                padding: "1.5rem",
-                gap: "1rem",
-              }}
+              style={{ ...CARD_STYLES, padding: "1.5rem", gap: "1rem" }}
             >
               <div className="flex-grow min-w-0 w-full sm:w-auto">
                 <div className="flex items-center gap-3 mb-3 flex-wrap">
-                  <span
-                    className="text-base sm:text-lg font-bold"
-                    style={{ color: THEME_COLORS.textPrimary }}
-                  >
+                  <span className="text-base sm:text-lg font-bold" style={{ color: THEME_COLORS.textPrimary }}>
                     {item.restaurantName ?? "Unknown Restaurant"}
                   </span>
                   <StatusTag status={item.status} />
                 </div>
-                <div
-                  className="mb-2 p-3 rounded-lg"
-                  style={{
-                    backgroundColor: THEME_COLORS.background,
-                    border: `1px solid ${THEME_COLORS.border}`,
-                    borderRadius: "12px",
-                  }}
-                >
-                  <p
-                    className="text-sm italic break-words"
-                    style={{ color: THEME_COLORS.textSecondary }}
-                  >
+                <div className="mb-2 p-3 rounded-lg" style={{ backgroundColor: THEME_COLORS.background, border: `1px solid ${THEME_COLORS.border}`, borderRadius: "12px" }}>
+                  <p className="text-sm italic break-words" style={{ color: THEME_COLORS.textSecondary }}>
                     "{item.content ?? "No content provided."}"
                   </p>
                 </div>
-                <p
-                  className="text-xs"
-                  style={{ color: THEME_COLORS.textSecondary, opacity: 0.8 }}
-                >
+                <p className="text-xs" style={{ color: THEME_COLORS.textSecondary, opacity: 0.8 }}>
                   By: {item.author ?? "Anonymous"}
                 </p>
               </div>
 
               {/* Action Buttons */}
               <div className="flex gap-2 flex-shrink-0 mt-3 sm:mt-0">
+                {/* Approve */}
                 <button
                   onClick={() => handleAction(item.id, "approved")}
                   className="p-3 transition"
                   style={{
-                    backgroundColor:
-                      item.status === "approved" ? "#9CA3AF" : "#10B981",
+                    backgroundColor: item.status === "approved" ? "#9CA3AF" : "#10B981",
                     borderRadius: "14px",
-                    boxShadow:
-                      item.status === "approved"
-                        ? "none"
-                        : "0 4px 12px rgba(16,185,129,.25)",
+                    boxShadow: item.status === "approved" ? "none" : "0 4px 12px rgba(16,185,129,.25)",
                     color: "white",
-                    cursor:
-                      item.status === "approved" ? "not-allowed" : "pointer",
+                    cursor: item.status === "approved" ? "not-allowed" : "pointer",
                     opacity: item.status === "approved" ? 0.6 : 1,
                   }}
-                  title="Approve"
                   disabled={item.status === "approved"}
-                  onMouseEnter={(e) => {
-                    if (item.status !== "approved") {
-                      e.currentTarget.style.opacity = "0.9";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (item.status !== "approved") {
-                      e.currentTarget.style.opacity = "1";
-                    }
-                  }}
+                  title="Approve"
                 >
                   <CheckCircle size={20} />
                 </button>
+
+                {/* Reject */}
                 <button
                   onClick={() => handleAction(item.id, "rejected")}
                   className="p-3 transition"
                   style={{
-                    backgroundColor:
-                      item.status === "rejected" ? "#9CA3AF" : "#EF4444",
+                    backgroundColor: item.status === "rejected" ? "#9CA3AF" : "#EF4444",
                     borderRadius: "14px",
-                    boxShadow:
-                      item.status === "rejected"
-                        ? "none"
-                        : "0 4px 12px rgba(239,68,68,.25)",
+                    boxShadow: item.status === "rejected" ? "none" : "0 4px 12px rgba(239,68,68,.25)",
                     color: "white",
-                    cursor:
-                      item.status === "rejected" ? "not-allowed" : "pointer",
+                    cursor: item.status === "rejected" ? "not-allowed" : "pointer",
                     opacity: item.status === "rejected" ? 0.6 : 1,
                   }}
-                  title="Reject"
                   disabled={item.status === "rejected"}
-                  onMouseEnter={(e) => {
-                    if (item.status !== "rejected") {
-                      e.currentTarget.style.opacity = "0.9";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (item.status !== "rejected") {
-                      e.currentTarget.style.opacity = "1";
-                    }
-                  }}
+                  title="Reject"
                 >
                   <XCircle size={20} />
                 </button>
+
+                {/* Delete */}
                 <button
                   onClick={() => handleAction(item.id, "deleted")}
                   className="p-3 transition"
                   style={{
-                    backgroundColor:
-                      item.status === "deleted" ? "#9CA3AF" : "#6B7280",
+                    backgroundColor: item.status === "deleted" ? "#9CA3AF" : "#6B7280",
                     borderRadius: "14px",
-                    boxShadow:
-                      item.status === "deleted"
-                        ? "none"
-                        : "0 4px 12px rgba(107,114,128,.25)",
+                    boxShadow: item.status === "deleted" ? "none" : "0 4px 12px rgba(107,114,128,.25)",
                     color: "white",
-                    cursor:
-                      item.status === "deleted" ? "not-allowed" : "pointer",
+                    cursor: item.status === "deleted" ? "not-allowed" : "pointer",
                     opacity: item.status === "deleted" ? 0.6 : 1,
                   }}
-                  title="Delete/Remove"
                   disabled={item.status === "deleted"}
-                  onMouseEnter={(e) => {
-                    if (item.status !== "deleted") {
-                      e.currentTarget.style.opacity = "0.9";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (item.status !== "deleted") {
-                      e.currentTarget.style.opacity = "1";
-                    }
-                  }}
+                  title="Delete/Remove"
                 >
                   <Trash2 size={20} />
                 </button>

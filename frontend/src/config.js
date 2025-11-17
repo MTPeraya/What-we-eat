@@ -1,5 +1,5 @@
 // Frontend configuration
-export const API_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'https://what-we-eat.onrender.com';
+export const API_URL = import.meta.env.VITE_BACKEND_URL;
 
 export const config = {
   apiUrl: API_URL,

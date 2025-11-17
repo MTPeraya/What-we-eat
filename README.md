@@ -1,68 +1,136 @@
 # 🍽️ What We Eat – Group Dining Decision Platform
 
-A fun, fast, and fair way for groups in Thailand to decide where and what to eat.
+<p>A fun, fast, and fair way for groups in Thailand to decide where and what to eat.</p>
+<hr>
 
----
 ## Installation Guide
 
-### 1\. Clone the Repository
+### 1. Clone the Repository
 
-First, you need to download the project files to your local machine. You can do this using the `git clone` command in your terminal or command prompt.
+First, download the project files to your local machine:
 
 ```bash
 git clone https://github.com/MTPeraya/What-we-eat.git
 ```
 
-This command will create a new folder named `What-we-eat` containing all the project files.
+This creates a folder named `What-we-eat` containing all the project files.
 
-
-### 2\. Inspect the Project Files
-
-Navigate into the newly created directory:
+### 2. Navigate into the Project
 
 ```bash
 cd What-we-eat
 ```
 
------
+### 3. Set Up Environment Variables
 
-### 3\. Run the Project
-
-There are two ways to run this project: you can run both the frontend and backend together using Docker, or you can run each service individually.
-
-### Easiest Method: Run Everything with Docker
-
-If you have Docker installed, the simplest way to get both the frontend and backend running is with a single command from the project's root directory.
+This project requires `.env` files to configure environment variables. There are `.env.example` files in the **backend**, **frontend**, and at the root. You need to copy them and fill in the required values:
 
 ```bash
-docker-compose up
+# Root folder
+cp .env.example .env
+
+# Backend
+cd backend
+cp .env.example .env
+# Edit .env to configure your database, ports, and other settings
+cd ..
+
+# Frontend
+cd frontend
+cp .env.example .env
+# Edit .env to configure API URLs and other frontend-specific settings
+cd ..
 ```
 
-This will build and start both services for you.
+> Make sure to update the variables such as database credentials, API endpoints, API keys, and any secret keys before running the project.
 
-### Alternative Method: Run Services Individually
+### 4. Run the Project
 
-If you don't have Docker or prefer to run the services separately, you can do so using `npm`. You will need to open two separate terminal windows.
+You have 2 options: run everything with **Docker** or run services individually.
 
-1.  **In your first terminal**, navigate to the frontend folder and start the development server:
+#### Option A: Run Everything with Docker (Recommended)
+
+
+1. Make sure **Docker Desktop** is installed and running.
+
+   * If Docker Desktop is not open, open it first and wait for it to be ready.
+
+2. From the project root, run:
 
     ```bash
-    cd frontend
-    npm run dev
+    docker-compose up --build
     ```
 
-2.  **In your second terminal**, navigate to the backend folder and start the server:
+* `--build` ensures all images are rebuilt, reflecting any changes to the code or configuration.
+* If you don’t need a rebuild, you can just run:
 
     ```bash
-    cd backend
-    npm run dev
+    docker-compose up
     ```
+---
 
------
+#### Option B: Run Services Individually
+
+You will need two separate terminal windows:
+
+1. **Frontend:**
+
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+2. **Backend:**
+
+   ```bash
+   cd backend
+   npm install
+   npm run dev
+   ```
+
+### 5. Troubleshooting
+
+* **Docker not running:**
+    If you see errors like Cannot connect to the Docker daemon or docker-compose: <br>
+    * **Open Docker Desktop**
+    Wait for it to fully start (green “Docker is running” indicator). Retry docker-compose up.
+
+* **Database not starting / connecting:**
+  Make sure the database service is running. If using Docker, run:
+
+  ```bash
+  docker-compose up -d db
+  ```
+
+  Then create the database if necessary:
+
+  ```bash
+  docker exec -it <db_container_name> psql -U <username> -c "CREATE DATABASE <dbname>;"
+  ```
+
+* **Docker build fails:**
+  Force rebuild images:
+
+  ```bash
+  docker-compose build --no-cache
+  docker-compose up
+  ```
+
+* **Ports already in use:**
+  Check which ports are in use and modify the `.env` files or Docker Compose to use free ports.
+
+* If you ever get errors about missing dependencies or outdated images, rerun with `--build`:
+
+    ```bash
+    docker-compose down
+    docker-compose up --build
+    ```
+    This **stops and removes the old containers**, rebuilds the images, and starts fresh.
+
+
 
 If you follow these steps, you should be able to get the "What-we-eat" project running. The key is to first identify the type of project by looking for the files mentioned above. Good luck! 👍
-
------
 
 ## Document
 For more in-depth information, please visit our GitHub Wiki.
