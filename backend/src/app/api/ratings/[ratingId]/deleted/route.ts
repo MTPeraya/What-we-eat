@@ -1,4 +1,4 @@
-//backend/src/app/api/ratings/[ratingId]/delete/route.ts
+//backend/src/app/api/ratings/[ratingId]/deleted/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getSession } from "@/lib/session";
