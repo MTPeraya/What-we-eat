@@ -114,7 +114,7 @@ export async function buildCandidates(params: {
     }
 
     // 2) Prepare data for penalty/no-repeat logic
-    let members;
+    let members: Array<{ userId: string | null }>;
     try {
       members = await prisma.roomParticipant.findMany({
         where: { roomId, userId: { not: null } },
@@ -128,7 +128,7 @@ export async function buildCandidates(params: {
     const userIds = members.map((m) => m.userId!).filter(Boolean);
 
     const cooldownSince = new Date(Date.now() - REPEAT_COOLDOWN_DAYS * 24 * 60 * 60 * 1000);
-    let recentHistories = [];
+    let recentHistories: Array<{ restaurantId: string; userId: string | null; decidedAt: Date }>;
     if (userIds.length > 0) {
       try {
         recentHistories = await prisma.mealHistory.findMany({
@@ -141,7 +141,7 @@ export async function buildCandidates(params: {
     }
 
     // No-repeat within session (restaurants already suggested in this room)
-    let seen = [];
+    let seen: Array<{ restaurantId: string }> = [];
     try {
       seen = await prisma.roomSuggestionHistory.findMany({
         where: { roomId },
