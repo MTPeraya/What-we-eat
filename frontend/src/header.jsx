@@ -115,11 +115,6 @@ function MenuIcon({ isAdmin = false, isLoggedIn = false, authChecked = false }) 
             )}
 
             <li className="divider" />
-            <li>
-              <Link to="/contact" onClick={closeMenu}>
-                Contact Us
-              </Link>
-            </li>
           </ul>
         </div>
       </div>
