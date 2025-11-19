@@ -171,6 +171,17 @@ const formatDistance = (distance) => {
 };
 
 
+// Theme palette matching ResultPage
+const palette = {
+  background: '#FFEFE3',
+  card: '#FFF7EF',
+  border: '#8A3A1A',
+  textPrimary: '#4A1F0C',
+  textSecondary: '#7A4B31',
+  accent: '#C0471C',
+  success: '#4CAF50'
+};
+
 const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
     const center = useMemo(() => {
         if (userCenter?.lat == null || userCenter?.lng == null) return undefined;
@@ -204,6 +215,7 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
     const hasLoadedInitialCards = useRef(false); // Prevent multiple initial loads
     const loadedKeyRef = useRef(null); // Track what roomId+centerKey combination we've loaded
     const loadInitialCardsRef = useRef(null); // Ref to latest loadInitialCards function
+    const isLoadingCardsRef = useRef(false); // Prevent concurrent loading
     
     // Notify parent about current card changes (only when card actually changes)
     useEffect(() => {
@@ -221,7 +233,13 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
         // Create a unique key for this load request
         const currentKey = `${roomId}:${centerKey}`;
         
-        // Prevent loading if already loaded or loading for this exact combination
+        // Prevent concurrent loading
+        if (isLoadingCardsRef.current) {
+            console.log('[SwipeCards] Already loading cards, skipping duplicate call');
+            return;
+        }
+        
+        // Prevent loading if already loaded for this exact combination
         if (hasLoadedInitialCards.current && loadedKeyRef.current === currentKey) {
             console.log('[SwipeCards] Skipping loadInitialCards - already loaded for', currentKey);
             return;
@@ -233,6 +251,8 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
         }
 
         try {
+            // Set loading flag immediately to prevent concurrent calls
+            isLoadingCardsRef.current = true;
             hasLoadedInitialCards.current = true;
             loadedKeyRef.current = currentKey;
             setIsLoading(true);
@@ -253,17 +273,19 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
                         await new Promise(resolve => setTimeout(resolve, 500));
                     } catch (startError) {
                         console.error('[SwipeCards] Failed to start room:', startError);
-                        // Reset flag so it can be retried
+                        // Reset flags so it can be retried
                         hasLoadedInitialCards.current = false;
                         loadedKeyRef.current = null;
+                        isLoadingCardsRef.current = false;
                         setIsLoading(false);
                         return;
                     }
                 } else {
                     console.log('[SwipeCards] Room not started yet, waiting for host...');
-                    // Reset flag so it can be retried
+                    // Reset flags so it can be retried
                     hasLoadedInitialCards.current = false;
                     loadedKeyRef.current = null;
+                    isLoadingCardsRef.current = false;
                     setIsLoading(false);
                     return;
                 }
@@ -317,23 +339,26 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
             // Check if error is ROOM_NOT_STARTED or 400 status
             if (error.message && (error.message.includes('ROOM_NOT_STARTED') || error.message.includes('400'))) {
                 console.log('[SwipeCards] Room not started, will retry...');
-                // Reset flag so it can be retried
+                // Reset flags so it can be retried
                 hasLoadedInitialCards.current = false;
                 loadedKeyRef.current = null;
+                isLoadingCardsRef.current = false;
                 // If not host, show message
                 if (!isHost) {
                     console.log('[SwipeCards] Waiting for host to start the room...');
                 }
             } else {
-                // Reset flag on error so it can be retried
+                // Reset flags on error so it can be retried
                 hasLoadedInitialCards.current = false;
                 loadedKeyRef.current = null;
+                isLoadingCardsRef.current = false;
                 // Don't fallback to mockup - show empty state instead
                 setCards([]);
                 setTotalRestaurants(0);
             }
         } finally {
             setIsLoading(false);
+            isLoadingCardsRef.current = false; // Reset loading flag
         }
     }, [roomId, centerKey, normalizedCenter, isHost, center]);
     
@@ -368,18 +393,23 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
         if (!roomId || isHost) return;
         
         const currentKey = `${roomId}:${centerKey}`;
-        // Only retry if we haven't successfully loaded for this key
-        if (hasLoadedInitialCards.current && loadedKeyRef.current === currentKey) {
+        // Only retry if we haven't successfully loaded for this key and not currently loading
+        if ((hasLoadedInitialCards.current && loadedKeyRef.current === currentKey) || isLoadingCardsRef.current) {
             return;
         }
         
         const retryInterval = setInterval(async () => {
             try {
+                // Check again before loading
+                if (isLoadingCardsRef.current || (hasLoadedInitialCards.current && loadedKeyRef.current === currentKey)) {
+                    return;
+                }
+                
                 const roomInfo = await fetchRoomInfo(roomId);
                 if (roomInfo.status === 'STARTED') {
                     console.log('[SwipeCards] Room is now started, loading cards...');
                     // Don't reset flag here - let loadInitialCards handle it
-                    if (loadInitialCardsRef.current) {
+                    if (loadInitialCardsRef.current && !isLoadingCardsRef.current) {
                         loadInitialCardsRef.current();
                     }
                     clearInterval(retryInterval);
@@ -397,7 +427,12 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
         if (!roomId) return;
         
         const currentKey = `${roomId}:${centerKey}`;
-        // Only load if we haven't loaded for this exact combination
+        // Only load if we haven't loaded for this exact combination and not currently loading
+        if (isLoadingCardsRef.current) {
+            console.log('[SwipeCards] Already loading cards, skipping');
+            return;
+        }
+        
         if (hasLoadedInitialCards.current && loadedKeyRef.current === currentKey) {
             console.log('[SwipeCards] Already loaded for', currentKey, '- skipping');
             return;
@@ -405,7 +440,7 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
         
         console.log('[SwipeCards] Room or location changed - loading cards');
         // Call loadInitialCards via ref to avoid dependency issues
-        if (loadInitialCardsRef.current) {
+        if (loadInitialCardsRef.current && !isLoadingCardsRef.current) {
             loadInitialCardsRef.current();
         }
     }, [roomId, centerKey]); // Removed loadInitialCards from dependencies - using ref instead
@@ -416,6 +451,7 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
             console.log('[SwipeCards] Component unmounting - resetting load flag');
             hasLoadedInitialCards.current = false;
             loadedKeyRef.current = null;
+            isLoadingCardsRef.current = false;
         };
     }, []);
 
@@ -732,32 +768,69 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
         flexDirection: "column",
         alignItems: "center",
         minHeight: "90vh",
-        height: "90vh",
-        backgroundColor: "#FFE2C5",
-        paddingTop: "10vh"
+        background: palette.background,
+        paddingTop: "10vh",
+        paddingBottom: "12vh", // Space for footer (10vh) + extra margin
+        marginBottom: "10vh" // Reserve space for fixed footer
       }}>
         {isLoading ? (
-          <div style={{fontSize: "1.5rem", color: "#801F08", marginTop: "40px"}}>Loading restaurants...</div>
+          <div style={{
+            fontSize: "1.5rem", 
+            color: palette.textPrimary, 
+            marginTop: "40px",
+            fontWeight: 600,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "1rem"
+          }}>
+            <div className="spinner-border" role="status" style={{color: palette.accent}}>
+              <span className="visually-hidden">Loading...</span>
+            </div>
+            <div>Loading restaurants...</div>
+          </div>
         ) : (
           <>
             {/* Progress indicator */}
             {totalRestaurants > 0 && cards.length > 0 && (
               <div style={{
                 marginTop: "20px",
-                marginBottom: "10px",
-                fontSize: "1.2rem",
-                fontWeight: "bold",
-                color: "#801F08"
+                marginBottom: "20px",
+                padding: "12px 24px",
+                background: palette.card,
+                border: `2px solid ${palette.border}`,
+                borderRadius: "20px",
+                fontSize: "1.1rem",
+                fontWeight: 600,
+                color: palette.textPrimary,
+                boxShadow: "0 8px 16px rgba(74,31,12,0.1)",
+                letterSpacing: "0.05em"
               }}>
                 {currentCardNumber} / {totalRestaurants}
               </div>
             )}
             
             {!isLoading && cards.length === 0 && !allCardsCompleted && (
-              <div style={{fontSize: "1.5rem", color: "#801F08"}}>No restaurants found</div>
+              <div style={{
+                fontSize: "1.5rem", 
+                color: palette.textSecondary,
+                marginTop: "40px",
+                textAlign: "center",
+                padding: "2rem"
+              }}>
+                No restaurants found
+              </div>
             )}
             
-            <div className="" style={{display: "grid", placeItems: "center"}}>
+            <div className="" style={{
+              display: "grid", 
+              placeItems: "center", 
+              marginBottom: "1rem",
+              position: "relative",
+              width: "100%",
+              maxWidth: "400px",
+              marginTop: cards.length === 0 && allCardsCompleted ? "2.5rem" : "0"
+            }}>
               {cards.length > 1 && (
                 <Card
                   key={cards[1].id}
@@ -782,36 +855,55 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
               )}
                {cards.length === 0 && allCardsCompleted && (
                  <div style={{
-                   fontSize: "1.5rem", 
-                   color: "#801F08", 
-                   maxHeight: "520px",
-                   height: "60vh",
+                   background: palette.card,
+                   border: `2px solid ${palette.border}`,
+                   borderRadius: "24px",
+                   padding: "3rem 2rem",
+                   maxWidth: "500px",
+                   width: "90%",
                    display: "flex",
                    flexDirection: "column",
                    alignItems: "center",
                    justifyContent: "center",
                    textAlign: "center",
-                   padding: "20px"
+                   boxShadow: "0 25px 45px rgba(74,31,12,0.15)"
                  }}>
-                   <div style={{marginBottom: "20px"}}>🎉</div>
-                   <div style={{fontWeight: "bold", marginBottom: "10px"}}>All Done!</div>
+                   <div style={{fontSize: "4rem", marginBottom: "1rem"}}>🎉</div>
+                   <h2 style={{color: palette.textPrimary, fontWeight: 700, marginBottom: "1rem"}}>All Done!</h2>
                    {isHost ? (
-                     <div style={{marginTop: "20px"}}>
+                     <div style={{marginTop: "1.5rem", width: "100%"}}>
                        <button 
-                         className="green button"
                          onClick={handleShowResults}
                          disabled={!canFinalize || isFinalizing}
                          style={{
+                           width: "100%",
                            padding: "15px 30px",
-                           fontSize: "1.2rem",
+                           fontSize: "1.1rem",
+                           fontWeight: 600,
+                           borderRadius: "14px",
+                           border: "none",
                            cursor: canFinalize && !isFinalizing ? "pointer" : "not-allowed",
-                           opacity: canFinalize ? 1 : 0.7
+                           background: canFinalize ? palette.accent : palette.textSecondary,
+                           color: "#fff",
+                           boxShadow: canFinalize ? "0 15px 25px rgba(192,71,28,0.25)" : "none",
+                           transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                           opacity: canFinalize ? 1 : 0.6
+                         }}
+                         onMouseEnter={(e) => {
+                           if (canFinalize && !isFinalizing) {
+                             e.currentTarget.style.transform = "translateY(-2px)";
+                             e.currentTarget.style.boxShadow = "0 20px 30px rgba(192,71,28,0.3)";
+                           }
+                         }}
+                         onMouseLeave={(e) => {
+                           e.currentTarget.style.transform = "translateY(0)";
+                           e.currentTarget.style.boxShadow = canFinalize ? "0 15px 25px rgba(192,71,28,0.25)" : "none";
                          }}
                        >
                          {isFinalizing ? 'Finalizing...' : 'View Results'}
                        </button>
                        {!canFinalize && (
-                         <div style={{marginTop: "10px", fontSize: "0.9rem", color: "#555"}}>
+                         <div style={{marginTop: "1rem", fontSize: "0.9rem", color: palette.textSecondary, lineHeight: "1.5"}}>
                            {totalParticipants > 0 ? (
                              <>Waiting for all {totalParticipants} participants to vote on all {finalizeRequirements.restaurantsNeeded} restaurants...</>
                            ) : (
@@ -821,7 +913,9 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
                        )}
                      </div>
                    ) : (
-                     <div style={{fontSize: "1rem", color: "#666"}}>Waiting for host to view results...</div>
+                     <div style={{fontSize: "1rem", color: palette.textSecondary, marginTop: "1rem"}}>
+                       Waiting for host to view results...
+                     </div>
                    )}
                  </div>
                )}
@@ -831,8 +925,15 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
 
         <div style={{
             display: "flex",
-            width: "300px",
-            justifyContent: "space-between"
+            width: "100%",
+            maxWidth: "400px",
+            justifyContent: "space-around",
+            alignItems: "center",
+            gap: "2rem",
+            marginTop: "1rem",
+            marginBottom: "1rem",
+            position: "relative",
+            zIndex: 10
         }}>
         <Button id="LEFT" onClick={swipeLeft} disabled={isLoading || isSwiping || cards.length === 0}>{cross}</Button>
         <Button id="RIGHT" onClick={swipeRight} disabled={isLoading || isSwiping || cards.length === 0}>{heart}</Button>
@@ -847,6 +948,13 @@ const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0",
 
     const opacity = useTransform(x, [-150, 0 , 150], [0, 1, 0])
     const rotate = useTransform(x, [-150, 150], [-18, 18])
+    
+    // Always call hooks - no conditional hooks!
+    // Create transformed opacity for back card (always created, but only used when isBack is true)
+    const backCardOpacity = useTransform(opacity, (val) => val * 0.5);
+    
+    // Select which opacity to use based on isBack
+    const cardOpacity = isBack ? backCardOpacity : opacity;
 
   const removeCard = () => {
     setCards && setCards(prev => prev.slice(1));
@@ -892,7 +1000,6 @@ const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0",
 
     return (
         <motion.div
-            // src={url}
             alt={id}
             className="rounded-lg"
             style={{
@@ -902,19 +1009,28 @@ const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0",
                 backgroundRepeat: 'no-repeat',
                 width: "80vw",
                 height: "60vh",
-                maxWidth: "300px",
+                maxWidth: "320px",
                 maxHeight: "520px",
                 objectFit: "cover",
-                borderRadius: "10px",
+                borderRadius: "24px",
                 gridRow: 1,
                 gridColumn: 1,
-                cursor: "grab",
-
+                cursor: !isBack ? "grab" : "default",
                 display: "flex",
                 alignItems: "flex-end",
+                boxShadow: isBack 
+                    ? "0 8px 16px rgba(74,31,12,0.1)" 
+                    : "0 25px 45px rgba(74,31,12,0.2)",
+                border: `2px solid ${isBack ? 'rgba(138,58,26,0.2)' : palette.border}`,
                 x,
-                opacity,
+                opacity: cardOpacity,
                 rotate,
+                scale: isBack ? 0.95 : 1, // Slightly smaller for back card
+                y: isBack ? 10 : 0, // Slightly lower for back card
+                position: "relative",
+                overflow: "hidden",
+                zIndex: isBack ? 1 : 2, // Front card on top
+                filter: isBack ? "blur(1px)" : "none" // Slight blur for back card
             }}
 
             drag={!isBack ? 'x' : false}
@@ -924,11 +1040,72 @@ const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0",
             }}
             onDragEnd={!isBack ? handleDragEnd : undefined}
         >
-            <div style={{paddingLeft: "10px",textShadow: "2px 2px black"}}>
-                <h4 style={{color:"white", margin: "0"}}>{locationPin} {location} Km away</h4>
-                <h1 style={{color: "white"}}>{name}</h1>
-                <div style={{height:"20px"}}></div>
+            {/* Gradient overlay for better text readability - stronger for front card */}
+            <div style={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: isBack ? "40%" : "60%", // Taller gradient for front card
+                background: isBack 
+                    ? "linear-gradient(to top, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 50%, transparent 100%)"
+                    : "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.3) 70%, transparent 100%)"
+            }} />
+            
+            {/* Additional dark overlay at bottom for better contrast */}
+            {!isBack && (
+                <div style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: "35%",
+                    background: "rgba(0,0,0,0.6)",
+                    zIndex: 0
+                }} />
+            )}
+            
+            <div style={{
+                padding: "20px",
+                paddingBottom: "28px",
+                position: "relative",
+                zIndex: 3, // Above all overlays
+                width: "100%"
+            }}>
+                <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    marginBottom: "10px"
+                }}>
+                    {locationPin}
+                    <h4 style={{
+                        color: "#fff",
+                        margin: 0,
+                        fontSize: "0.9rem",
+                        fontWeight: 600,
+                        textShadow: isBack 
+                            ? "0 2px 6px rgba(0,0,0,0.4)"
+                            : "0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.5)", // Stronger shadow for front
+                        letterSpacing: "0.03em"
+                    }}>
+                        {location} km away
+                    </h4>
                 </div>
+                <h1 style={{
+                    color: "#fff",
+                    margin: 0,
+                    fontSize: isBack ? "1.6rem" : "1.8rem",
+                    fontWeight: 700,
+                    textShadow: isBack
+                        ? "0 2px 8px rgba(0,0,0,0.5)"
+                        : "0 3px 15px rgba(0,0,0,0.9), 0 0 25px rgba(0,0,0,0.6)", // Very strong shadow for front
+                    lineHeight: "1.2",
+                    filter: isBack ? "blur(0.5px)" : "none" // Slight blur on back card text
+                }}>
+                    {name}
+                </h1>
+            </div>
         </motion.div>
     )
 });

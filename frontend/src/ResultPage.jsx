@@ -597,87 +597,115 @@ function VotersModal({ voteDetails, onClose }) {
         className="modal-card" 
         onClick={(e) => e.stopPropagation()}
         style={{
-          maxWidth: "500px",
+          maxWidth: "520px",
+          width: "90%",
           maxHeight: "80vh",
-          overflowY: "auto"
+          overflowY: "auto",
+          background: palette.card,
+          borderRadius: "24px",
+          border: `2px solid ${palette.border}`,
+          padding: "28px",
+          boxShadow: "0 35px 55px rgba(74,31,12,0.25)",
+          color: palette.textPrimary
         }}
       >
-        <h3 className="modal-title" style={{color: "#801F08"}}>
+        <h3 
+          className="modal-title" 
+          style={{
+            color: palette.textPrimary,
+            marginTop: 0,
+            marginBottom: "1.25rem",
+            letterSpacing: "0.15em",
+            textTransform: "uppercase",
+            fontSize: "0.95rem"
+          }}
+        >
           Voting Details
         </h3>
         
         {/* Statistics */}
         <div style={{
-          backgroundColor: "#FFE2C5",
-          padding: "15px",
-          borderRadius: "10px",
-          marginBottom: "20px",
-          textAlign: "center"
+          background: "linear-gradient(135deg, rgba(192,71,28,0.12), rgba(255,212,186,0.9))",
+          padding: "20px",
+          borderRadius: "18px",
+          marginBottom: "24px",
+          textAlign: "center",
+          border: `1px solid rgba(192,71,28,0.2)`
         }}>
-          <div style={{fontSize: "2rem", fontWeight: "bold", color: "#4CAF50"}}>
+          <div style={{fontSize: "2.4rem", fontWeight: 700, color: palette.accent}}>
             {(voteDetails.stats.approvalRate * 100).toFixed(0)}%
           </div>
-          <div style={{color: "#666", fontSize: "0.9rem"}}>
+          <div style={{color: palette.textSecondary, fontSize: "0.95rem", fontWeight: 500}}>
             {voteDetails.stats.acceptCount} liked / {voteDetails.stats.totalVotes} votes
           </div>
         </div>
 
         {/* Accept Voters */}
         <div style={{marginBottom: "20px"}}>
-          <h4 style={{color: "#4CAF50", marginBottom: "10px"}}>
+          <h4 style={{color: palette.success, marginBottom: "10px", fontSize: "1rem"}}>
             ✅ Liked this restaurant ({acceptVoters.length} people)
           </h4>
           <div style={{
-            backgroundColor: "#f0f9f0",
-            padding: "10px",
-            borderRadius: "8px",
+            backgroundColor: "rgba(76,175,80,0.08)",
+            padding: "14px",
+            borderRadius: "14px",
             maxHeight: "200px",
-            overflowY: "auto"
+            overflowY: "auto",
+            border: "1px solid rgba(76,175,80,0.3)"
           }}>
             {acceptVoters.length > 0 ? (
               acceptVoters.map((v, i) => (
                 <div 
                   key={v.id} 
                   style={{
-                    padding: "8px",
-                    borderBottom: i < acceptVoters.length - 1 ? "1px solid #ddd" : "none"
+                    padding: "10px",
+                    borderRadius: "12px",
+                    border: i < acceptVoters.length - 1 ? "1px dashed rgba(76,175,80,0.3)" : "none",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem"
                   }}
                 >
-                  <span style={{fontWeight: "500"}}>👤 {v.voterName}</span>
+                  <span style={{fontWeight: 600, color: palette.textPrimary}}>👤 {v.voterName}</span>
                 </div>
               ))
             ) : (
-              <div style={{color: "#999", textAlign: "center"}}>None</div>
+              <div style={{color: palette.textSecondary, textAlign: "center"}}>None</div>
             )}
           </div>
         </div>
 
         {/* Reject Voters */}
         <div style={{marginBottom: "20px"}}>
-          <h4 style={{color: "#f44336", marginBottom: "10px"}}>
+          <h4 style={{color: palette.accent, marginBottom: "10px", fontSize: "1rem"}}>
             ❌ Didn't like this restaurant ({rejectVoters.length} people)
           </h4>
           <div style={{
-            backgroundColor: "#fff0f0",
-            padding: "10px",
-            borderRadius: "8px",
+            backgroundColor: "rgba(192,71,28,0.08)",
+            padding: "14px",
+            borderRadius: "14px",
             maxHeight: "200px",
-            overflowY: "auto"
+            overflowY: "auto",
+            border: "1px solid rgba(192,71,28,0.3)"
           }}>
             {rejectVoters.length > 0 ? (
               rejectVoters.map((v, i) => (
                 <div 
                   key={v.id} 
                   style={{
-                    padding: "8px",
-                    borderBottom: i < rejectVoters.length - 1 ? "1px solid #ddd" : "none"
+                    padding: "10px",
+                    borderRadius: "12px",
+                    border: i < rejectVoters.length - 1 ? "1px dashed rgba(192,71,28,0.3)" : "none",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem"
                   }}
                 >
-                  <span style={{fontWeight: "500"}}>👤 {v.voterName}</span>
+                  <span style={{fontWeight: 600, color: palette.textPrimary}}>👤 {v.voterName}</span>
                 </div>
               ))
             ) : (
-              <div style={{color: "#999", textAlign: "center"}}>None</div>
+              <div style={{color: palette.textSecondary, textAlign: "center"}}>None</div>
             )}
           </div>
         </div>
@@ -685,9 +713,18 @@ function VotersModal({ voteDetails, onClose }) {
         {/* Close Button */}
         <div style={{textAlign: "center", marginTop: "20px"}}>
           <button 
-            className="brown small-btn shadow" 
             onClick={onClose}
-            style={{width: "200px"}}
+            style={{
+              width: "200px",
+              padding: "12px 16px",
+              borderRadius: "999px",
+              border: "none",
+              background: palette.accent,
+              color: "#fff",
+              fontWeight: 600,
+              cursor: "pointer",
+              boxShadow: "0 15px 30px rgba(192,71,28,0.25)"
+            }}
           >
             Close
           </button>
