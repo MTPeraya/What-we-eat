@@ -82,15 +82,27 @@ export async function tallyVotesByRoom(roomId: string): Promise<TallyRow[]> {
   return rows;
 }
 
-/** Decide winner: score → (if center) distance → rating → no-repeat from recent history */
+/** Decide winner: score → (if center) distance → rating → no-repeat from recent history 
+ * @param tiedRestaurantIds Optional: restrict winner to these restaurant IDs (for draw/tie-break scenarios)
+ */
 export async function finalDecide(
   roomId: string,
-  center?: { lat: number; lng: number }
+  center?: { lat: number; lng: number },
+  tiedRestaurantIds?: string[]
 ): Promise<FinalDecideResult> {
   // 1) Tally scores
-  const scores = await tallyVotesByRoom(roomId);
+  let scores = await tallyVotesByRoom(roomId);
   if (!scores.length) {
     return { winner: null, reason: { rule: "no-candidates" }, scores: [] };
+  }
+
+  // If tiedRestaurantIds provided, filter scores to only include those restaurants
+  if (tiedRestaurantIds && tiedRestaurantIds.length > 0) {
+    const tiedSet = new Set(tiedRestaurantIds);
+    scores = scores.filter((s) => tiedSet.has(s.restaurantId));
+    if (!scores.length) {
+      return { winner: null, reason: { rule: "no-candidates" }, scores: [] };
+    }
   }
 
   // 2) Fetch restaurant data for candidates

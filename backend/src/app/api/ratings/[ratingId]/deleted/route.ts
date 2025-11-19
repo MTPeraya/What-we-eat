@@ -11,7 +11,7 @@ export async function OPTIONS(req: NextRequest) {
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { ratingId: string } }
+  ctx: { params: Promise<{ ratingId: string }> }
 ) {
   const origin = req.headers.get("origin");
 
@@ -21,9 +21,11 @@ export async function DELETE(
     if (s.user.role !== "ADMIN")
       return withCORS(NextResponse.json({ error: "FORBIDDEN" }, { status: 403 }), origin);
 
+    const { ratingId } = await ctx.params;
+
     await prisma.$transaction(async (tx) => {
-      await tx.ratingPhoto.deleteMany({ where: { ratingId: params.ratingId } });
-      await tx.rating.delete({ where: { id: params.ratingId } });
+      await tx.ratingPhoto.deleteMany({ where: { ratingId } });
+      await tx.rating.delete({ where: { id: ratingId } });
     });
 
     return withCORS(NextResponse.json({ ok: true }), origin);

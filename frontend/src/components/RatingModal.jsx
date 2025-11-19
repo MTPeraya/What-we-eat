@@ -539,9 +539,9 @@ function RatingModal({ isOpen, onClose, restaurant }) {
             
             // Transform API data to match component format
             const transformedReviews = reviews.map(review => {
-                // Extract photo URLs from photos array
+                // Use base64Data if available (for small files), otherwise use publicUrl
                 const photoUrls = (review.photos || [])
-                    .map(photo => photo.publicUrl)
+                    .map(photo => photo.base64Data || photo.publicUrl)
                     .filter(Boolean);
                 
                 return {

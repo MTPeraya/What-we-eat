@@ -164,6 +164,93 @@ const styles = {
   }
 };
 
+function calculateDistance(from, to) {
+  if (!from?.lat || !from?.lng || !to?.lat || !to?.lng) return null;
+  const R = 6371;
+  const dLat = ((to.lat - from.lat) * Math.PI) / 180;
+  const dLng = ((to.lng - from.lng) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((from.lat * Math.PI) / 180) *
+      Math.cos((to.lat * Math.PI) / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return +(R * c).toFixed(1);
+}
+
+function sortScoresLikeBackend(scores) {
+  if (!Array.isArray(scores)) return [];
+  return [...scores].sort(
+    (a, b) =>
+      (b.netScore ?? 0) - (a.netScore ?? 0) ||
+      (b.approval ?? 0) - (a.approval ?? 0) ||
+      (b.accept ?? 0) - (a.accept ?? 0)
+  );
+}
+
+// Deterministic function to get image based on restaurant ID
+function getRestaurantImage(restaurantId) {
+  if (!restaurantId) {
+    // Fallback: use a hash of current timestamp if no ID
+    return `/restaurant/restaurant${(Date.now() % 8) + 1}.jpg`;
+  }
+  
+  // Convert ID string to a number (simple hash)
+  let hash = 0;
+  for (let i = 0; i < restaurantId.length; i++) {
+    const char = restaurantId.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  
+  // Use hash to deterministically pick an image (1-8)
+  const imageIndex = (Math.abs(hash) % 8) + 1;
+  return `/restaurant/restaurant${imageIndex}.jpg`;
+}
+
+function normalizeWinnerPayload(payload, userCenter) {
+  if (!payload) return null;
+
+  const location =
+    payload.location ??
+    (payload.lat != null && payload.lng != null
+      ? { lat: payload.lat, lng: payload.lng }
+      : null);
+
+  const distance =
+    location && userCenter ? calculateDistance(userCenter, location) : null;
+
+  const restaurantId = payload.restaurantId ?? payload.id ?? null;
+  const defaultImage = getRestaurantImage(restaurantId);
+
+  return {
+    id: restaurantId,
+    placeId: payload.placeId ?? null,
+    name: payload.name || "Selected Restaurant",
+    address: payload.address || "",
+    url: payload.url || defaultImage,
+    distance,
+    approval:
+      typeof payload.approval === "number" ? payload.approval : payload?.approvalRatio ?? null,
+    location,
+    googleRating:
+      typeof payload.googleRating === "number"
+        ? payload.googleRating
+        : typeof payload.rating === "number"
+        ? payload.rating
+        : null,
+    googleRatingCount:
+      payload.googleRatingCount ?? payload.userRatingsTotal ?? null,
+  };
+}
+
+function deriveWinnerFromScores(scores, userCenter) {
+  const sorted = sortScoresLikeBackend(scores);
+  const topRestaurant = sorted[0];
+  if (!topRestaurant) return null;
+  return normalizeWinnerPayload(topRestaurant, userCenter);
+}
+
 function Result() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -211,39 +298,21 @@ function Result() {
           console.warn('No roomId or results in location.state');
         }
 
-        if (resultsData?.scores && resultsData.scores.length > 0) {
+        let resolvedWinner = null;
+        if (resultsData?.winner) {
+          resolvedWinner = normalizeWinnerPayload(resultsData.winner, userCenter);
+        }
+
+        if (!resolvedWinner && resultsData?.scores?.length) {
           console.log('Processing scores:', resultsData.scores.length, 'items');
-          console.log('First score:', resultsData.scores[0]);
-          
-          // Sort by approval rate (highest first)
-          const sortedScores = [...resultsData.scores].sort((a, b) => {
-            // Sort by approval first, then by accept count if approval is same
-            if (b.approval !== a.approval) return b.approval - a.approval;
-            return b.accept - a.accept;
-          });
-          
-          console.log('Top 3 scores:', sortedScores.slice(0, 3));
-          
-          const topRestaurant = sortedScores[0];
-          
-          if (topRestaurant) {
-            const winnerData = {
-              id: topRestaurant.restaurantId,
-              placeId: topRestaurant.placeId,
-              name: topRestaurant.name || "Selected Restaurant",
-              address: topRestaurant.address || "",
-              url: `/restaurant/restaurant${(Math.floor(Math.random() * 8) + 1)}.jpg`,
-              distance: topRestaurant.distanceKm || calculateDistance(userCenter, topRestaurant.location),
-              approval: topRestaurant.approval,
-              location: topRestaurant.location,
-              googleRating: typeof topRestaurant.rating === 'number' ? topRestaurant.rating : null,
-              googleRatingCount: topRestaurant.userRatingsTotal ?? null,
-            };
-            console.log('Setting winner to:', winnerData);
-            setWinner(winnerData);
-          } else {
-            console.warn('No topRestaurant found in scores');
-          }
+          resolvedWinner = deriveWinnerFromScores(resultsData.scores, userCenter);
+        }
+
+        if (resolvedWinner) {
+          console.log('Setting winner to:', resolvedWinner);
+          setWinner(resolvedWinner);
+        } else if (resultsData?.scores) {
+          console.warn('No winner resolved even though scores exist');
         } else {
           console.warn('No scores found or empty scores array');
         }
@@ -313,20 +382,6 @@ function Result() {
       restaurantRatingCount
     );
   }, [winner?.googleRating, winner?.googleRatingCount, restaurantRating, restaurantRatingCount]);
-
-  const calculateDistance = (from, to) => {
-    if (!from?.lat || !from?.lng || !to?.lat || !to?.lng) return null;
-    const R = 6371;
-    const dLat = ((to.lat - from.lat) * Math.PI) / 180;
-    const dLng = ((to.lng - from.lng) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((from.lat * Math.PI) / 180) *
-        Math.cos((to.lat * Math.PI) / 180) *
-        Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return +(R * c).toFixed(1);
-  };
 
   const handleMapClick = () => {
     if (!winner) return;
@@ -542,87 +597,115 @@ function VotersModal({ voteDetails, onClose }) {
         className="modal-card" 
         onClick={(e) => e.stopPropagation()}
         style={{
-          maxWidth: "500px",
+          maxWidth: "520px",
+          width: "90%",
           maxHeight: "80vh",
-          overflowY: "auto"
+          overflowY: "auto",
+          background: palette.card,
+          borderRadius: "24px",
+          border: `2px solid ${palette.border}`,
+          padding: "28px",
+          boxShadow: "0 35px 55px rgba(74,31,12,0.25)",
+          color: palette.textPrimary
         }}
       >
-        <h3 className="modal-title" style={{color: "#801F08"}}>
+        <h3 
+          className="modal-title" 
+          style={{
+            color: palette.textPrimary,
+            marginTop: 0,
+            marginBottom: "1.25rem",
+            letterSpacing: "0.15em",
+            textTransform: "uppercase",
+            fontSize: "0.95rem"
+          }}
+        >
           Voting Details
         </h3>
         
         {/* Statistics */}
         <div style={{
-          backgroundColor: "#FFE2C5",
-          padding: "15px",
-          borderRadius: "10px",
-          marginBottom: "20px",
-          textAlign: "center"
+          background: "linear-gradient(135deg, rgba(192,71,28,0.12), rgba(255,212,186,0.9))",
+          padding: "20px",
+          borderRadius: "18px",
+          marginBottom: "24px",
+          textAlign: "center",
+          border: `1px solid rgba(192,71,28,0.2)`
         }}>
-          <div style={{fontSize: "2rem", fontWeight: "bold", color: "#4CAF50"}}>
+          <div style={{fontSize: "2.4rem", fontWeight: 700, color: palette.accent}}>
             {(voteDetails.stats.approvalRate * 100).toFixed(0)}%
           </div>
-          <div style={{color: "#666", fontSize: "0.9rem"}}>
+          <div style={{color: palette.textSecondary, fontSize: "0.95rem", fontWeight: 500}}>
             {voteDetails.stats.acceptCount} liked / {voteDetails.stats.totalVotes} votes
           </div>
         </div>
 
         {/* Accept Voters */}
         <div style={{marginBottom: "20px"}}>
-          <h4 style={{color: "#4CAF50", marginBottom: "10px"}}>
+          <h4 style={{color: palette.success, marginBottom: "10px", fontSize: "1rem"}}>
             ✅ Liked this restaurant ({acceptVoters.length} people)
           </h4>
           <div style={{
-            backgroundColor: "#f0f9f0",
-            padding: "10px",
-            borderRadius: "8px",
+            backgroundColor: "rgba(76,175,80,0.08)",
+            padding: "14px",
+            borderRadius: "14px",
             maxHeight: "200px",
-            overflowY: "auto"
+            overflowY: "auto",
+            border: "1px solid rgba(76,175,80,0.3)"
           }}>
             {acceptVoters.length > 0 ? (
               acceptVoters.map((v, i) => (
                 <div 
                   key={v.id} 
                   style={{
-                    padding: "8px",
-                    borderBottom: i < acceptVoters.length - 1 ? "1px solid #ddd" : "none"
+                    padding: "10px",
+                    borderRadius: "12px",
+                    border: i < acceptVoters.length - 1 ? "1px dashed rgba(76,175,80,0.3)" : "none",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem"
                   }}
                 >
-                  <span style={{fontWeight: "500"}}>👤 {v.voterName}</span>
+                  <span style={{fontWeight: 600, color: palette.textPrimary}}>👤 {v.voterName}</span>
                 </div>
               ))
             ) : (
-              <div style={{color: "#999", textAlign: "center"}}>None</div>
+              <div style={{color: palette.textSecondary, textAlign: "center"}}>None</div>
             )}
           </div>
         </div>
 
         {/* Reject Voters */}
         <div style={{marginBottom: "20px"}}>
-          <h4 style={{color: "#f44336", marginBottom: "10px"}}>
+          <h4 style={{color: palette.accent, marginBottom: "10px", fontSize: "1rem"}}>
             ❌ Didn't like this restaurant ({rejectVoters.length} people)
           </h4>
           <div style={{
-            backgroundColor: "#fff0f0",
-            padding: "10px",
-            borderRadius: "8px",
+            backgroundColor: "rgba(192,71,28,0.08)",
+            padding: "14px",
+            borderRadius: "14px",
             maxHeight: "200px",
-            overflowY: "auto"
+            overflowY: "auto",
+            border: "1px solid rgba(192,71,28,0.3)"
           }}>
             {rejectVoters.length > 0 ? (
               rejectVoters.map((v, i) => (
                 <div 
                   key={v.id} 
                   style={{
-                    padding: "8px",
-                    borderBottom: i < rejectVoters.length - 1 ? "1px solid #ddd" : "none"
+                    padding: "10px",
+                    borderRadius: "12px",
+                    border: i < rejectVoters.length - 1 ? "1px dashed rgba(192,71,28,0.3)" : "none",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem"
                   }}
                 >
-                  <span style={{fontWeight: "500"}}>👤 {v.voterName}</span>
+                  <span style={{fontWeight: 600, color: palette.textPrimary}}>👤 {v.voterName}</span>
                 </div>
               ))
             ) : (
-              <div style={{color: "#999", textAlign: "center"}}>None</div>
+              <div style={{color: palette.textSecondary, textAlign: "center"}}>None</div>
             )}
           </div>
         </div>
@@ -630,9 +713,18 @@ function VotersModal({ voteDetails, onClose }) {
         {/* Close Button */}
         <div style={{textAlign: "center", marginTop: "20px"}}>
           <button 
-            className="brown small-btn shadow" 
             onClick={onClose}
-            style={{width: "200px"}}
+            style={{
+              width: "200px",
+              padding: "12px 16px",
+              borderRadius: "999px",
+              border: "none",
+              background: palette.accent,
+              color: "#fff",
+              fontWeight: 600,
+              cursor: "pointer",
+              boxShadow: "0 15px 30px rgba(192,71,28,0.25)"
+            }}
           >
             Close
           </button>

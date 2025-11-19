@@ -13,6 +13,7 @@ export async function OPTIONS(req: NextRequest) {
 
 // ---------- Validation ----------
 const MAX_SIZE = Number(process.env.RATING_PHOTO_MAX_BYTES ?? 5_000_000); // 5MB
+const MAX_BASE64_SIZE = 500_000; // 500KB - files larger than this should use URL/storage
 
 // Accept either: restaurantId or placeId
 const BodySchema = z
@@ -26,13 +27,46 @@ const BodySchema = z
     photos: z
       .array(
         z.object({
-          storageKey: z.string(),
-          publicUrl: z.string().url().nullable().optional(),
+          storageKey: z.string().optional(),  // Optional (for legacy)
+          publicUrl: z.string().url().nullable().optional(),  // Optional (for legacy)
+          base64Data: z.string().refine(
+            (val) => {
+              if (!val) return true;
+              if (!val.startsWith('data:image/') || !val.includes(';base64,')) return false;
+              // Check size: base64 is ~33% larger, so decode and check original size
+              try {
+                const base64Part = val.split(',')[1];
+                const decodedSize = (base64Part.length * 3) / 4;
+                return decodedSize <= MAX_BASE64_SIZE;
+              } catch {
+                return false;
+              }
+            },
+            { message: `base64Data must be a valid base64 data URI and file size must be <= ${MAX_BASE64_SIZE} bytes (${Math.round(MAX_BASE64_SIZE / 1024)}KB). For larger files, use publicUrl or storageKey instead.` }
+          ).optional(),  // For small files only (< 500KB)
           width: z.number().int().positive().optional(),
           height: z.number().int().positive().optional(),
           mime: z.string().startsWith("image/"),
           sizeBytes: z.number().int().positive().max(MAX_SIZE),
         })
+        .refine(
+          (val) => {
+            // Must have at least one way to access the image
+            if (val.base64Data || val.publicUrl || val.storageKey) return true;
+            return false;
+          },
+          { message: "Either base64Data (for files <= 500KB), publicUrl, or storageKey must be provided" }
+        )
+        .refine(
+          (val) => {
+            // If file is large, must use URL/storage (not base64)
+            if (val.sizeBytes > MAX_BASE64_SIZE && val.base64Data) {
+              return false; // Large files should not use base64
+            }
+            return true;
+          },
+          { message: `Files larger than ${Math.round(MAX_BASE64_SIZE / 1024)}KB must use publicUrl or storageKey instead of base64Data` }
+        )
       )
       .max(3)
       .optional(),
@@ -42,6 +76,9 @@ const BodySchema = z
     path: ["restaurantId"],
   })
   .strict();
+
+type BodyInput = z.infer<typeof BodySchema>;
+type PhotoInput = NonNullable<BodyInput["photos"]>[number];
 
 // ---------- GET /api/ratings ----------
 export async function GET(req: NextRequest) {
@@ -73,8 +110,9 @@ export async function GET(req: NextRequest) {
         photos: {
           select: {
             publicUrl: true,
+            base64Data: true,  // Include base64 data
             mime: true,
-          },
+          } satisfies Prisma.RatingPhotoSelect,
         },
       },
       orderBy: { createdAt: "desc" },
@@ -90,7 +128,12 @@ export async function GET(req: NextRequest) {
           : "Anonymous",
       content: r.comment ?? "",
       status: r.status,
-      photos: r.photos ?? [],
+      // Return photos with base64Data if available, otherwise use publicUrl
+      photos: (r.photos ?? []).map((p) => ({
+        publicUrl: p.publicUrl,
+        base64Data: p.base64Data, // Will be null for large files
+        mime: p.mime,
+      })),
       score: r.score,
       createdAt: r.createdAt,
     }));
@@ -134,8 +177,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { roomId, restaurantId, placeId, score, tags, comment, photos = [] } =
-      parsed.data;
+    const { roomId, restaurantId, placeId, score, tags, comment } = parsed.data;
+    const photos: PhotoInput[] = parsed.data.photos ?? [];
 
     let resolvedRestaurantId = restaurantId ?? null;
     if (!resolvedRestaurantId && placeId) {
@@ -167,15 +210,22 @@ export async function POST(req: NextRequest) {
 
       if (photos.length) {
         await tx.ratingPhoto.createMany({
-          data: photos.map((p) => ({
-            ratingId: created.id,
-            storageKey: p.storageKey,
-            publicUrl: p.publicUrl ?? null,
-            width: p.width ?? null,
-            height: p.height ?? null,
-            mime: p.mime,
-            sizeBytes: p.sizeBytes,
-          })),
+          data: photos.map((p: PhotoInput): Prisma.RatingPhotoCreateManyInput => {
+            const photoData: Prisma.RatingPhotoCreateManyInput = {
+              ratingId: created.id,
+              mime: p.mime,
+              sizeBytes: p.sizeBytes,
+            };
+            
+            // Only include fields that are provided
+            if (p.storageKey !== undefined) photoData.storageKey = p.storageKey;
+            if (p.publicUrl !== undefined) photoData.publicUrl = p.publicUrl;
+            if (p.base64Data !== undefined) photoData.base64Data = p.base64Data;
+            if (p.width !== undefined) photoData.width = p.width;
+            if (p.height !== undefined) photoData.height = p.height;
+            
+            return photoData;
+          }),
         });
       }
 

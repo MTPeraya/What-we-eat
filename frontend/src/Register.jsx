@@ -16,8 +16,8 @@ function Register() {
 
     useEffect(() => {
         if (authChecked && isLoggedIn) {
-            // After register, return to homepage; host will press Start to proceed
-            navigate("/", { replace: true });
+            // After register, redirect to enter-code page
+            navigate("/enter-code", { replace: true });
         }
     }, [authChecked, isLoggedIn, navigate]);
 
@@ -52,7 +52,7 @@ function Register() {
             if (res.ok) {
                 // Backend uses HttpOnly cookie session; no token to store
                 await refreshAuth();
-                navigate("/");
+                navigate("/enter-code");
             } else {
                 // Show friendlier validation/duplicate messages
                 if (data?.error === 'VALIDATION_ERROR') {

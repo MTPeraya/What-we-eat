@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { withCORS, preflight } from "@/lib/cors";
+import { cleanupStaleRooms } from "@/services/roomLifecycle";
 
 const BodySchema = z
   .object({
@@ -23,6 +24,7 @@ export async function POST(
   
   try {
     const { roomId } = ctx.params;
+    await cleanupStaleRooms();
     const s = await getSession(req);
     const userId = s?.user?.id ?? null;
 

@@ -6,12 +6,47 @@ const ALLOWED_ORIGINS = [
   "http://127.0.0.1:5173",
   "http://localhost:3000",
   "http://127.0.0.1:3000",
+  "http://localhost:4001",
+  "http://127.0.0.1:4001",
+  "https://what-we-eat.vercel.app",
   process.env.FRONTEND_ORIGIN,
 ].filter(Boolean) as string[];
 
+/**
+ * Check if an origin is allowed
+ */
+function isAllowedOrigin(origin: string | null | undefined): boolean {
+  if (!origin) return false;
+  return ALLOWED_ORIGINS.some(allowed => {
+    // Exact match
+    if (allowed === origin) return true;
+    // Support subdomain matching (e.g., *.vercel.app)
+    if (allowed.includes('*')) {
+      const pattern = allowed.replace(/\*/g, '.*');
+      return new RegExp(`^${pattern}$`).test(origin);
+    }
+    return false;
+  });
+}
+
 export function withCORS(res: NextResponse, requestOrigin?: string | null) {
-  // Echo request origin if present (best for dev with credentials); else fallback
-  const origin = requestOrigin || ALLOWED_ORIGINS[0];
+  // Check if request origin is allowed, otherwise use first allowed origin
+  let origin: string;
+  if (requestOrigin && isAllowedOrigin(requestOrigin)) {
+    origin = requestOrigin;
+  } else if (requestOrigin) {
+    // Origin provided but not in allowed list - log for debugging
+    console.warn("[CORS] Origin not allowed:", requestOrigin, "Allowed:", ALLOWED_ORIGINS);
+    // In development, allow it anyway to prevent CORS issues
+    if (process.env.NODE_ENV === 'development') {
+      origin = requestOrigin;
+    } else {
+      origin = ALLOWED_ORIGINS[0] || "*";
+    }
+  } else {
+    // No origin provided (e.g., same-origin request) - use wildcard or first allowed
+    origin = ALLOWED_ORIGINS[0] || "*";
+  }
   
   res.headers.set("Access-Control-Allow-Origin", origin);
   res.headers.set("Vary", "Origin");

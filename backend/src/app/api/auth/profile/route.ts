@@ -13,7 +13,22 @@ export async function OPTIONS(req: NextRequest) {
 const UpdateProfileSchema = z.object({
   username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/).optional(),
   displayName: z.string().min(1).max(50).optional(),
-  profilePicture: z.string().url().optional().nullable(),
+  // Accept either base64 data URI or URL (for backward compatibility)
+  profilePicture: z.string().refine(
+    (val) => {
+      if (!val) return true; // null/empty is OK
+      // Check if it's a base64 data URI (data:image/...;base64,...)
+      if (val.startsWith('data:image/') && val.includes(';base64,')) return true;
+      // Check if it's a URL
+      try {
+        new URL(val);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: "profilePicture must be a valid URL or base64 data URI" }
+  ).optional().nullable(),
 }).strict();
 
 // PUT /api/auth/profile - Update user profile

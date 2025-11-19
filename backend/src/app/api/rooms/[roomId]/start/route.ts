@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/db";
 import { requireAuth } from "@/lib/session";
 import { withCORS, preflight } from "@/lib/cors";
+import { cleanupStaleRooms, computeRoomExpiry } from "@/services/roomLifecycle";
 
 const BodySchema = z.object({
   center: z.object({
@@ -24,6 +25,7 @@ export async function POST(
   
   try {
     const { roomId } = await ctx.params;
+    await cleanupStaleRooms();
     const { userId } = await requireAuth(req);
 
     const room = await prisma.room.findUnique({
@@ -55,7 +57,8 @@ export async function POST(
       status: "STARTED";
       centerLat?: number;
       centerLng?: number;
-    } = { status: "STARTED" };
+      expiresAt?: Date;
+    } = { status: "STARTED", expiresAt: computeRoomExpiry() };
     
     if (parsed.success && parsed.data.center) {
       updateData.centerLat = parsed.data.center.lat;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { requireAuth } from "@/lib/session";
 import { withCORS, preflight } from "@/lib/cors";
+import { closeRoom, cleanupStaleRooms } from "@/services/roomLifecycle";
 
 export async function OPTIONS(req: NextRequest) {
   const origin = req.headers.get('origin');
@@ -13,12 +14,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ roomId: st
   
   try {
     const { roomId } = await ctx.params;
+    await cleanupStaleRooms();
     const { userId } = await requireAuth(req);
 
     // Find room and current host
     const room = await prisma.room.findUnique({
       where: { id: roomId },
-      select: { hostId: true },
+      select: { hostId: true, status: true },
     });
     if (!room) return withCORS(NextResponse.json({ error: "ROOM_NOT_FOUND" }, { status: 404 }), origin);
 
@@ -38,9 +40,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ roomId: st
         await prisma.room.update({ where: { id: roomId }, data: { hostId: newHostId } });
       } else {
         // No members left, close the room
-        await prisma.room.update({ where: { id: roomId }, data: { status: "CLOSED" } });
+        await closeRoom(roomId, { removeParticipants: false });
         newHostId = null;
       }
+    }
+
+    const remaining = await prisma.roomParticipant.count({ where: { roomId } });
+    if (remaining === 0 && room.status === "OPEN") {
+      await closeRoom(roomId, { removeParticipants: false });
     }
 
     return withCORS(NextResponse.json({ ok: true, newHostId }, { status: 200 }), origin);

@@ -29,11 +29,21 @@ const apiRequest = async (url, options = {}) => {
     });
     
     if (!response.ok) {
-      console.log(response.status);
-      throw new Error(`API Error: ${response.status}`);
+      // Try to get error message from response
+      let errorMessage = `API Error: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch {
+        // If response is not JSON, use status code
+      }
+      const error = new Error(errorMessage);
+      error.status = response.status;
+      throw error;
     }
     const data = await response.json();
-    console.log(data);
     return data;
   } catch (error) {
     console.error('API Request failed:', error);
@@ -54,8 +64,11 @@ const submitVote = async (roomId, restaurantId, value) => {
 };
 
 // Finalize decision (host only)
-const finalizeRoomDecision = async (roomId, center) => {
-  const body = center?.lat != null && center?.lng != null ? { center } : {};
+const finalizeRoomDecision = async (roomId, center, tiedRestaurantIds) => {
+  const body = { 
+    ...(center?.lat != null && center?.lng != null ? { center } : {}),
+    ...(tiedRestaurantIds && tiedRestaurantIds.length > 0 ? { tiedRestaurantIds } : {})
+  };
   return await apiRequest(`/rooms/${roomId}/decide/final`, {
     method: 'POST',
     body: JSON.stringify(body),
@@ -87,7 +100,7 @@ function DrawPage(){
     const navigate = useNavigate();
     
     const { roomId, tiedRestaurants, userCenter, isHost } = location.state || {};
-    
+
     const [candidate1, setCandidate1] = useState(null);
     const [candidate2, setCandidate2] = useState(null);
     const [isVoting, setIsVoting] = useState(true);
@@ -229,7 +242,7 @@ function DrawPage(){
             
             // Wait a bit for vote to process, then check if we can finalize
             setTimeout(async () => {
-                try {
+        try {
                     // Check current scores
                     const roomResults = await checkRoomResults(roomId);
 
@@ -268,15 +281,15 @@ function DrawPage(){
                         // If we cannot find both scores, fall back to finalize to avoid getting stuck
                         console.warn('[DrawPage] Candidate scores missing from results; waiting based on role.');
                         if (!isHost) pollForFinalDecision();
-                    }
-                } catch (error) {
+            }
+        } catch (error) {
                     console.error('[DrawPage] Error checking results:', error);
                     // Fallback: poll for final decision
                     pollForFinalDecision();
-                } finally {
+        } finally {
                     // Allow host to click Finalize; submitting phase is done
                     setIsSubmitting(false);
-                }
+        }
             }, 2000);
         } catch (error) {
             console.error('[DrawPage] Failed to submit vote:', error);
@@ -306,7 +319,7 @@ function DrawPage(){
                         }
                     });
                 }
-            } catch (error) {
+        } catch (error) {
                 console.error('[DrawPage] Error polling final decision:', error);
             }
         }, 3000);
@@ -319,7 +332,9 @@ function DrawPage(){
 
     const finalizeAndNavigate = async () => {
         try {
-            const finalResponse = await finalizeRoomDecision(roomId, userCenter);
+            // Get tied restaurant IDs to restrict winner selection
+            const tiedIds = tiedRestaurants?.map(r => r.restaurantId).filter(Boolean);
+            const finalResponse = await finalizeRoomDecision(roomId, userCenter, tiedIds);
             const scoreData = await checkRoomResults(roomId);
             
             navigate('/result', {
@@ -332,7 +347,7 @@ function DrawPage(){
                         mapLinks: finalResponse.mapLinks
                     },
                     userCenter
-                }
+                    }
             });
         } catch (error) {
             console.error('[DrawPage] Failed to finalize:', error);
@@ -392,29 +407,29 @@ function DrawPage(){
                             <div className="row justify-content-center align-items-stretch">
                                 <div className="col-12">
                                     <h1 className="text-center mt-0 mb-4" style={{fontSize: "clamp(1.4rem, 2.5vw, 2.2rem)"}}>It's a draw!! Vote one!!</h1>
-                                </div>
+                            </div>
                                 <div className="col-12 d-flex justify-content-center align-items-center gap-4 mt-2">
-                                    <DrawBox 
-                                        name={candidate1.name} 
-                                        km={candidate1.km} 
-                                        imgUrl={candidate1.img} 
-                                        icon={star} 
-                                        bcolor="#BB3D25" 
-                                        b2color="#B33821"
+                            <DrawBox 
+                                name={candidate1.name} 
+                                km={candidate1.km} 
+                                imgUrl={candidate1.img} 
+                                icon={star} 
+                                bcolor="#BB3D25" 
+                                b2color="#B33821"
                                         onClick={() => handleVote(candidate1)}
                                         disabled={isSubmitting || hasVoted}
-                                    />
-                                    <DrawBox 
-                                        name={candidate2.name} 
-                                        km={candidate2.km} 
-                                        imgUrl={candidate2.img} 
-                                        icon={heart} 
-                                        bcolor="#517824" 
-                                        b2color="#4A6B23"
+                            />
+                            <DrawBox 
+                                name={candidate2.name} 
+                                km={candidate2.km} 
+                                imgUrl={candidate2.img} 
+                                icon={heart} 
+                                bcolor="#517824" 
+                                b2color="#4A6B23"
                                         onClick={() => handleVote(candidate2)}
                                         disabled={isSubmitting || hasVoted}
-                                    />
-                                </div>
+                            />
+                        </div>
                             </div>
                         </div>
                     </div>
@@ -432,13 +447,13 @@ function DrawPage(){
                                         ? 'Waiting for all participants to vote before you can finalize...'
                                         : 'All participants have voted. Press finalize to proceed.'}
                                 </p>
-                                <button 
+                        <button 
                                     className="btn btn-success"
                                     onClick={finalizeAndNavigate}
                                     disabled={isSubmitting || numVoted < totalParticipants}
-                                >
+                        >
                                     Finalize
-                                </button>
+                        </button>
                             </>
                         ) : (
                             <>

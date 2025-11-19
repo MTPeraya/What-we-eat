@@ -4,6 +4,7 @@ import Header from './header.jsx'
 import Footer from './components/smallfooter.jsx'
 import RatingModal from './components/RatingModal.jsx'
 import { useLocation } from 'react-router-dom';
+import { config } from './config';
 
 function useQueryParams() {
   const location = useLocation();
@@ -20,7 +21,7 @@ function FoodTinder() {
   const [currentRestaurant, setCurrentRestaurant] = useState(null);
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
 
-  const API_BASE = "http://localhost:4001/api";
+  const API_BASE = `${config.apiUrl}/api`;
 
   // Memoize userCenter to prevent unnecessary re-renders
   const userCenter = useMemo(() => {
@@ -50,7 +51,7 @@ function FoodTinder() {
         console.error("Error checking host status:", error);
       }
     })();
-  }, [roomId]);
+  }, [roomId, API_BASE]);
 
   // Note: Removed auto-navigate to results page when room starts
   // Host will manually navigate after all members finish voting

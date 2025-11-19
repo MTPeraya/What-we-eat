@@ -7,7 +7,10 @@ import { withCORS, preflight } from "@/lib/cors";
 
 export async function OPTIONS(req: NextRequest) {
   const origin = req.headers.get('origin');
-  return preflight('POST, OPTIONS', origin);
+  console.log("[candidates] OPTIONS request from origin:", origin);
+  const res = preflight('POST, OPTIONS', origin);
+  console.log("[candidates] OPTIONS response headers:", Object.fromEntries(res.headers.entries()));
+  return res;
 }
 
 const BodySchema = z
@@ -27,10 +30,26 @@ export async function POST(
   ctx: { params: Promise<{ roomId: string }> }
 ) {
   const origin = req.headers.get('origin');
+  console.log("[candidates] POST request from origin:", origin);
+  let roomId: string | undefined;
   
   try {
-    const { roomId } = await ctx.params;
+    roomId = (await ctx.params).roomId;
+    console.log("[candidates] Processing request for roomId:", roomId);
     const { userId } = await requireAuth(req);
+    console.log("[candidates] User authenticated:", userId);
+
+    // Check room exists and status
+    const room = await prisma.room.findUnique({
+      where: { id: roomId },
+      select: { id: true, status: true },
+    });
+    if (!room) {
+      return withCORS(NextResponse.json({ error: "ROOM_NOT_FOUND" }, { status: 404 }), origin);
+    }
+    if (room.status !== "STARTED") {
+      return withCORS(NextResponse.json({ error: "ROOM_NOT_STARTED" }, { status: 400 }), origin);
+    }
 
     // Must be room member
     const isMember = await prisma.roomParticipant.findFirst({
@@ -53,12 +72,18 @@ export async function POST(
     }
 
     const started = Date.now();
+    console.log("[candidates] Calling buildCandidates with:", {
+      roomId,
+      center: parsed.data.center,
+      limit: parsed.data.limit ?? 24,
+    });
     const cands = await buildCandidates({
       roomId,
       center: parsed.data.center,
       limit: parsed.data.limit ?? 24,
     });
     const tookMs = Date.now() - started;
+    console.log("[candidates] buildCandidates returned", cands.length, "candidates");
 
     // Basic metrics
     console.log("[reco] candidates", {
@@ -67,7 +92,7 @@ export async function POST(
       ms: tookMs,
     });
 
-    return withCORS(
+    const response = withCORS(
       NextResponse.json(
         {
           roomId,
@@ -76,11 +101,11 @@ export async function POST(
           items: cands.map((c) => ({
             restaurantId: c.id,
             name: c.name,
-            address: c.address,
+            address: c.address ?? "",
             lat: c.lat,
             lng: c.lng,
-            rating: c.rating,
-            priceLevel: c.priceLevel,
+            rating: c.rating ?? null,
+            priceLevel: c.priceLevel ?? null,
             score: Math.round(c.score * 10) / 10,
             reasons: c.reasons,
             distanceM: c.distanceM ?? null,
@@ -90,11 +115,21 @@ export async function POST(
       ),
       origin
     );
+    console.log("[candidates] Success response headers:", Object.fromEntries(response.headers.entries()));
+    return response;
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
+    const stack = (e as Error)?.stack;
+    console.error("[candidates] Error:", { roomId: roomId || "unknown", error: msg, stack });
+    
+    // Always return CORS-enabled response, even on error
+    let errorResponse: NextResponse;
     if (msg === "UNAUTHENTICATED") {
-      return withCORS(NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }), origin);
+      errorResponse = withCORS(NextResponse.json({ error: "UNAUTHENTICATED" }, { status: 401 }), origin);
+    } else {
+      errorResponse = withCORS(NextResponse.json({ error: "CANDIDATES_FAILED", details: msg }, { status: 500 }), origin);
     }
-    return withCORS(NextResponse.json({ error: "CANDIDATES_FAILED", details: msg }, { status: 500 }), origin);
+    console.log("[candidates] Error response headers:", Object.fromEntries(errorResponse.headers.entries()));
+    return errorResponse;
   }
 }

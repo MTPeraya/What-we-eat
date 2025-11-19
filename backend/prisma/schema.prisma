@@ -77,7 +77,7 @@ model User {
   password          String
   role              Role              @default(USER)
   displayName       String?
-  profilePicture    String?
+  profilePicture    String?           // Base64 data URI (data:image/jpeg;base64,...) or URL (legacy)
 
   // Relations
   rooms             Room[]            @relation("HostRooms")
@@ -102,6 +102,7 @@ model Room {
   centerLat    Float?
   centerLng    Float?
   expiresAt    DateTime?
+  closedAt     DateTime?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
@@ -120,6 +121,7 @@ model Room {
   shortLinks           ShortLink[]          @relation("RoomShortLinks")
 
   @@index([code])
+  @@index([status, closedAt])
 }
 
 model RoomParticipant {
@@ -292,8 +294,9 @@ model Rating {
 model RatingPhoto {
   id         String   @id @default(cuid())
   ratingId   String
-  storageKey String
-  publicUrl  String?
+  storageKey String?  // Optional (for legacy files)
+  publicUrl  String?  // Optional (for legacy files or external URLs)
+  base64Data String?  // Base64 data URI (data:image/jpeg;base64,...) - preferred for small images
   width      Int?
   height     Int?
   mime       String

@@ -23,8 +23,8 @@ function Login() {
 
   useEffect(() => {
     if (authChecked && isLoggedIn) {
-      // After login, return to homepage; host will press Start to proceed
-      navigate("/", { replace: true });
+      // After login, redirect to enter-code page
+      navigate("/enter-code", { replace: true });
     }
   }, [authChecked, isLoggedIn, navigate]);
 
@@ -61,7 +61,7 @@ function Login() {
           localStorage.setItem("WhatWeEatUsername", username);
         }
         await refreshAuth();
-        navigate("/");
+        navigate("/enter-code");
       } else {
         alert(`❌ ${data.error || "password or username incorrect"}`);
       }

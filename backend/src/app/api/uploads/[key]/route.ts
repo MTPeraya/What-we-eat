@@ -21,14 +21,30 @@ export async function PUT(
 
     const ab = await req.arrayBuffer();
     const buf = Buffer.from(ab);
+    const fileSize = buf.length;
 
+    // Save to storage (always)
     await storage.putBuffer(key, buf, contentType);
+    const publicUrl = storage.publicUrl(key);
+
+    // Only convert to base64 for small files (< 500KB) to avoid database bloat
+    // Base64 encoding increases size by ~33%, so 500KB file becomes ~667KB in database
+    const MAX_BASE64_SIZE = 500_000; // 500KB
+    const response: { ok: boolean; key: string; url: string; base64Data?: string } = {
+      ok: true,
+      key,
+      url: publicUrl,
+    };
+
+    if (fileSize <= MAX_BASE64_SIZE) {
+      // For small files, also provide base64 for direct database storage
+      const base64 = buf.toString('base64');
+      response.base64Data = `data:${contentType};base64,${base64}`;
+    }
+    // For large files, only return URL (must use storage)
 
     return withCORS(
-      NextResponse.json(
-        { ok: true, key, url: storage.publicUrl(key) },
-        { status: 201 }
-      ),
+      NextResponse.json(response, { status: 201 }),
       origin
     );
   } catch (e) {

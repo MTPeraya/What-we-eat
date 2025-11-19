@@ -1,4 +1,4 @@
-import React, {useState, useRef, useEffect, useCallback} from 'react';
+import React, {useState, useRef, useEffect, useCallback, useMemo} from 'react';
 import { motion, useMotionValue,  useTransform, animate} from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Button from "./swipeButton"
@@ -28,7 +28,19 @@ const apiRequest = async (url, options = {}) => {
     });
     
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
+      // Try to get error message from response
+      let errorMessage = `API Error: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch {
+        // If response is not JSON, use status code
+      }
+      const error = new Error(errorMessage);
+      error.status = response.status;
+      throw error;
     }
     return await response.json();
   } catch (error) {
@@ -89,6 +101,18 @@ const fetchRoomInfo = async (roomId) => {
   return await apiRequest(`/rooms/${roomId}`, { method: 'GET' });
 };
 
+// Start room (host only)
+const startRoom = async (roomId, center) => {
+  const body = center?.lat && center?.lng 
+    ? { center: { lat: center.lat, lng: center.lng } }
+    : {};
+  
+  return await apiRequest(`/rooms/${roomId}/start`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+};
+
 // Mark that host is viewing results
 const markHostViewing = async (roomId) => {
   return await apiRequest(`/rooms/${roomId}/decide/view`, { method: 'POST' });
@@ -116,6 +140,9 @@ const transformCandidatesData = (apiData) => {
   const restaurants = apiData.items || [];
   
   const transformed = restaurants.map((restaurant, index) => {
+    // Convert distance from meters to km, keep as number for filtering/sorting
+    const distanceKm = restaurant.distanceM ? restaurant.distanceM / 1000 : null;
+    
     const card = {
       id: restaurant.restaurantId, // candidates API uses restaurantId instead of id
       url: getRestaurantImageUrl(restaurant.restaurantId, index),
@@ -126,7 +153,7 @@ const transformCandidatesData = (apiData) => {
       lat: restaurant.lat,
       lng: restaurant.lng,
       userRatingsTotal: restaurant.userRatingsTotal,
-      distance: restaurant.distanceM ? (restaurant.distanceM / 1000).toFixed(1) : null, // Convert meters to km
+      distance: distanceKm, // Keep as number for sorting, format later for display
     };
     
     return card;
@@ -144,7 +171,27 @@ const formatDistance = (distance) => {
 };
 
 
+// Theme palette matching ResultPage
+const palette = {
+  background: '#FFEFE3',
+  card: '#FFF7EF',
+  border: '#8A3A1A',
+  textPrimary: '#4A1F0C',
+  textSecondary: '#7A4B31',
+  accent: '#C0471C',
+  success: '#4CAF50'
+};
+
 const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
+    const center = useMemo(() => {
+        if (userCenter?.lat == null || userCenter?.lng == null) return undefined;
+        return { lat: userCenter.lat, lng: userCenter.lng };
+    }, [userCenter?.lat, userCenter?.lng]);
+    const centerKey = center ? `${center.lat}:${center.lng}` : 'none';
+    const normalizedCenter = useMemo(() => {
+        if (!center) return null;
+        return { lat: Number(center.lat), lng: Number(center.lng) };
+    }, [center]);
     const navigate = useNavigate();
     const [cards, setCards] = useState([]);
     const [isSwiping, setIsSwiping] = useState(false);
@@ -166,6 +213,9 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
     const topCardRef = useRef(null); // ref to call programmatic swipe
     const lastNotifiedCardId = useRef(null); // Track last notified card
     const hasLoadedInitialCards = useRef(false); // Prevent multiple initial loads
+    const loadedKeyRef = useRef(null); // Track what roomId+centerKey combination we've loaded
+    const loadInitialCardsRef = useRef(null); // Ref to latest loadInitialCards function
+    const isLoadingCardsRef = useRef(false); // Prevent concurrent loading
     
     // Notify parent about current card changes (only when card actually changes)
     useEffect(() => {
@@ -180,23 +230,91 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
     }, [cards, onCurrentCardChange]);
 
     const loadInitialCards = useCallback(async () => {
-        // Prevent loading if already started loading
-        if (hasLoadedInitialCards.current) {
-            console.log('[SwipeCards] Skipping loadInitialCards - already started');
+        // Create a unique key for this load request
+        const currentKey = `${roomId}:${centerKey}`;
+        
+        // Prevent concurrent loading
+        if (isLoadingCardsRef.current) {
+            console.log('[SwipeCards] Already loading cards, skipping duplicate call');
+            return;
+        }
+        
+        // Prevent loading if already loaded for this exact combination
+        if (hasLoadedInitialCards.current && loadedKeyRef.current === currentKey) {
+            console.log('[SwipeCards] Skipping loadInitialCards - already loaded for', currentKey);
+            return;
+        }
+
+        if (!roomId) {
+            console.warn('[SwipeCards] No roomId provided');
             return;
         }
 
         try {
+            // Set loading flag immediately to prevent concurrent calls
+            isLoadingCardsRef.current = true;
             hasLoadedInitialCards.current = true;
+            loadedKeyRef.current = currentKey;
             setIsLoading(true);
-            console.log('[SwipeCards] Fetching candidates for room:', roomId, { userCenter });
-            const response = await fetchRoomCandidates(roomId, userCenter);
+            
+            // First, check room status
+            console.log('[SwipeCards] Checking room status for room:', roomId);
+            const roomInfo = await fetchRoomInfo(roomId);
+            console.log('[SwipeCards] Room status:', roomInfo.status);
+            
+            // If room is not STARTED, try to start it (if host) or wait
+            if (roomInfo.status !== 'STARTED') {
+                if (isHost && center) {
+                    console.log('[SwipeCards] Room not started, host will start it now');
+                    try {
+                        await startRoom(roomId, center);
+                        console.log('[SwipeCards] Room started successfully');
+                        // Wait a bit for the status to update
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    } catch (startError) {
+                        console.error('[SwipeCards] Failed to start room:', startError);
+                        // Reset flags so it can be retried
+                        hasLoadedInitialCards.current = false;
+                        loadedKeyRef.current = null;
+                        isLoadingCardsRef.current = false;
+                        setIsLoading(false);
+                        return;
+                    }
+                } else {
+                    console.log('[SwipeCards] Room not started yet, waiting for host...');
+                    // Reset flags so it can be retried
+                    hasLoadedInitialCards.current = false;
+                    loadedKeyRef.current = null;
+                    isLoadingCardsRef.current = false;
+                    setIsLoading(false);
+                    return;
+                }
+            }
+            
+            console.log('[SwipeCards] Fetching candidates for room:', roomId, { center: normalizedCenter });
+            const response = await fetchRoomCandidates(roomId, normalizedCenter);
             console.log("[SwipeCards] fetchRoomCandidates Pass - received", response.items?.length, "items");
 
             if (response.items && response.items.length > 0) {
-                const transformedCards = transformCandidatesData(response, userCenter);
+                const transformedCards = transformCandidatesData(response);
+
+                // Filter restaurants within 5km (previous behavior)
+                const MAX_DISTANCE_KM = 5;
+                const filteredCards = transformedCards.filter((card) => {
+                    if (card.distance == null) return false;
+                    return card.distance <= MAX_DISTANCE_KM;
+                });
+                
+                if (filteredCards.length === 0) {
+                    console.warn('[SwipeCards] No restaurants within 5km of user');
+                    setCards([]);
+                    setTotalRestaurants(0);
+                    setHasMoreCards(false);
+                    return;
+                }
+
                 // Sort by distance (closest first)
-                const sortedCards = transformedCards.sort((a, b) => {
+                const sortedCards = filteredCards.sort((a, b) => {
                     const distA = a.distance ?? Infinity;
                     const distB = b.distance ?? Infinity;
                     return distA - distB;
@@ -204,6 +322,8 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
                 
                 // Limit to MAX_RESTAURANTS
                 const limitedCards = sortedCards.slice(0, MAX_RESTAURANTS_PER_SESSION);
+                console.log('[SwipeCards] Total received:', transformedCards.length, 'restaurants');
+                console.log('[SwipeCards] Filtered to', filteredCards.length, 'restaurants within 5km');
                 console.log('[SwipeCards] Setting', limitedCards.length, 'cards');
                 setCards(limitedCards);
                 setTotalRestaurants(limitedCards.length);
@@ -216,21 +336,36 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
             }
         } catch (error) {
             console.error('[SwipeCards] Failed to load initial cards:', error);
-            // Reset flag on error so it can be retried
-            hasLoadedInitialCards.current = false;
-            // Fallback to local data if API fails
-            setCards(cardData);
-            setTotalRestaurants(cardData.length);
+            // Check if error is ROOM_NOT_STARTED or 400 status
+            if (error.message && (error.message.includes('ROOM_NOT_STARTED') || error.message.includes('400'))) {
+                console.log('[SwipeCards] Room not started, will retry...');
+                // Reset flags so it can be retried
+                hasLoadedInitialCards.current = false;
+                loadedKeyRef.current = null;
+                isLoadingCardsRef.current = false;
+                // If not host, show message
+                if (!isHost) {
+                    console.log('[SwipeCards] Waiting for host to start the room...');
+                }
+            } else {
+                // Reset flags on error so it can be retried
+                hasLoadedInitialCards.current = false;
+                loadedKeyRef.current = null;
+                isLoadingCardsRef.current = false;
+                // Don't fallback to mockup - show empty state instead
+                setCards([]);
+                setTotalRestaurants(0);
+            }
         } finally {
             setIsLoading(false);
+            isLoadingCardsRef.current = false; // Reset loading flag
         }
-    }, [roomId, userCenter]);
-
-    // Reset load flag when roomId or userCenter changes
+    }, [roomId, centerKey, normalizedCenter, isHost, center]);
+    
+    // Keep ref up to date with latest loadInitialCards function
     useEffect(() => {
-        console.log('[SwipeCards] Room or location changed - resetting load flag');
-        hasLoadedInitialCards.current = false;
-    }, [roomId, userCenter]);
+        loadInitialCardsRef.current = loadInitialCards;
+    }, [loadInitialCards]);
 
     // Fetch room info to get participant count
     useEffect(() => {
@@ -253,16 +388,72 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
         return () => clearInterval(interval);
     }, [roomId]);
 
-    // Fetch initial restaurant data when component mounts or userCenter changes
+    // Retry loading cards if room was not started (for non-hosts)
     useEffect(() => {
-        loadInitialCards();
+        if (!roomId || isHost) return;
         
-        // Cleanup on unmount - allow re-loading if component mounts again
+        const currentKey = `${roomId}:${centerKey}`;
+        // Only retry if we haven't successfully loaded for this key and not currently loading
+        if ((hasLoadedInitialCards.current && loadedKeyRef.current === currentKey) || isLoadingCardsRef.current) {
+            return;
+        }
+        
+        const retryInterval = setInterval(async () => {
+            try {
+                // Check again before loading
+                if (isLoadingCardsRef.current || (hasLoadedInitialCards.current && loadedKeyRef.current === currentKey)) {
+                    return;
+                }
+                
+                const roomInfo = await fetchRoomInfo(roomId);
+                if (roomInfo.status === 'STARTED') {
+                    console.log('[SwipeCards] Room is now started, loading cards...');
+                    // Don't reset flag here - let loadInitialCards handle it
+                    if (loadInitialCardsRef.current && !isLoadingCardsRef.current) {
+                        loadInitialCardsRef.current();
+                    }
+                    clearInterval(retryInterval);
+                }
+            } catch (error) {
+                console.error('[SwipeCards] Error checking room status for retry:', error);
+            }
+        }, 2000); // Check every 2 seconds
+        
+        return () => clearInterval(retryInterval);
+    }, [roomId, isHost, centerKey]); // Removed loadInitialCards from dependencies - using ref instead
+
+    // Fetch initial restaurant data when component mounts or roomId/location changes
+    useEffect(() => {
+        if (!roomId) return;
+        
+        const currentKey = `${roomId}:${centerKey}`;
+        // Only load if we haven't loaded for this exact combination and not currently loading
+        if (isLoadingCardsRef.current) {
+            console.log('[SwipeCards] Already loading cards, skipping');
+            return;
+        }
+        
+        if (hasLoadedInitialCards.current && loadedKeyRef.current === currentKey) {
+            console.log('[SwipeCards] Already loaded for', currentKey, '- skipping');
+            return;
+        }
+        
+        console.log('[SwipeCards] Room or location changed - loading cards');
+        // Call loadInitialCards via ref to avoid dependency issues
+        if (loadInitialCardsRef.current && !isLoadingCardsRef.current) {
+            loadInitialCardsRef.current();
+        }
+    }, [roomId, centerKey]); // Removed loadInitialCards from dependencies - using ref instead
+
+    // Reset flag when component unmounts
+    useEffect(() => {
         return () => {
             console.log('[SwipeCards] Component unmounting - resetting load flag');
             hasLoadedInitialCards.current = false;
+            loadedKeyRef.current = null;
+            isLoadingCardsRef.current = false;
         };
-    }, [loadInitialCards]);
+    }, []);
 
     const loadMoreCards = useCallback(async () => {
         if (!hasMoreCards) return;
@@ -432,14 +623,14 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
                             userRatingsTotal: score.userRatingsTotal,
                             placeId: score.placeId
                         })),
-                        userCenter
+                        center
                     }
                 });
                 return;
             }
 
             // No tie, proceed with finalization
-            const finalResponse = await finalizeRoomDecision(roomId, userCenter);
+            const finalResponse = await finalizeRoomDecision(roomId, center);
             const combinedResults = buildFinalResultsPayload(finalResponse, roomResults);
 
             setResults(combinedResults);
@@ -460,24 +651,27 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
     }, [cards.length, hasMoreCards, isLoading, loadMoreCards]);
 
     const swipeLeft = () => {
-      // console.log("left")
-      if (!isSwiping && cards.length > 0) {
-        setIsSwiping(true);
-        topCardRef.current?.swipe("left", () => {
-            setIsSwiping(false);
-            handleVote(cards[0].id, 'reject');
-        });
+      if (isLoading || isSwiping || cards.length === 0) {
+        return;
       }
+      const currentCardId = cards[0].id;
+      setIsSwiping(true);
+      topCardRef.current?.swipe("left", () => {
+          setIsSwiping(false);
+          handleVote(currentCardId, 'reject');
+      });
     };
     
     const swipeRight = () => {
-      if (!isSwiping && cards.length > 0) {
-        setIsSwiping(true);
-        topCardRef.current?.swipe("right", () => {
-            setIsSwiping(false);
-            handleVote(cards[0].id, 'accept');
-        });
+      if (isLoading || isSwiping || cards.length === 0) {
+        return;
       }
+      const currentCardId = cards[0].id;
+      setIsSwiping(true);
+      topCardRef.current?.swipe("right", () => {
+          setIsSwiping(false);
+          handleVote(currentCardId, 'accept');
+      });
     };
 
     // Navigate to results page when results are ready
@@ -487,11 +681,11 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
                 state: { 
                     roomId,
                     results,
-                    userCenter 
+                    center 
                 } 
             });
         }
-    }, [showResults, results, navigate, roomId, userCenter]);
+    }, [showResults, results, navigate, roomId, center]);
     
     // Poll room status to detect when host triggers result viewing (for non-host members)
     useEffect(() => {
@@ -549,7 +743,7 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
                                 userRatingsTotal: score.userRatingsTotal,
                                 placeId: score.placeId
                             })),
-                            userCenter
+                            center
                         }
                     });
                     clearInterval(pollInterval);
@@ -563,7 +757,7 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
             }
         }, 2000); // Poll more frequently for better synchronization
         return () => clearInterval(pollInterval);
-    }, [roomId, isHost, allCardsCompleted, buildFinalResultsPayload, isReadyForFinal, checkForTiedScores, navigate, userCenter]);
+    }, [roomId, isHost, allCardsCompleted, buildFinalResultsPayload, isReadyForFinal, checkForTiedScores, navigate, center]);
 
     // Calculate current card number (total - remaining + 1)
     const currentCardNumber = totalRestaurants - cards.length + 1;
@@ -574,107 +768,175 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
         flexDirection: "column",
         alignItems: "center",
         minHeight: "90vh",
-        height: "90vh",
-        backgroundColor: "#FFE2C5",
-        paddingTop: "10vh"
+        background: palette.background,
+        paddingTop: "10vh",
+        paddingBottom: "12vh", // Space for footer (10vh) + extra margin
+        marginBottom: "10vh" // Reserve space for fixed footer
       }}>
-        {/* Progress indicator */}
-        {totalRestaurants > 0 && cards.length > 0 && (
+        {isLoading ? (
           <div style={{
-            marginTop: "20px",
-            marginBottom: "10px",
-            fontSize: "1.2rem",
-            fontWeight: "bold",
-            color: "#801F08"
+            fontSize: "1.5rem", 
+            color: palette.textPrimary, 
+            marginTop: "40px",
+            fontWeight: 600,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "1rem"
           }}>
-            {currentCardNumber} / {totalRestaurants}
+            <div className="spinner-border" role="status" style={{color: palette.accent}}>
+              <span className="visually-hidden">Loading...</span>
+            </div>
+            <div>Loading restaurants...</div>
           </div>
-        )}
-        
-        {/* <RoomIDContainer/> */}
-        {isLoading && <div style={{fontSize: "1.5rem", color: "#801F08"}}>Loading restaurants...</div>}
-        
-        {!isLoading && cards.length === 0 && !allCardsCompleted && (
-          <div style={{fontSize: "1.5rem", color: "#801F08"}}>No restaurants found</div>
-        )}
-        
-        <div className="" style={{display: "grid", placeItems: "center"}}>
-          {cards.length > 1 && (
-            <Card
-              key={cards[1].id}
-              id={cards[1].id}
-              url={cards[1].url}
-              isBack
-              name={cards[1].name}
-              location={formatDistance(cards[1].distance)}
-            />
-          )}
-          {cards.length > 0 && (
-            <Card
-              key={cards[0].id}
-              id={cards[0].id}
-              url={cards[0].url}
-              setCards={setCards}
-              ref={topCardRef}
-              name={cards[0].name}
-              location={formatDistance(cards[0].distance)}
-              onVote={handleVote}
-            />
-          )}
-           {cards.length === 0 && allCardsCompleted && (
-             <div style={{
-               fontSize: "1.5rem", 
-               color: "#801F08", 
-               maxHeight: "520px",
-               height: "60vh",
-               display: "flex",
-               flexDirection: "column",
-               alignItems: "center",
-               justifyContent: "center",
-               textAlign: "center",
-               padding: "20px"
-             }}>
-               <div style={{marginBottom: "20px"}}>🎉</div>
-               <div style={{fontWeight: "bold", marginBottom: "10px"}}>All Done!</div>
-               {isHost ? (
-                 <div style={{marginTop: "20px"}}>
-                   <button 
-                     className="green button"
-                     onClick={handleShowResults}
-                     disabled={!canFinalize || isFinalizing}
-                     style={{
-                       padding: "15px 30px",
-                       fontSize: "1.2rem",
-                       cursor: canFinalize && !isFinalizing ? "pointer" : "not-allowed",
-                       opacity: canFinalize ? 1 : 0.7
-                     }}
-                   >
-                     {isFinalizing ? 'Finalizing...' : 'View Results'}
-                   </button>
-                   {!canFinalize && (
-                     <div style={{marginTop: "10px", fontSize: "0.9rem", color: "#555"}}>
-                       {totalParticipants > 0 ? (
-                         <>Waiting for all {totalParticipants} participants to vote on all {finalizeRequirements.restaurantsNeeded} restaurants...</>
-                       ) : (
-                         <>Need at least {finalizeRequirements.restaurantsNeeded} restaurants and {finalizeRequirements.votesNeeded} total votes.</>
+        ) : (
+          <>
+            {/* Progress indicator */}
+            {totalRestaurants > 0 && cards.length > 0 && (
+              <div style={{
+                marginTop: "20px",
+                marginBottom: "20px",
+                padding: "12px 24px",
+                background: palette.card,
+                border: `2px solid ${palette.border}`,
+                borderRadius: "20px",
+                fontSize: "1.1rem",
+                fontWeight: 600,
+                color: palette.textPrimary,
+                boxShadow: "0 8px 16px rgba(74,31,12,0.1)",
+                letterSpacing: "0.05em"
+              }}>
+                {currentCardNumber} / {totalRestaurants}
+              </div>
+            )}
+            
+            {!isLoading && cards.length === 0 && !allCardsCompleted && (
+              <div style={{
+                fontSize: "1.5rem", 
+                color: palette.textSecondary,
+                marginTop: "40px",
+                textAlign: "center",
+                padding: "2rem"
+              }}>
+                No restaurants found
+              </div>
+            )}
+            
+            <div className="" style={{
+              display: "grid", 
+              placeItems: "center", 
+              marginBottom: "1rem",
+              position: "relative",
+              width: "100%",
+              maxWidth: "400px",
+              marginTop: cards.length === 0 && allCardsCompleted ? "2.5rem" : "0"
+            }}>
+              {cards.length > 1 && (
+                <Card
+                  key={cards[1].id}
+                  id={cards[1].id}
+                  url={cards[1].url}
+                  isBack
+                  name={cards[1].name}
+                  location={formatDistance(cards[1].distance)}
+                />
+              )}
+              {cards.length > 0 && (
+                <Card
+                  key={cards[0].id}
+                  id={cards[0].id}
+                  url={cards[0].url}
+                  setCards={setCards}
+                  ref={topCardRef}
+                  name={cards[0].name}
+                  location={formatDistance(cards[0].distance)}
+                  onVote={handleVote}
+                />
+              )}
+               {cards.length === 0 && allCardsCompleted && (
+                 <div style={{
+                   background: palette.card,
+                   border: `2px solid ${palette.border}`,
+                   borderRadius: "24px",
+                   padding: "3rem 2rem",
+                   maxWidth: "500px",
+                   width: "90%",
+                   display: "flex",
+                   flexDirection: "column",
+                   alignItems: "center",
+                   justifyContent: "center",
+                   textAlign: "center",
+                   boxShadow: "0 25px 45px rgba(74,31,12,0.15)"
+                 }}>
+                   <div style={{fontSize: "4rem", marginBottom: "1rem"}}>🎉</div>
+                   <h2 style={{color: palette.textPrimary, fontWeight: 700, marginBottom: "1rem"}}>All Done!</h2>
+                   {isHost ? (
+                     <div style={{marginTop: "1.5rem", width: "100%"}}>
+                       <button 
+                         onClick={handleShowResults}
+                         disabled={!canFinalize || isFinalizing}
+                         style={{
+                           width: "100%",
+                           padding: "15px 30px",
+                           fontSize: "1.1rem",
+                           fontWeight: 600,
+                           borderRadius: "14px",
+                           border: "none",
+                           cursor: canFinalize && !isFinalizing ? "pointer" : "not-allowed",
+                           background: canFinalize ? palette.accent : palette.textSecondary,
+                           color: "#fff",
+                           boxShadow: canFinalize ? "0 15px 25px rgba(192,71,28,0.25)" : "none",
+                           transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                           opacity: canFinalize ? 1 : 0.6
+                         }}
+                         onMouseEnter={(e) => {
+                           if (canFinalize && !isFinalizing) {
+                             e.currentTarget.style.transform = "translateY(-2px)";
+                             e.currentTarget.style.boxShadow = "0 20px 30px rgba(192,71,28,0.3)";
+                           }
+                         }}
+                         onMouseLeave={(e) => {
+                           e.currentTarget.style.transform = "translateY(0)";
+                           e.currentTarget.style.boxShadow = canFinalize ? "0 15px 25px rgba(192,71,28,0.25)" : "none";
+                         }}
+                       >
+                         {isFinalizing ? 'Finalizing...' : 'View Results'}
+                       </button>
+                       {!canFinalize && (
+                         <div style={{marginTop: "1rem", fontSize: "0.9rem", color: palette.textSecondary, lineHeight: "1.5"}}>
+                           {totalParticipants > 0 ? (
+                             <>Waiting for all {totalParticipants} participants to vote on all {finalizeRequirements.restaurantsNeeded} restaurants...</>
+                           ) : (
+                             <>Need at least {finalizeRequirements.restaurantsNeeded} restaurants and {finalizeRequirements.votesNeeded} total votes.</>
+                           )}
+                         </div>
                        )}
+                     </div>
+                   ) : (
+                     <div style={{fontSize: "1rem", color: palette.textSecondary, marginTop: "1rem"}}>
+                       Waiting for host to view results...
                      </div>
                    )}
                  </div>
-               ) : (
-                 <div style={{fontSize: "1rem", color: "#666"}}>Waiting for host to view results...</div>
                )}
-             </div>
-           )}
-        </div>
+            </div>
+          </>
+        )}
 
         <div style={{
             display: "flex",
-            width: "300px",
-            justifyContent: "space-between"
+            width: "100%",
+            maxWidth: "400px",
+            justifyContent: "space-around",
+            alignItems: "center",
+            gap: "2rem",
+            marginTop: "1rem",
+            marginBottom: "1rem",
+            position: "relative",
+            zIndex: 10
         }}>
-        <Button id="LEFT" onClick={swipeLeft} disabled={isSwiping}>{cross}</Button>
-        <Button id="RIGHT" onClick={swipeRight} disabled={isSwiping}>{heart}</Button>
+        <Button id="LEFT" onClick={swipeLeft} disabled={isLoading || isSwiping || cards.length === 0}>{cross}</Button>
+        <Button id="RIGHT" onClick={swipeRight} disabled={isLoading || isSwiping || cards.length === 0}>{heart}</Button>
         </div>
       </div>
     )
@@ -686,6 +948,13 @@ const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0",
 
     const opacity = useTransform(x, [-150, 0 , 150], [0, 1, 0])
     const rotate = useTransform(x, [-150, 150], [-18, 18])
+    
+    // Always call hooks - no conditional hooks!
+    // Create transformed opacity for back card (always created, but only used when isBack is true)
+    const backCardOpacity = useTransform(opacity, (val) => val * 0.5);
+    
+    // Select which opacity to use based on isBack
+    const cardOpacity = isBack ? backCardOpacity : opacity;
 
   const removeCard = () => {
     setCards && setCards(prev => prev.slice(1));
@@ -731,7 +1000,6 @@ const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0",
 
     return (
         <motion.div
-            // src={url}
             alt={id}
             className="rounded-lg"
             style={{
@@ -741,19 +1009,28 @@ const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0",
                 backgroundRepeat: 'no-repeat',
                 width: "80vw",
                 height: "60vh",
-                maxWidth: "300px",
+                maxWidth: "320px",
                 maxHeight: "520px",
                 objectFit: "cover",
-                borderRadius: "10px",
+                borderRadius: "24px",
                 gridRow: 1,
                 gridColumn: 1,
-                cursor: "grab",
-
+                cursor: !isBack ? "grab" : "default",
                 display: "flex",
                 alignItems: "flex-end",
+                boxShadow: isBack 
+                    ? "0 8px 16px rgba(74,31,12,0.1)" 
+                    : "0 25px 45px rgba(74,31,12,0.2)",
+                border: `2px solid ${isBack ? 'rgba(138,58,26,0.2)' : palette.border}`,
                 x,
-                opacity,
+                opacity: cardOpacity,
                 rotate,
+                scale: isBack ? 0.95 : 1, // Slightly smaller for back card
+                y: isBack ? 10 : 0, // Slightly lower for back card
+                position: "relative",
+                overflow: "hidden",
+                zIndex: isBack ? 1 : 2, // Front card on top
+                filter: isBack ? "blur(1px)" : "none" // Slight blur for back card
             }}
 
             drag={!isBack ? 'x' : false}
@@ -763,11 +1040,72 @@ const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0",
             }}
             onDragEnd={!isBack ? handleDragEnd : undefined}
         >
-            <div style={{paddingLeft: "10px",textShadow: "2px 2px black"}}>
-                <h4 style={{color:"white", margin: "0"}}>{locationPin} {location} Km away</h4>
-                <h1 style={{color: "white"}}>{name}</h1>
-                <div style={{height:"20px"}}></div>
+            {/* Gradient overlay for better text readability - stronger for front card */}
+            <div style={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: isBack ? "40%" : "60%", // Taller gradient for front card
+                background: isBack 
+                    ? "linear-gradient(to top, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 50%, transparent 100%)"
+                    : "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.3) 70%, transparent 100%)"
+            }} />
+            
+            {/* Additional dark overlay at bottom for better contrast */}
+            {!isBack && (
+                <div style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: "35%",
+                    background: "rgba(0,0,0,0.6)",
+                    zIndex: 0
+                }} />
+            )}
+            
+            <div style={{
+                padding: "20px",
+                paddingBottom: "28px",
+                position: "relative",
+                zIndex: 3, // Above all overlays
+                width: "100%"
+            }}>
+                <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    marginBottom: "10px"
+                }}>
+                    {locationPin}
+                    <h4 style={{
+                        color: "#fff",
+                        margin: 0,
+                        fontSize: "0.9rem",
+                        fontWeight: 600,
+                        textShadow: isBack 
+                            ? "0 2px 6px rgba(0,0,0,0.4)"
+                            : "0 2px 10px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.5)", // Stronger shadow for front
+                        letterSpacing: "0.03em"
+                    }}>
+                        {location} km away
+                    </h4>
                 </div>
+                <h1 style={{
+                    color: "#fff",
+                    margin: 0,
+                    fontSize: isBack ? "1.6rem" : "1.8rem",
+                    fontWeight: 700,
+                    textShadow: isBack
+                        ? "0 2px 8px rgba(0,0,0,0.5)"
+                        : "0 3px 15px rgba(0,0,0,0.9), 0 0 25px rgba(0,0,0,0.6)", // Very strong shadow for front
+                    lineHeight: "1.2",
+                    filter: isBack ? "blur(0.5px)" : "none" // Slight blur on back card text
+                }}>
+                    {name}
+                </h1>
+            </div>
         </motion.div>
     )
 });
@@ -775,46 +1113,3 @@ const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0",
 Card.displayName = 'Card';
 
 export default SwipeCards
-// change data later
-const cardData = [
-  {
-    id: 1,
-    url: "/restaurant/restaurant1.jpg", // use public as home
-    name: "R1",
-  },
-  {
-    id: 2,
-    url: "/restaurant/restaurant2.jpg",
-    name: "R2",
-  },
-  {
-    id: 3,
-    url: "/restaurant/restaurant3.jpg",
-    name: "R3",
-  },
-  {
-    id: 4,
-    url: "/restaurant/restaurant4.jpg",
-    name: "R4",
-  },
-  {
-    id: 5,
-    url: "/restaurant/restaurant5.jpg",
-    name: "R5",
-  },
-  {
-    id: 6,
-    url: "/restaurant/restaurant6.jpg",
-    name: "R6",
-  },
-  {
-    id: 7,
-    url: "/restaurant/restaurant7.jpg",
-    name: "R7",
-  },
-  {
-    id: 8,
-    url: "/restaurant/restaurant8.jpg",
-    name: "R8",
-  },
-];

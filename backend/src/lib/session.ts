@@ -3,15 +3,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes, createHash } from 'crypto';
 
 const COOKIE_NAME = 'session';
-const SESSION_TTL_DAYS = 7 as const;
+const SESSION_TTL_MINUTES = Number(process.env.SESSION_TTL_MINUTES ?? 120);
 
 type CreatedSession = { token: string; expiresAt: Date };
 
 function hashToken(t: string) {
   return createHash('sha256').update(t).digest('hex');
 }
-function addDays(d: Date, days: number) {
-  return new Date(d.getTime() + days * 24 * 60 * 60 * 1000);
+function addMinutes(d: Date, minutes: number) {
+  return new Date(d.getTime() + minutes * 60 * 1000);
 }
 
 /** Read IP from header (supports proxy/CDN) */
@@ -34,7 +34,7 @@ export async function createSession(
 ): Promise<CreatedSession> {
   const raw = randomBytes(32).toString('hex');
   const tokenHash = hashToken(raw);
-  const expiresAt = addDays(new Date(), SESSION_TTL_DAYS);
+  const expiresAt = addMinutes(new Date(), SESSION_TTL_MINUTES);
 
   await prisma.session.create({
     data: {
