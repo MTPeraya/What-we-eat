@@ -86,7 +86,15 @@ export async function POST(
 
     // Save decision history (for affected members — service may loop insert per user/room-level)
     await writeMealHistory(roomId, result.winner.restaurantId);
-    await closeRoom(roomId, { removeParticipants: true });
+
+    try {
+      await closeRoom(roomId, { removeParticipants: true });
+    } catch (closeError) {
+      console.warn(
+        "[decide/final] Failed to close room after decision",
+        closeError
+      );
+    }
 
     // Build map links
     const mapLinks = buildMapLinks({
