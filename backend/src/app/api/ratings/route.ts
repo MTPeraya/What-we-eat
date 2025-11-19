@@ -77,6 +77,9 @@ const BodySchema = z
   })
   .strict();
 
+type BodyInput = z.infer<typeof BodySchema>;
+type PhotoInput = NonNullable<BodyInput["photos"]>[number];
+
 // ---------- GET /api/ratings ----------
 export async function GET(req: NextRequest) {
   const origin = req.headers.get("origin");
@@ -109,14 +112,14 @@ export async function GET(req: NextRequest) {
             publicUrl: true,
             base64Data: true,  // Include base64 data
             mime: true,
-          } as any, // Type assertion needed because Prisma types may not be updated yet
+          } satisfies Prisma.RatingPhotoSelect,
         },
       },
       orderBy: { createdAt: "desc" },
       take: 100,
     });
 
-    const items = ratings.map((r: any) => ({
+    const items = ratings.map((r) => ({
       id: r.id,
       restaurant: r.restaurant?.name ?? "Unknown",
       author: 
@@ -126,7 +129,7 @@ export async function GET(req: NextRequest) {
       content: r.comment ?? "",
       status: r.status,
       // Return photos with base64Data if available, otherwise use publicUrl
-      photos: (r.photos ?? []).map((p: any) => ({
+      photos: (r.photos ?? []).map((p) => ({
         publicUrl: p.publicUrl,
         base64Data: p.base64Data, // Will be null for large files
         mime: p.mime,
@@ -174,8 +177,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { roomId, restaurantId, placeId, score, tags, comment, photos = [] } =
-      parsed.data;
+    const { roomId, restaurantId, placeId, score, tags, comment } = parsed.data;
+    const photos: PhotoInput[] = parsed.data.photos ?? [];
 
     let resolvedRestaurantId = restaurantId ?? null;
     if (!resolvedRestaurantId && placeId) {
@@ -207,20 +210,11 @@ export async function POST(req: NextRequest) {
 
       if (photos.length) {
         await tx.ratingPhoto.createMany({
-          data: photos.map((p) => {
-            const photoData: {
-              ratingId: string;
-              storageKey?: string | null;
-              publicUrl?: string | null;
-              base64Data?: string | null;
-              width?: number | null;
-              height?: number | null;
-              mime: string;
-              sizeBytes: number;
-            } = {
-            ratingId: created.id,
-            mime: p.mime,
-            sizeBytes: p.sizeBytes,
+          data: photos.map((p: PhotoInput): Prisma.RatingPhotoCreateManyInput => {
+            const photoData: Prisma.RatingPhotoCreateManyInput = {
+              ratingId: created.id,
+              mime: p.mime,
+              sizeBytes: p.sizeBytes,
             };
             
             // Only include fields that are provided
@@ -231,7 +225,7 @@ export async function POST(req: NextRequest) {
             if (p.height !== undefined) photoData.height = p.height;
             
             return photoData;
-          }) as any, // Type assertion needed because Prisma types may not be updated yet
+          }),
         });
       }
 

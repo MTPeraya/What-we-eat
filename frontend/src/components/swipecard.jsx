@@ -191,7 +191,7 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
     const normalizedCenter = useMemo(() => {
         if (!center) return null;
         return { lat: Number(center.lat), lng: Number(center.lng) };
-    }, [centerKey]);
+    }, [center]);
     const navigate = useNavigate();
     const [cards, setCards] = useState([]);
     const [isSwiping, setIsSwiping] = useState(false);
@@ -1113,46 +1113,3 @@ const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0",
 Card.displayName = 'Card';
 
 export default SwipeCards
-// change data later
-const cardData = [
-  {
-    id: 1,
-    url: "/restaurant/restaurant1.jpg", // use public as home
-    name: "R1",
-  },
-  {
-    id: 2,
-    url: "/restaurant/restaurant2.jpg",
-    name: "R2",
-  },
-  {
-    id: 3,
-    url: "/restaurant/restaurant3.jpg",
-    name: "R3",
-  },
-  {
-    id: 4,
-    url: "/restaurant/restaurant4.jpg",
-    name: "R4",
-  },
-  {
-    id: 5,
-    url: "/restaurant/restaurant5.jpg",
-    name: "R5",
-  },
-  {
-    id: 6,
-    url: "/restaurant/restaurant6.jpg",
-    name: "R6",
-  },
-  {
-    id: 7,
-    url: "/restaurant/restaurant7.jpg",
-    name: "R7",
-  },
-  {
-    id: 8,
-    url: "/restaurant/restaurant8.jpg",
-    name: "R8",
-  },
-];

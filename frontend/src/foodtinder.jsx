@@ -51,7 +51,7 @@ function FoodTinder() {
         console.error("Error checking host status:", error);
       }
     })();
-  }, [roomId]);
+  }, [roomId, API_BASE]);
 
   // Note: Removed auto-navigate to results page when room starts
   // Host will manually navigate after all members finish voting
