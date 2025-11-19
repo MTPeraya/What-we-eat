@@ -6,6 +6,7 @@ import { requireAuth } from "@/lib/session";
 import { buildMapLinks } from "@/services/mapLink";
 import { emitToRoom } from "@/services/realtime";
 import { withCORS, preflight } from "@/lib/cors";
+import { closeRoom } from "@/services/roomLifecycle";
 
 // ================== CORS ==================
 export async function OPTIONS(req: NextRequest) {
@@ -22,6 +23,7 @@ const FinalBodySchema = z
         lng: z.number().min(-180).max(180),
       })
       .optional(),
+    tiedRestaurantIds: z.array(z.string()).optional(),
   })
   .strict();
 
@@ -69,7 +71,12 @@ export async function POST(
     }
 
     // Calculate winner (tie-break in service: votes → rating → distance(center) → no-repeat)
-    const result = await finalDecide(roomId, parsed.data.center);
+    // If tiedRestaurantIds provided, winner must be one of those restaurants (for draw scenarios)
+    const result = await finalDecide(
+      roomId,
+      parsed.data.center,
+      parsed.data.tiedRestaurantIds
+    );
     if (!result?.winner) {
       return withCORS(
         NextResponse.json({ error: "NO_WINNER" }, { status: 400 }),
@@ -79,6 +86,7 @@ export async function POST(
 
     // Save decision history (for affected members — service may loop insert per user/room-level)
     await writeMealHistory(roomId, result.winner.restaurantId);
+    await closeRoom(roomId, { removeParticipants: true });
 
     // Build map links
     const mapLinks = buildMapLinks({

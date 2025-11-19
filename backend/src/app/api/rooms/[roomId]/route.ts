@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { withCORS, preflight } from "@/lib/cors";
+import { cleanupStaleRooms } from "@/services/roomLifecycle";
 
 export async function OPTIONS(req: NextRequest) {
   const origin = req.headers.get('origin');
@@ -15,6 +16,11 @@ export async function GET(
   
   try {
     const { roomId } = await ctx.params; // Next.js v15: params is a Promise
+    
+    // Run cleanup in background (don't await) to avoid blocking the request
+    cleanupStaleRooms().catch((err) => {
+      console.error("[rooms GET] Cleanup error (non-blocking):", err);
+    });
 
     const room = await prisma.room.findUnique({
       where: { id: roomId },
@@ -51,9 +57,12 @@ export async function GET(
       origin
     );
   } catch (e) {
+    const errorMsg = (e as Error)?.message ?? String(e);
+    const errorStack = (e as Error)?.stack;
+    console.error("[rooms GET] Error:", { roomId: "unknown", error: errorMsg, stack: errorStack });
     return withCORS(
       NextResponse.json(
-        { error: "ROOM_FETCH_FAILED", details: String(e) },
+        { error: "ROOM_FETCH_FAILED", details: errorMsg },
         { status: 500 }
       ),
       origin

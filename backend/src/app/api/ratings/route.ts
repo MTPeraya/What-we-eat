@@ -218,9 +218,9 @@ export async function POST(req: NextRequest) {
               mime: string;
               sizeBytes: number;
             } = {
-              ratingId: created.id,
-              mime: p.mime,
-              sizeBytes: p.sizeBytes,
+            ratingId: created.id,
+            mime: p.mime,
+            sizeBytes: p.sizeBytes,
             };
             
             // Only include fields that are provided

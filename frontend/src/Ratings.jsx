@@ -413,9 +413,13 @@ function ReviewAdding({
               continue;
             }
 
+            // Get upload response which may include base64Data for small files
+            const uploadData = await uploadRes.json();
+            
             uploadedPhotos.push({
               storageKey: key,
               publicUrl: publicUrl || null,
+              base64Data: uploadData.base64Data || null, // Include base64Data if available (for files < 500KB)
               mime: file.type,
               sizeBytes: file.size,
             });
@@ -743,8 +747,9 @@ function RatingPage() {
       const reviews = data.items || [];
 
       const transformedReviews = reviews.map((review) => {
+        // Use base64Data if available (for small files), otherwise use publicUrl
         const photoUrls = (review.photos || [])
-          .map((photo) => photo.publicUrl)
+          .map((photo) => photo.base64Data || photo.publicUrl)
           .filter(Boolean);
 
         return {

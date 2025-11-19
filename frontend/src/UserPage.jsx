@@ -29,44 +29,58 @@ async function fetchUserHistory(limit = 20, cursor = null) {
 }
 
 
+// Theme colors matching Ratings page
+const THEME_COLORS = {
+    background: "#FCEEE3",
+    card: "#FFF7EF",
+    border: "#C47B4E",
+    accent: "#BB3D25",
+    textPrimary: "#4A1F0C",
+    textSecondary: "#7A4B31",
+    accentDark: "#8A3A1A"
+};
+
 const customStyles = `
   .custom-placeholder::placeholder {
-    color: rgba(255, 255, 255, 0.6) !important;
+    color: ${THEME_COLORS.textSecondary} !important;
     font-style: italic;
     font-weight: 300;
     font-size: 16px;
     text-align: left !important;
+    opacity: 0.7;
   }
   .custom-placeholder:focus::placeholder {
-    color: rgba(255, 255, 255, 0.4) !important;
+    color: ${THEME_COLORS.textSecondary} !important;
     font-size: 16px;
     text-align: left !important;
+    opacity: 0.5;
   }
   .custom-placeholder:focus {
     outline: none;
-    border-color: rgba(255, 255, 255, 0.8) !important;
+    border-color: ${THEME_COLORS.border} !important;
     font-size: 16px;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 0 2px rgba(196, 123, 78, 0.2);
   }
   .custom-placeholder {
-  font-size: 16px;
+    font-size: 16px;
     text-align: left !important;
+    background-color: ${THEME_COLORS.card} !important;
+    color: ${THEME_COLORS.textPrimary} !important;
+    border-color: ${THEME_COLORS.border} !important;
   }
 `;
 
-const pen = (size="50px") => {
+const pen = (size="50px", color = THEME_COLORS.textPrimary) => {
     return (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <path d="M15.4998 5.50067L18.3282 8.3291M13 21H21M3 21.0004L3.04745 20.6683C3.21536 19.4929 3.29932 18.9052 3.49029 18.3565C3.65975 17.8697 3.89124 17.4067 4.17906 16.979C4.50341 16.497 4.92319 16.0772 5.76274 15.2377L17.4107 3.58969C18.1918 2.80865 19.4581 2.80864 20.2392 3.58969C21.0202 4.37074 21.0202 5.63707 20.2392 6.41812L8.37744 18.2798C7.61579 19.0415 7.23497 19.4223 6.8012 19.7252C6.41618 19.994 6.00093 20.2167 5.56398 20.3887C5.07171 20.5824 4.54375 20.6889 3.48793 20.902L3 21.0004Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M15.4998 5.50067L18.3282 8.3291M13 21H21M3 21.0004L3.04745 20.6683C3.21536 19.4929 3.29932 18.9052 3.49029 18.3565C3.65975 17.8697 3.89124 17.4067 4.17906 16.979C4.50341 16.497 4.92319 16.0772 5.76274 15.2377L17.4107 3.58969C18.1918 2.80865 19.4581 2.80864 20.2392 3.58969C21.0202 4.37074 21.0202 5.63707 20.2392 6.41812L8.37744 18.2798C7.61579 19.0415 7.23497 19.4223 6.8012 19.7252C6.41618 19.994 6.00093 20.2167 5.56398 20.3887C5.07171 20.5824 4.54375 20.6889 3.48793 20.902L3 21.0004Z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>)
 }
 
-const gradient = {
-    height: "auto",
-    width: "100vw",
-    background: 'linear-gradient(45deg, rgba(196, 112, 90, 1) 24%, rgba(225, 152, 132, 1) 75%)',
+const pageWrapper = {
+    background: THEME_COLORS.background,
     minHeight: "100vh",
-    color: "white",
-    paddingBottom: "110px",
+    padding: "4rem 0 5rem",
+    width: "100vw",
     boxSizing: "border-box"
 };
 
@@ -76,45 +90,61 @@ const ProfileHeader = ({ onBackClick }) => {
             <button 
                 type="button" 
                 onClick={onBackClick} 
-                className="btn btn-outline-light d-flex align-items-center gap-2"
+                className="btn d-flex align-items-center gap-2"
                 style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    border: '2px solid white',
-                    borderRadius: '25px',
-                    padding: '8px 16px',
-                    transition: 'all 0.3s ease'
+                    backgroundColor: 'transparent',
+                    border: `2px solid ${THEME_COLORS.border}`,
+                    borderRadius: '999px',
+                    padding: '0.65rem 1.4rem',
+                    color: THEME_COLORS.textPrimary,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+                    e.currentTarget.style.backgroundColor = THEME_COLORS.card;
                     e.currentTarget.style.transform = 'scale(1.05)';
                 }}
                 onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                    e.currentTarget.style.backgroundColor = 'transparent';
                     e.currentTarget.style.transform = 'scale(1)';
                 }}
             >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={THEME_COLORS.textPrimary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M19 12H5M12 19l-7-7 7-7"/>
                 </svg>
-                <span style={{color: 'white', fontWeight: 'bold'}}>Back</span>
+                <span style={{color: THEME_COLORS.textPrimary, fontWeight: 600}}>Back</span>
             </button>
         </div>
     )
 }
 
 function WhiteBorder({ children }){
-    return (<div className="border border-2 rounded-3 w-75 mb-3">
-        {children}
-    </div>)
+    return (
+        <div 
+            className="w-75 mb-3"
+            style={{
+                background: THEME_COLORS.card,
+                borderRadius: "26px",
+                border: `2px solid ${THEME_COLORS.border}`,
+                boxShadow: "0 25px 55px rgba(68,29,8,.12)",
+                padding: "2rem"
+            }}
+        >
+            {children}
+        </div>
+    )
 }
 
 function ChangeProfile({ placeholder = "Enter value...", value = "", name = "", onChange = () => {}, pattern=".+", noSpaces = false, max="30" }){
     const inputStyle = {
-        backgroundColor: 'transparent !important',
-        color: 'white !important',
-        borderColor: 'rgba(255, 255, 255, 0.3) !important',
+        backgroundColor: THEME_COLORS.card,
+        color: THEME_COLORS.textPrimary,
+        borderColor: THEME_COLORS.border,
         textAlign: 'left',
-        width: '500px' // Set custom width
+        width: '500px',
+        borderRadius: '14px',
+        padding: '0.75rem 1rem'
     };
 
     // Prevent non-alphanumeric characters if noSpaces is true
@@ -158,9 +188,33 @@ const JustButton = ({
 }) => {
     return (
         <button 
-            className={`btn btn-outline-light w-75 text-start fs-4 px-3 mb-2`} 
+            className="btn w-75 text-start fs-4 mb-2" 
             onClick={onClick}
             disabled={disabled}
+            style={{
+                background: THEME_COLORS.card,
+                border: `2px solid ${THEME_COLORS.border}`,
+                borderRadius: "18px",
+                color: THEME_COLORS.textPrimary,
+                fontWeight: 600,
+                boxShadow: "0 12px 25px rgba(68,29,8,.08)",
+                transition: "all 0.2s ease",
+                padding: "1rem 1.5rem"
+            }}
+            onMouseEnter={(e) => {
+                if (!disabled) {
+                    e.currentTarget.style.backgroundColor = THEME_COLORS.background;
+                    e.currentTarget.style.transform = 'translateX(4px)';
+                    e.currentTarget.style.boxShadow = "0 15px 30px rgba(68,29,8,.15)";
+                }
+            }}
+            onMouseLeave={(e) => {
+                if (!disabled) {
+                    e.currentTarget.style.backgroundColor = THEME_COLORS.card;
+                    e.currentTarget.style.transform = 'translateX(0)';
+                    e.currentTarget.style.boxShadow = "0 12px 25px rgba(68,29,8,.08)";
+                }
+            }}
         >
             &ensp;{name}
         </button>
@@ -439,11 +493,19 @@ function UserProfile({
                     height: '200px', 
                     objectFit: 'cover',
                     cursor: 'pointer',
-                    transition: 'filter 0.2s ease'
+                    transition: 'all 0.2s ease',
+                    border: `3px solid ${THEME_COLORS.border}`,
+                    boxShadow: "0 12px 25px rgba(68,29,8,.15)"
                 }}
                 onClick={onProfilePicClick}
-                onMouseEnter={(e) => e.target.style.filter = 'brightness(0.8)'}
-                onMouseLeave={(e) => e.target.style.filter = 'brightness(1)'}
+                onMouseEnter={(e) => {
+                    e.target.style.filter = 'brightness(0.9)';
+                    e.target.style.transform = 'scale(1.05)';
+                }}
+                onMouseLeave={(e) => {
+                    e.target.style.filter = 'brightness(1)';
+                    e.target.style.transform = 'scale(1)';
+                }}
             />
             <div 
                 className="position-absolute top-50 start-50 translate-middle text-center"
@@ -451,10 +513,14 @@ function UserProfile({
                     opacity: 0,
                     transition: 'opacity 0.2s ease',
                     pointerEvents: 'none',
-                    color: 'white',
+                    color: THEME_COLORS.textPrimary,
                     fontSize: '14px',
                     fontWeight: 'bold',
-                    textShadow: '2px 2px 4px rgba(0,0,0,0.8)'
+                    backgroundColor: THEME_COLORS.card,
+                    padding: '8px 12px',
+                    borderRadius: '12px',
+                    border: `2px solid ${THEME_COLORS.border}`,
+                    boxShadow: "0 8px 16px rgba(68,29,8,.2)"
                 }}
                 onMouseEnter={(e) => e.target.style.opacity = 1}
             >
@@ -464,22 +530,34 @@ function UserProfile({
         <div>
             <div className="d-flex flex-column">
                 <div className="d-flex align-items-center">
-                    <h1>{displayName}</h1>
+                    <h1 style={{color: THEME_COLORS.textPrimary, margin: 0}}>{displayName}</h1>
                     {!isEditing && (
                         <button 
-                            className="btn btn-link text-light p-1 ms-2" 
+                            className="btn btn-link p-1 ms-2" 
                             onClick={HandleEditClick}
-                            style={{border: 'none'}}
+                            style={{
+                                border: 'none',
+                                background: 'transparent',
+                                padding: '4px 8px',
+                                borderRadius: '8px',
+                                transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = THEME_COLORS.background;
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
                         >
-                            {pen("25px")}
+                            {pen("25px", THEME_COLORS.textPrimary)}
                         </button>
                     )}
                 </div>
-                <p>@{username}</p>
+                <p style={{color: THEME_COLORS.textSecondary, margin: '0.5rem 0'}}>@{username}</p>
             </div>
 
             {isEditing && (
-                <div>
+                <div style={{marginTop: '1rem'}}>
                     <ChangeProfile 
                         placeholder="display name" 
                         value={tempDisplayName}
@@ -495,16 +573,49 @@ function UserProfile({
                         noSpaces={true}
                         max="20"
                     />
-                    <div className="d-flex gap-2 mt-2">
+                    <div className="d-flex gap-2 mt-3">
                         <button 
-                            className="btn btn-success btn-sm" 
+                            className="btn btn-sm" 
                             onClick={HandleSaveClick}
+                            style={{
+                                background: THEME_COLORS.accent,
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '14px',
+                                padding: '0.5rem 1.5rem',
+                                fontWeight: 600,
+                                boxShadow: "0 8px 16px rgba(187,61,37,.25)",
+                                transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'scale(1.05)';
+                                e.currentTarget.style.boxShadow = "0 12px 20px rgba(187,61,37,.35)";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'scale(1)';
+                                e.currentTarget.style.boxShadow = "0 8px 16px rgba(187,61,37,.25)";
+                            }}
                         >
                             Save
                         </button>
                         <button 
-                            className="btn btn-secondary btn-sm" 
+                            className="btn btn-sm" 
                             onClick={HandleCancelClick}
+                            style={{
+                                background: THEME_COLORS.card,
+                                color: THEME_COLORS.textPrimary,
+                                border: `2px solid ${THEME_COLORS.border}`,
+                                borderRadius: '14px',
+                                padding: '0.5rem 1.5rem',
+                                fontWeight: 600,
+                                transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = THEME_COLORS.background;
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = THEME_COLORS.card;
+                            }}
                         >
                             Cancel
                         </button>
@@ -522,32 +633,107 @@ const HistoryBlock = (
     reviewUrl="",
     isMobile = false
     ) => {
+    const linkStyle = {
+        color: THEME_COLORS.accent,
+        textDecoration: "none",
+        fontWeight: 600,
+        transition: "all 0.2s ease"
+    };
+    
     return(
-        <div className={`d-flex justify-content-between border border-2 rounded-3 justify-content-between  py-1 m-2 w-100 ${isMobile? "ps-1": "px-5"}`} style={{backgroundColor: "rgba(255, 255, 255, 0.2)"}}>
+        <div 
+            className={`d-flex justify-content-between py-2 m-2 w-100 ${isMobile? "ps-2": "px-4"}`} 
+            style={{
+                background: THEME_COLORS.card,
+                border: `2px solid ${THEME_COLORS.border}`,
+                borderRadius: "18px",
+                boxShadow: "0 8px 16px rgba(68,29,8,.08)",
+                transition: "all 0.2s ease"
+            }}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = "0 12px 24px rgba(68,29,8,.12)";
+                e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = "0 8px 16px rgba(68,29,8,.08)";
+                e.currentTarget.style.transform = 'translateY(0)';
+            }}
+        >
             {isMobile? 
             <>
                 <div className="d-flex flex-column w-100">
-                   <a href={locationUrl} style={{color: "white", textDecoration: "underline"}}><h3 className="my-0">{restaurant}</h3></a>
-                    <div className="d-flex justify-content-between px-1">
-                        <a href={reviewUrl} style={{color: "white", textDecoration: "underline"}}>reviews</a>
-                        <p className="my-0">{date}</p>
+                   <a 
+                       href={locationUrl} 
+                       style={linkStyle}
+                       onMouseEnter={(e) => {
+                           e.target.style.color = THEME_COLORS.accentDark;
+                           e.target.style.textDecoration = "underline";
+                       }}
+                       onMouseLeave={(e) => {
+                           e.target.style.color = THEME_COLORS.accent;
+                           e.target.style.textDecoration = "none";
+                       }}
+                   >
+                       <h3 className="my-0" style={{color: THEME_COLORS.textPrimary}}>{restaurant}</h3>
+                   </a>
+                    <div className="d-flex justify-content-between px-1 mt-1">
+                        <a 
+                            href={reviewUrl} 
+                            style={linkStyle}
+                            onMouseEnter={(e) => {
+                                e.target.style.color = THEME_COLORS.accentDark;
+                                e.target.style.textDecoration = "underline";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.target.style.color = THEME_COLORS.accent;
+                                e.target.style.textDecoration = "none";
+                            }}
+                        >
+                            reviews
+                        </a>
+                        <p className="my-0" style={{color: THEME_COLORS.textSecondary}}>{date}</p>
                     </div>
                    
                 </div>
             </> 
             :<>
             <div className="d-flex flex-column">
-                {/* {isMobile? <></>: <>dflkjshihkafhf</>} */}
-                <h3 className="my-0">{restaurant}</h3>
-                <p className="my-0">
-                    <a href={locationUrl} style={{color: "white", textDecoration: "underline"}}>location</a>
+                <h3 className="my-0" style={{color: THEME_COLORS.textPrimary}}>{restaurant}</h3>
+                <p className="my-0 mt-1">
+                    <a 
+                        href={locationUrl} 
+                        style={linkStyle}
+                        onMouseEnter={(e) => {
+                            e.target.style.color = THEME_COLORS.accentDark;
+                            e.target.style.textDecoration = "underline";
+                        }}
+                        onMouseLeave={(e) => {
+                            e.target.style.color = THEME_COLORS.accent;
+                            e.target.style.textDecoration = "none";
+                        }}
+                    >
+                        location
+                    </a>
                 </p>
             </div>
             <div className="d-flex flex-column">
                 <h3 className="my-0">
-                    <a href={reviewUrl} style={{color: "white", textDecoration: "underline"}}>reviews</a>
+                    <a 
+                        href={reviewUrl} 
+                        style={linkStyle}
+                        onMouseEnter={(e) => {
+                            e.target.style.color = THEME_COLORS.accentDark;
+                            e.target.style.textDecoration = "underline";
+                        }}
+                        onMouseLeave={(e) => {
+                            e.target.style.color = THEME_COLORS.accent;
+                            e.target.style.textDecoration = "none";
+                        }}
+                    >
+                        reviews
+                    </a>
                 </h3>
-                <p className="my-0">{date}</p>
+                <p className="my-0 mt-1" style={{color: THEME_COLORS.textSecondary}}>{date}</p>
             </div>
             </>}
 
@@ -562,56 +748,76 @@ function History({
     isLoadingHistory = false,
     isMobile = false
 }){
-    return (<div className="d-flex flex-column align-items-center">
-        <div className="d-flex justify-content-between align-items-center px-3 pt-2" style={{width:"100%"}}>
-            <h2>History</h2>
-            <div className="form-check form-switch" title="no-repeat">
-                <input 
-                    className="form-check-input" 
-                    type="checkbox" 
-                    role="switch" 
-                    id="flexSwitchCheckDefault"
-                    checked={NoRepeat}
-                    onChange={(e) => handleNoRepeatToggle(e.target.checked)}
-                    title="the restaurant you ate recently will not be offered"
-                />
-                <label 
-                    className="form-check-label" 
-                    htmlFor="flexSwitchCheckDefault"
-                    title="no-repeat"
-                >
-                    no-repeat
-                </label>
+    return (
+        <div className="d-flex flex-column align-items-center" style={{width: "100%"}}>
+            <div className="d-flex justify-content-between align-items-center px-3 pt-2 mb-3" style={{width:"100%"}}>
+                <h2 style={{color: THEME_COLORS.textPrimary, margin: 0}}>History</h2>
+                <div className="form-check form-switch d-flex align-items-center gap-2" title="no-repeat">
+                    <label 
+                        className="form-check-label" 
+                        htmlFor="flexSwitchCheckDefault"
+                        title="no-repeat"
+                        style={{color: THEME_COLORS.textSecondary, fontWeight: 500, margin: 0}}
+                    >
+                        no-repeat
+                    </label>
+                    <input 
+                        className="form-check-input" 
+                        type="checkbox" 
+                        role="switch" 
+                        id="flexSwitchCheckDefault"
+                        checked={NoRepeat}
+                        onChange={(e) => handleNoRepeatToggle(e.target.checked)}
+                        title="the restaurant you ate recently will not be offered"
+                        style={{
+                            width: "3rem",
+                            height: "1.5rem",
+                            cursor: "pointer",
+                            backgroundColor: NoRepeat ? THEME_COLORS.accent : THEME_COLORS.border,
+                            borderColor: THEME_COLORS.border
+                        }}
+                    />
+                </div>
+            </div>
+            <div 
+                className="w-100"
+                style={{
+                    background: THEME_COLORS.card,
+                    borderRadius: "26px",
+                    border: `2px solid ${THEME_COLORS.border}`,
+                    boxShadow: "0 25px 55px rgba(68,29,8,.12)",
+                    padding: "2rem"
+                }}
+            >
+                <div className="d-flex flex-column" style={{width:"100%"}}>
+                    {isLoadingHistory ? (
+                        <div className="text-center p-4">
+                            <div className="spinner-border" role="status" style={{color: THEME_COLORS.accent}}>
+                                <span className="visually-hidden">Loading history...</span>
+                            </div>
+                            <p className="mt-2" style={{color: THEME_COLORS.textSecondary}}>Loading your history...</p>
+                        </div>
+                    ) : userHistory.length > 0 ? (
+                        userHistory.map((item, index) => (
+                            <div key={index}>
+                                {HistoryBlock(
+                                    item.restaurant,
+                                    item.locationUrl,
+                                    item.date,
+                                    item.reviewUrl,
+                                    isMobile
+                                )}
+                            </div>
+                        ))
+                    ) : (
+                        <div className="text-center p-4">
+                            <p style={{color: THEME_COLORS.textSecondary}}>No history found. Start exploring restaurants to build your history!</p>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
-                <WhiteBorder>
-        <div className="d-flex flex-column" style={{width:"98%"}}>
-            {isLoadingHistory ? (
-                <div className="text-center p-4">
-                    <div className="spinner-border text-light" role="status">
-                        <span className="visually-hidden">Loading history...</span>
-                    </div>
-                    <p className="mt-2">Loading your history...</p>
-                </div>
-            ) : userHistory.length > 0 ? (
-                userHistory.map((item, index) => (
-                    <div key={index}>
-                        {HistoryBlock(
-                            item.restaurant,
-                            item.locationUrl,
-                            item.date,
-                            item.reviewUrl,
-                            isMobile
-                        )}
-                    </div>
-                ))
-            ) : (
-                <div className="text-center p-4">
-                    <p>No history found. Start exploring restaurants to build your history!</p>
-                </div>
-            )}
-        </div></WhiteBorder>
-    </div>)
+    )
 }
 
 
@@ -866,9 +1072,14 @@ function UserPage(){
                 throw new Error('Failed to upload image');
             }
 
-            console.log('[UserPage] Image uploaded:', key);
+            const uploadData = await uploadRes.json();
+            // For small files (< 500KB), base64Data is returned for direct database storage
+            // For larger files, only URL is returned
+            const profilePictureValue = uploadData.base64Data || publicUrl;
 
-            // Step 3: Update user profile with new image URL
+            console.log('[UserPage] Image uploaded:', key, uploadData.base64Data ? '(with base64)' : '(URL only)');
+
+            // Step 3: Update user profile with base64Data (if available) or URL
             const updateRes = await fetch(`${config.endpoints.auth}/profile`, {
                 method: 'PUT',
                 credentials: 'include',
@@ -876,7 +1087,7 @@ function UserPage(){
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    profilePicture: publicUrl
+                    profilePicture: profilePictureValue
                 })
             });
 
@@ -886,8 +1097,8 @@ function UserPage(){
 
             console.log('[UserPage] Profile picture updated successfully');
             
-            // Update local state
-            setProfilePic(publicUrl);
+            // Update local state (use base64Data if available, otherwise use URL)
+            setProfilePic(profilePictureValue);
             setShowCropper(false);
             setSelectedImageFile(null);
             
@@ -935,44 +1146,64 @@ function UserPage(){
     return(
         <>
             <style>{customStyles}</style>
-            <section className="position-relative p-3 d-flex flex-column align-items-center" style={gradient}>
-                <ProfileHeader onBackClick={handleBackClick} />
-                {isLoadingUser ? (
-                    <WhiteBorder>
-                        <div className="text-center p-5">
-                            <div className="spinner-border text-light" role="status">
-                                <span className="visually-hidden">Loading profile...</span>
+            <section className="position-relative d-flex flex-column align-items-center" style={pageWrapper}>
+                <div style={{maxWidth: "1200px", width: "100%", padding: "0 1.5rem"}}>
+                    <ProfileHeader onBackClick={handleBackClick} />
+                    {isLoadingUser ? (
+                        <div 
+                            className="w-100"
+                            style={{
+                                background: THEME_COLORS.card,
+                                borderRadius: "26px",
+                                border: `2px solid ${THEME_COLORS.border}`,
+                                boxShadow: "0 25px 55px rgba(68,29,8,.12)",
+                                padding: "3rem"
+                            }}
+                        >
+                            <div className="text-center p-5">
+                                <div className="spinner-border" role="status" style={{color: THEME_COLORS.accent}}>
+                                    <span className="visually-hidden">Loading profile...</span>
+                                </div>
+                                <p className="mt-3" style={{color: THEME_COLORS.textSecondary}}>Loading your profile...</p>
                             </div>
-                            <p className="mt-3">Loading your profile...</p>
                         </div>
-                    </WhiteBorder>
-                ) : (
-                    <>
-                        <WhiteBorder>
-                            <UserProfile
-                                profilePic={profilePic}
-                                displayName={displayName}
-                                username={username}
-                                isEditing={isEditing}
-                                HandleEditClick={HandleEditClick}
-                                tempDisplayName={tempDisplayName}
-                                tempUsername={tempUsername}
-                                handleInputChange={handleInputChange}
-                                HandleSaveClick={HandleSaveClick}
-                                HandleCancelClick={HandleCancelClick}
-                                onProfilePicClick={handleProfilePicClick}
-                                IsMobile={isMobile}
-                            />
-                        </WhiteBorder>
-                        <JustButton name="Account Management" onClick={HandleEditClick}/>
-                        <JustButton name="Manage Post"/>
-                        <JustButton 
-                            name={isLoggingOut ? "Logging out..." : "Logout"} 
-                            onClick={handleLogout}
-                            disabled={isLoggingOut}
-                        />
+                    ) : (
+                        <>
+                            <div 
+                                className="w-100 mb-4"
+                                style={{
+                                    background: THEME_COLORS.card,
+                                    borderRadius: "26px",
+                                    border: `2px solid ${THEME_COLORS.border}`,
+                                    boxShadow: "0 25px 55px rgba(68,29,8,.12)",
+                                    padding: "2rem"
+                                }}
+                            >
+                                <UserProfile
+                                    profilePic={profilePic}
+                                    displayName={displayName}
+                                    username={username}
+                                    isEditing={isEditing}
+                                    HandleEditClick={HandleEditClick}
+                                    tempDisplayName={tempDisplayName}
+                                    tempUsername={tempUsername}
+                                    handleInputChange={handleInputChange}
+                                    HandleSaveClick={HandleSaveClick}
+                                    HandleCancelClick={HandleCancelClick}
+                                    onProfilePicClick={handleProfilePicClick}
+                                    IsMobile={isMobile}
+                                />
+                            </div>
+                            <div className="d-flex flex-column align-items-center mb-4" style={{width: "100%"}}>
+                                <JustButton name="Account Management" onClick={HandleEditClick}/>
+                                <JustButton name="Manage Post"/>
+                                <JustButton 
+                                    name={isLoggingOut ? "Logging out..." : "Logout"} 
+                                    onClick={handleLogout}
+                                    disabled={isLoggingOut}
+                                />
+                            </div>
 
-                        <WhiteBorder>
                             <History 
                                 userHistory={(function getDisplayHistory() {
                                     // Apply no-repeat first
@@ -997,27 +1228,45 @@ function UserPage(){
                                 isLoadingHistory={isLoadingHistory}
                                 isMobile = {isMobile}
                             />
-                        </WhiteBorder>
-                        {!showAllHistory && (function hasMore() {
-                            const base = (function filterNoRepeat(list){
-                                if (!NoRepeat) return list;
-                                const s = new Set(); const out = [];
-                                for (const i of list) { const k = i.restaurantId ?? `name:${i.restaurant}`; if (s.has(k)) continue; s.add(k); out.push(i); }
-                                return out;
-                            })(userHistory);
-                            return base.length > 5;
-                        })() && (
-                            <div className="text-center mb-3">
-                                <button 
-                                    className="btn btn-outline-light"
-                                    onClick={handleLoadMoreHistory}
-                                >
-                                    Show all
-                                </button>
-                            </div>
-                        )}
-                    </>
-                )}
+                            {!showAllHistory && (function hasMore() {
+                                const base = (function filterNoRepeat(list){
+                                    if (!NoRepeat) return list;
+                                    const s = new Set(); const out = [];
+                                    for (const i of list) { const k = i.restaurantId ?? `name:${i.restaurant}`; if (s.has(k)) continue; s.add(k); out.push(i); }
+                                    return out;
+                                })(userHistory);
+                                return base.length > 5;
+                            })() && (
+                                <div className="text-center mb-3 mt-3">
+                                    <button 
+                                        className="btn"
+                                        onClick={handleLoadMoreHistory}
+                                        style={{
+                                            background: THEME_COLORS.accent,
+                                            color: '#fff',
+                                            border: 'none',
+                                            borderRadius: '999px',
+                                            padding: '0.65rem 1.4rem',
+                                            fontWeight: 600,
+                                            boxShadow: "0 12px 25px rgba(187,61,37,.25)",
+                                            transition: 'all 0.2s ease'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.transform = 'scale(1.05)';
+                                            e.currentTarget.style.boxShadow = "0 15px 30px rgba(187,61,37,.35)";
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.transform = 'scale(1)';
+                                            e.currentTarget.style.boxShadow = "0 12px 25px rgba(187,61,37,.25)";
+                                        }}
+                                    >
+                                        Show all
+                                    </button>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
             </section>
 
             {/* Profile Picture Cropper Modal */}

@@ -94,8 +94,15 @@ class RestaurantsController {
 
       const data = (await res.json()) as GooglePlacesResponse;
 
-      // filter by budget if specified
+      // filter by budget and exclude hotels
       const filtered: GooglePlaceResult[] = (data.results ?? []).filter((r) => {
+        // Exclude hotels - check if name contains hotel-related keywords
+        const nameLower = r.name.toLowerCase();
+        const hotelKeywords = ['hotel', 'resort', 'lodge', 'inn', 'hostel', 'motel'];
+        if (hotelKeywords.some(keyword => nameLower.includes(keyword))) {
+          return false;
+        }
+        // Filter by budget if specified
         if (qp.budgetMax != null && (r.price_level ?? 999) > qp.budgetMax) return false;
         return true;
       });

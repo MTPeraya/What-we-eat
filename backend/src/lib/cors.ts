@@ -34,8 +34,17 @@ export function withCORS(res: NextResponse, requestOrigin?: string | null) {
   let origin: string;
   if (requestOrigin && isAllowedOrigin(requestOrigin)) {
     origin = requestOrigin;
+  } else if (requestOrigin) {
+    // Origin provided but not in allowed list - log for debugging
+    console.warn("[CORS] Origin not allowed:", requestOrigin, "Allowed:", ALLOWED_ORIGINS);
+    // In development, allow it anyway to prevent CORS issues
+    if (process.env.NODE_ENV === 'development') {
+      origin = requestOrigin;
+    } else {
+      origin = ALLOWED_ORIGINS[0] || "*";
+    }
   } else {
-    // Fallback to first allowed origin (usually localhost for dev)
+    // No origin provided (e.g., same-origin request) - use wildcard or first allowed
     origin = ALLOWED_ORIGINS[0] || "*";
   }
   

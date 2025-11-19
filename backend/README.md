@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Backend Setup
 
-## Getting Started
+1. Copy `.env.example` to `.env` (or set variables in your hosting platform).
+2. Provide the following at minimum:
 
-First, run the development server:
+   | Variable | Description |
+   | --- | --- |
+   | `DATABASE_URL` | Prisma connection string |
+   | `EXTERNAL_PLACES_API_KEY` | Google Places (Nearby Search) API key |
+   | `RECO_RADIUS_METERS` *(optional)* | Override default 5000m radius for nearby searches |
+   | `FALLBACK_TO_SEEDED` *(optional)* | Set to `true` to fall back to cached DB rows when Google fails |
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+3. Install dependencies and run migrations:
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+   ```bash
+   pnpm install
+   pnpm prisma migrate deploy
+   ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+4. Start the dev server:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   ```bash
+   pnpm dev
+   ```
 
-## Learn More
+## How restaurant data works
 
-To learn more about Next.js, take a look at the following resources:
+- `POST /api/restaurants` and `GET /api/restaurants` map directly to Google Places Nearby Search.
+- Room candidate generation (`POST /api/rooms/:id/candidates`) now calls Google directly through the provider (`providers/localProvider.ts`). The provider upserts results into Prisma so votes/decisions still reference local IDs.
+- The legacy seed script (`scripts/seedLocalRestaurants.ts`) can still be used for demos/tests, but production traffic requires a valid `EXTERNAL_PLACES_API_KEY`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Troubleshooting
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- *Missing EXTERNAL_PLACES_API_KEY*: API routes return HTTP 500 and the provider throws `CENTER_REQUIRED` or `Missing EXTERNAL_PLACES_API_KEY`. Add the key to `.env` and restart.
+- *Google quota exhausted*: provider logs will show the Google status; we recommend setting `FALLBACK_TO_SEEDED=true` temporarily while fixing quota issues.
+- *Slow candidate fetch*: ensure the client sends `center.lat` and `center.lng` in `/api/rooms/:id/candidates` requests so the provider can query the correct coordinates and avoid unnecessary fallbacks.

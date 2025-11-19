@@ -29,11 +29,21 @@ const apiRequest = async (url, options = {}) => {
     });
     
     if (!response.ok) {
-      console.log(response.status);
-      throw new Error(`API Error: ${response.status}`);
+      // Try to get error message from response
+      let errorMessage = `API Error: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch {
+        // If response is not JSON, use status code
+      }
+      const error = new Error(errorMessage);
+      error.status = response.status;
+      throw error;
     }
     const data = await response.json();
-    console.log(data);
     return data;
   } catch (error) {
     console.error('API Request failed:', error);
@@ -54,8 +64,11 @@ const submitVote = async (roomId, restaurantId, value) => {
 };
 
 // Finalize decision (host only)
-const finalizeRoomDecision = async (roomId, center) => {
-  const body = center?.lat != null && center?.lng != null ? { center } : {};
+const finalizeRoomDecision = async (roomId, center, tiedRestaurantIds) => {
+  const body = { 
+    ...(center?.lat != null && center?.lng != null ? { center } : {}),
+    ...(tiedRestaurantIds && tiedRestaurantIds.length > 0 ? { tiedRestaurantIds } : {})
+  };
   return await apiRequest(`/rooms/${roomId}/decide/final`, {
     method: 'POST',
     body: JSON.stringify(body),
@@ -319,7 +332,9 @@ function DrawPage(){
 
     const finalizeAndNavigate = async () => {
         try {
-            const finalResponse = await finalizeRoomDecision(roomId, userCenter);
+            // Get tied restaurant IDs to restrict winner selection
+            const tiedIds = tiedRestaurants?.map(r => r.restaurantId).filter(Boolean);
+            const finalResponse = await finalizeRoomDecision(roomId, userCenter, tiedIds);
             const scoreData = await checkRoomResults(roomId);
             
             navigate('/result', {

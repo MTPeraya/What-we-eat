@@ -4,6 +4,7 @@ import Header from './header.jsx'
 import Footer from './components/smallfooter.jsx'
 import RatingModal from './components/RatingModal.jsx'
 import { useLocation } from 'react-router-dom';
+import { config } from './config';
 
 function useQueryParams() {
   const location = useLocation();
@@ -20,7 +21,7 @@ function FoodTinder() {
   const [currentRestaurant, setCurrentRestaurant] = useState(null);
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
 
-  const API_BASE = "http://localhost:4001/api";
+  const API_BASE = `${config.apiUrl}/api`;
 
   // Memoize userCenter to prevent unnecessary re-renders
   const userCenter = useMemo(() => {
