@@ -28,9 +28,17 @@ export async function POST(req: NextRequest) {
     }
     
     const key = newKey(mime);
-    const uploadUrl = `${req.nextUrl.origin}/api/uploads/${encodeURIComponent(key)}`;
+    
+    // Determine the backend URL to use for uploadUrl
+    // Use the Host header to get the actual backend hostname/IP that was used to access the server
+    // This ensures that when accessed from a network IP, the upload URL uses the same IP
+    const host = req.headers.get('host') || req.nextUrl.host;
+    const protocol = req.nextUrl.protocol || 'http:';
+    const backendOrigin = `${protocol}//${host}`;
+    
+    const uploadUrl = `${backendOrigin}/api/uploads/${encodeURIComponent(key)}`;
     // Prefer env if provided; otherwise serve through this same backend
-    const publicBase = process.env.PUBLIC_FILES_BASE || `${req.nextUrl.origin}/api/files`;
+    const publicBase = process.env.PUBLIC_FILES_BASE || `${backendOrigin}/api/files`;
     const publicUrl = `${publicBase}/${encodeURIComponent(key)}`;
 
     return withCORS(

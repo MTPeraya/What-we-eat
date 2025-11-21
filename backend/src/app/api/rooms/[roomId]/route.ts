@@ -32,9 +32,28 @@ export async function GET(
 
     const participants = await prisma.roomParticipant.findMany({
       where: { roomId },
-      select: { id: true, userId: true, displayName: true, role: true },
+      select: { 
+        id: true, 
+        userId: true, 
+        displayName: true, 
+        role: true,
+        user: {
+          select: {
+            profilePicture: true,
+          },
+        },
+      },
       orderBy: { joinedAt: "asc" },
     });
+
+    // Map participants to include profilePicture
+    const participantsWithProfile = participants.map(p => ({
+      id: p.id,
+      userId: p.userId,
+      displayName: p.displayName,
+      role: p.role,
+      profilePicture: p.user?.profilePicture || null,
+    }));
 
     // Check if room has started (status changed from OPEN to STARTED)
     const viewingResults = room.status === "STARTED";
@@ -48,7 +67,7 @@ export async function GET(
           center: room.centerLat && room.centerLng 
             ? { lat: room.centerLat, lng: room.centerLng }
             : null,
-          participants,
+          participants: participantsWithProfile,
           updatedAt: room.updatedAt.toISOString(),
           viewingResults,
         },
@@ -69,5 +88,3 @@ export async function GET(
     );
   }
 }
-
-

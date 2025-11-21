@@ -109,6 +109,26 @@ function DrawPage(){
     const [hasVoted, setHasVoted] = useState(false);
     const [totalParticipants, setTotalParticipants] = useState(0);
     const [numVoted, setNumVoted] = useState(0);
+    const [roomCenter, setRoomCenter] = useState(null); // Store room's center
+
+    // Fetch room info to get room center
+    useEffect(() => {
+        if (!roomId) return;
+        
+        const loadRoomInfo = async () => {
+            try {
+                const roomInfo = await fetchRoomInfo(roomId);
+                if (roomInfo.center?.lat && roomInfo.center?.lng) {
+                    setRoomCenter(roomInfo.center);
+                    console.log('[DrawPage] Room center:', roomInfo.center);
+                }
+            } catch (error) {
+                console.error('[DrawPage] Failed to load room info:', error);
+            }
+        };
+        
+        loadRoomInfo();
+    }, [roomId]);
 
     // Load candidates from location state
     useEffect(() => {
@@ -119,16 +139,45 @@ function DrawPage(){
             return;
         }
 
+        // Use room center if available, otherwise fallback to userCenter
+        const center = roomCenter || userCenter;
+        console.log('[DrawPage] Using center for distance calculation:', center);
+        console.log('[DrawPage] Tied restaurants:', tiedRestaurants);
+
         // Set candidates from tied restaurants
         const r1 = tiedRestaurants[0];
         const r2 = tiedRestaurants[1];
         
+        // Calculate distance for candidate 1
+        let km1 = '0.0';
+        if (r1.location?.lat != null && r1.location?.lng != null && center?.lat != null && center?.lng != null) {
+            const distance = calculateDistance(center, r1.location);
+            km1 = distance.toFixed(1);
+            console.log('[DrawPage] Candidate 1 distance:', distance, 'km');
+        } else {
+            console.warn('[DrawPage] Missing location data for candidate 1:', {
+                restaurantLocation: r1.location,
+                center: center
+            });
+        }
+        
+        // Calculate distance for candidate 2
+        let km2 = '0.0';
+        if (r2.location?.lat != null && r2.location?.lng != null && center?.lat != null && center?.lng != null) {
+            const distance = calculateDistance(center, r2.location);
+            km2 = distance.toFixed(1);
+            console.log('[DrawPage] Candidate 2 distance:', distance, 'km');
+        } else {
+            console.warn('[DrawPage] Missing location data for candidate 2:', {
+                restaurantLocation: r2.location,
+                center: center
+            });
+        }
+        
         setCandidate1({
             id: r1.restaurantId,
             name: r1.name || 'Restaurant 1',
-            km: r1.location?.lat && r1.location?.lng && userCenter?.lat && userCenter?.lng
-                ? calculateDistance(userCenter, r1.location).toFixed(1)
-                : '0.0',
+            km: km1,
             img: getRestaurantImageUrl(r1.restaurantId, 0),
             address: r1.address,
             rating: r1.rating,
@@ -138,9 +187,7 @@ function DrawPage(){
         setCandidate2({
             id: r2.restaurantId,
             name: r2.name || 'Restaurant 2',
-            km: r2.location?.lat && r2.location?.lng && userCenter?.lat && userCenter?.lng
-                ? calculateDistance(userCenter, r2.location).toFixed(1)
-                : '0.0',
+            km: km2,
             img: getRestaurantImageUrl(r2.restaurantId, 1),
             address: r2.address,
             rating: r2.rating,
@@ -148,7 +195,7 @@ function DrawPage(){
         });
 
         setIsLoading(false);
-    }, [tiedRestaurants, userCenter, navigate, roomId]);
+    }, [tiedRestaurants, roomCenter, userCenter, navigate, roomId]);
 
     // Calculate distance between two points
     const calculateDistance = (from, to) => {

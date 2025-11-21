@@ -13,10 +13,50 @@ const ALLOWED_ORIGINS = [
 ].filter(Boolean) as string[];
 
 /**
+ * Check if an origin is a local network IP (for development)
+ */
+function isLocalNetworkOrigin(origin: string | null | undefined): boolean {
+  if (!origin) return false;
+  try {
+    const url = new URL(origin);
+    const hostname = url.hostname;
+    
+    // Check for localhost variants
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+      return true;
+    }
+    
+    // Check for private IP ranges:
+    // 192.168.x.x
+    // 10.x.x.x
+    // 172.16.x.x - 172.31.x.x
+    // 169.254.x.x (link-local)
+    const parts = hostname.split('.').map(Number);
+    if (parts.length === 4 && parts.every(p => !isNaN(p))) {
+      const [a, b] = parts;
+      if (a === 192 && b === 168) return true; // 192.168.x.x
+      if (a === 10) return true; // 10.x.x.x
+      if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.x.x - 172.31.x.x
+      if (a === 169 && b === 254) return true; // 169.254.x.x (link-local)
+    }
+    
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Check if an origin is allowed
  */
 function isAllowedOrigin(origin: string | null | undefined): boolean {
   if (!origin) return false;
+  
+  // In development, allow local network IPs
+  if (process.env.NODE_ENV === 'development' && isLocalNetworkOrigin(origin)) {
+    return true;
+  }
+  
   return ALLOWED_ORIGINS.some(allowed => {
     // Exact match
     if (allowed === origin) return true;
@@ -53,7 +93,7 @@ export function withCORS(res: NextResponse, requestOrigin?: string | null) {
   res.headers.set("Access-Control-Allow-Credentials", "true");
   // NOTE: Methods will be overridden per-file to match handler
   if (!res.headers.get("Access-Control-Allow-Methods")) {
-    res.headers.set("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
+    res.headers.set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
   }
   res.headers.set(
     "Access-Control-Allow-Headers",

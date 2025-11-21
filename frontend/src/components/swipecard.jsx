@@ -183,15 +183,6 @@ const palette = {
 };
 
 const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
-    const center = useMemo(() => {
-        if (userCenter?.lat == null || userCenter?.lng == null) return undefined;
-        return { lat: userCenter.lat, lng: userCenter.lng };
-    }, [userCenter?.lat, userCenter?.lng]);
-    const centerKey = center ? `${center.lat}:${center.lng}` : 'none';
-    const normalizedCenter = useMemo(() => {
-        if (!center) return null;
-        return { lat: Number(center.lat), lng: Number(center.lng) };
-    }, [center]);
     const navigate = useNavigate();
     const [cards, setCards] = useState([]);
     const [isSwiping, setIsSwiping] = useState(false);
@@ -204,6 +195,7 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
     const [canFinalize, setCanFinalize] = useState(false);
     const [isFinalizing, setIsFinalizing] = useState(false);
     const [totalParticipants, setTotalParticipants] = useState(0);
+    const [roomCenter, setRoomCenter] = useState(null); // Store room's center (same for all users)
     const [finalizeRequirements, setFinalizeRequirements] = useState({
         restaurantsNeeded: MAX_RESTAURANTS_PER_SESSION,
         votesNeeded: MAX_RESTAURANTS_PER_SESSION,
@@ -216,6 +208,22 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
     const loadedKeyRef = useRef(null); // Track what roomId+centerKey combination we've loaded
     const loadInitialCardsRef = useRef(null); // Ref to latest loadInitialCards function
     const isLoadingCardsRef = useRef(false); // Prevent concurrent loading
+    
+    // Use room center if available, otherwise fallback to userCenter (for starting room)
+    const center = useMemo(() => {
+        if (roomCenter?.lat != null && roomCenter?.lng != null) {
+            return { lat: roomCenter.lat, lng: roomCenter.lng };
+        }
+        if (userCenter?.lat != null && userCenter?.lng != null) {
+            return { lat: userCenter.lat, lng: userCenter.lng };
+        }
+        return undefined;
+    }, [roomCenter?.lat, roomCenter?.lng, userCenter?.lat, userCenter?.lng]);
+    const centerKey = center ? `${center.lat}:${center.lng}` : 'none';
+    const normalizedCenter = useMemo(() => {
+        if (!center) return null;
+        return { lat: Number(center.lat), lng: Number(center.lng) };
+    }, [center]);
     
     // Notify parent about current card changes (only when card actually changes)
     useEffect(() => {
@@ -257,18 +265,31 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
             loadedKeyRef.current = currentKey;
             setIsLoading(true);
             
-            // First, check room status
+            // First, check room status and get room center
             console.log('[SwipeCards] Checking room status for room:', roomId);
             const roomInfo = await fetchRoomInfo(roomId);
             console.log('[SwipeCards] Room status:', roomInfo.status);
             
+            // Store room center (same for all users in the room)
+            if (roomInfo.center?.lat && roomInfo.center?.lng) {
+                setRoomCenter(roomInfo.center);
+                console.log('[SwipeCards] Using room center:', roomInfo.center);
+            }
+            
             // If room is not STARTED, try to start it (if host) or wait
             if (roomInfo.status !== 'STARTED') {
-                if (isHost && center) {
-                    console.log('[SwipeCards] Room not started, host will start it now');
+                // Use userCenter for starting room (host's location)
+                const startCenter = userCenter?.lat && userCenter?.lng 
+                    ? { lat: userCenter.lat, lng: userCenter.lng }
+                    : null;
+                
+                if (isHost && startCenter) {
+                    console.log('[SwipeCards] Room not started, host will start it now with center:', startCenter);
                     try {
-                        await startRoom(roomId, center);
+                        await startRoom(roomId, startCenter);
                         console.log('[SwipeCards] Room started successfully');
+                        // Update room center after starting
+                        setRoomCenter(startCenter);
                         // Wait a bit for the status to update
                         await new Promise(resolve => setTimeout(resolve, 500));
                     } catch (startError) {
@@ -291,8 +312,10 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
                 }
             }
             
-            console.log('[SwipeCards] Fetching candidates for room:', roomId, { center: normalizedCenter });
-            const response = await fetchRoomCandidates(roomId, normalizedCenter);
+            // Don't pass center - backend will use room's center from database
+            // This ensures all users in the same room get the same restaurants
+            console.log('[SwipeCards] Fetching candidates for room:', roomId, '(using room center from DB)');
+            const response = await fetchRoomCandidates(roomId, null);
             console.log("[SwipeCards] fetchRoomCandidates Pass - received", response.items?.length, "items");
 
             if (response.items && response.items.length > 0) {
@@ -367,7 +390,7 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
         loadInitialCardsRef.current = loadInitialCards;
     }, [loadInitialCards]);
 
-    // Fetch room info to get participant count
+    // Fetch room info to get participant count and room center
     useEffect(() => {
         if (!roomId) return;
         
@@ -376,6 +399,11 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
                 const roomInfo = await fetchRoomInfo(roomId);
                 const participants = Array.isArray(roomInfo?.participants) ? roomInfo.participants : [];
                 setTotalParticipants(participants.length);
+                
+                // Update room center if available (ensures consistency)
+                if (roomInfo.center?.lat && roomInfo.center?.lng) {
+                    setRoomCenter(roomInfo.center);
+                }
             } catch (error) {
                 console.error('[SwipeCards] Failed to load room info:', error);
             }
@@ -485,6 +513,33 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
             
         } catch (error) {
             console.error('Failed to submit vote:', error);
+        }
+    };
+
+    // Handle favorite toggle
+    const handleFavorite = async (restaurantId) => {
+        try {
+            // Check if already favorited
+            const checkRes = await apiRequest(`/favorites/${restaurantId}`, { method: 'GET' });
+            
+            if (checkRes.isFavorited) {
+                // Remove from favorites
+                await apiRequest('/favorites', {
+                    method: 'DELETE',
+                    body: JSON.stringify({ restaurantId }),
+                });
+                console.log(`Removed restaurant ${restaurantId} from favorites`);
+            } else {
+                // Add to favorites
+                await apiRequest('/favorites', {
+                    method: 'POST',
+                    body: JSON.stringify({ restaurantId }),
+                });
+                console.log(`Added restaurant ${restaurantId} to favorites`);
+            }
+        } catch (error) {
+            console.error('Failed to toggle favorite:', error);
+            // Silently fail - don't show error to user
         }
     };
 
@@ -851,6 +906,7 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
                   name={cards[0].name}
                   location={formatDistance(cards[0].distance)}
                   onVote={handleVote}
+                  onFavorite={handleFavorite}
                 />
               )}
                {cards.length === 0 && allCardsCompleted && (
@@ -943,7 +999,7 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
 }
 
 
-const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0", onVote}, ref) => {
+const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0", onVote, onFavorite}, ref) => {
     const x = useMotionValue(0);
 
     const opacity = useTransform(x, [-150, 0 , 150], [0, 1, 0])
@@ -1063,6 +1119,46 @@ const Card = React.forwardRef(({id, url, setCards, isBack, name, location="0.0",
                     background: "rgba(0,0,0,0.6)",
                     zIndex: 0
                 }} />
+            )}
+            
+            {/* Favorite button - top right */}
+            {!isBack && onFavorite && (
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onFavorite(id);
+                    }}
+                    style={{
+                        position: "absolute",
+                        top: "16px",
+                        right: "16px",
+                        zIndex: 10,
+                        background: "rgba(255, 255, 255, 0.9)",
+                        border: "none",
+                        borderRadius: "50%",
+                        width: "44px",
+                        height: "44px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+                        transition: "all 0.2s ease"
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "rgba(255, 255, 255, 1)";
+                        e.currentTarget.style.transform = "scale(1.1)";
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "rgba(255, 255, 255, 0.9)";
+                        e.currentTarget.style.transform = "scale(1)";
+                    }}
+                    aria-label="Add to favorites"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 20 20" fill="none">
+                        <path d="m10 3.22l-.61-.6a5.5 5.5 0 0 0-7.78 7.77L10 18.78l8.39-8.4a5.5 5.5 0 0 0-7.78-7.77l-.61.61z" fill="#BB3D25" stroke="#BB3D25" strokeWidth="0.5"/>
+                    </svg>
+                </button>
             )}
             
             <div style={{
