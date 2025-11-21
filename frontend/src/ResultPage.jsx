@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Header from './header.jsx'
 import Footer from './components/smallfooter.jsx'
@@ -261,17 +261,55 @@ function Result() {
   const [restaurantRating, setRestaurantRating] = useState(null);
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
   const [restaurantRatingCount, setRestaurantRatingCount] = useState(0);
+  
+  // Track if we've already set a winner to prevent duplicate processing
+  const hasSetWinnerRef = useRef(false);
+  const processedStateRef = useRef(null);
 
   useEffect(() => {
+    // Reset refs when pathname changes (new navigation to result page)
+    const currentPath = location.pathname;
+    if (processedStateRef.current?.pathname !== currentPath) {
+      hasSetWinnerRef.current = false;
+      processedStateRef.current = { pathname: currentPath, stateKey: null };
+    }
+    
+    let isMounted = true; // Guard to prevent state updates after unmount
+    
     const loadResults = async () => {
       try {
         console.log('ResultPage: location.state =', location.state);
         
+        // Skip if winner already set (prevent any duplicate processing)
+        if (hasSetWinnerRef.current) {
+          console.log('Winner already set, skipping loadResults');
+          return;
+        }
+        
+        // Skip if no state data
+        if (!location.state) {
+          console.warn('No location.state, skipping loadResults');
+          setIsLoading(false);
+          return;
+        }
+        
         let resultsData = null;
         let userCenter = null;
 
-        // Check if we should fetch results from API
-        if (location.state?.shouldFetchResults && location.state?.roomId) {
+        // Check if this is a Mystery Pick result
+        if (location.state?.isMysteryPick && location.state?.winner) {
+          // Mystery Pick: use winner directly from state
+          resultsData = {
+            winner: location.state.winner,
+            scores: location.state.scores || [],
+            stats: location.state.stats || { totalVotes: 0, acceptCount: 0, approvalRate: 0 },
+            decidedAt: location.state.generatedAt,
+            isMysteryPick: true,
+          };
+          userCenter = location.state?.userCenter;
+          console.log('Using Mystery Pick result from state:', resultsData);
+        } else if (location.state?.shouldFetchResults && location.state?.roomId) {
+          // Check if we should fetch results from API
           const { roomId } = location.state;
           userCenter = location.state?.userCenter;
           
@@ -298,6 +336,12 @@ function Result() {
           console.warn('No roomId or results in location.state');
         }
 
+        // Check if component is still mounted and winner not already set
+        if (!isMounted || hasSetWinnerRef.current) {
+          console.log('Skipping - component unmounted or winner already set');
+          return;
+        }
+
         let resolvedWinner = null;
         if (resultsData?.winner) {
           resolvedWinner = normalizeWinnerPayload(resultsData.winner, userCenter);
@@ -309,22 +353,40 @@ function Result() {
         }
 
         if (resolvedWinner) {
-          console.log('Setting winner to:', resolvedWinner);
-          setWinner(resolvedWinner);
+          // Final check: only set if not already set and component still mounted
+          if (!hasSetWinnerRef.current && isMounted) {
+            console.log('Setting winner to:', resolvedWinner);
+            hasSetWinnerRef.current = true; // Mark as processed immediately BEFORE setState
+            processedStateRef.current = {
+              pathname: location.pathname,
+              stateKey: JSON.stringify(location.state),
+            };
+            setWinner(resolvedWinner);
+          } else {
+            console.log('Skipping setWinner - already set or component unmounted');
+          }
         } else if (resultsData?.scores) {
           console.warn('No winner resolved even though scores exist');
+          hasSetWinnerRef.current = true; // Mark as processed even if no winner
         } else {
           console.warn('No scores found or empty scores array');
+          hasSetWinnerRef.current = true; // Mark as processed
         }
       } catch (error) {
         console.error('Failed to load results:', error);
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     loadResults();
-  }, [location.state]);
+
+    return () => {
+      isMounted = false; // Cleanup: mark as unmounted
+    };
+  }, [location.state, location.pathname]);
 
   // Fetch restaurant rating when winner is set
   useEffect(() => {
@@ -462,7 +524,36 @@ function Result() {
     );
   }
 
-  const matchLabel = winner.approval !== null && winner.approval !== undefined
+  const isMysteryPick = location.state?.isMysteryPick || false;
+  const matchLabel = isMysteryPick
+    ? (
+        <>
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="18" 
+            height="18" 
+            viewBox="0 0 24 24" 
+            fill="none"
+            style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '4px' }}
+          >
+            {/* Crystal ball base */}
+            <ellipse cx="12" cy="18" rx="8" ry="3" fill="rgba(255,255,255,0.15)" stroke="white" strokeWidth="1.5"/>
+            {/* Main crystal ball */}
+            <circle cx="12" cy="12" r="9" fill="rgba(255,255,255,0.1)" stroke="white" strokeWidth="2"/>
+            {/* Inner glow */}
+            <circle cx="12" cy="12" r="6" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1"/>
+            {/* Sparkle effects */}
+            <circle cx="9" cy="9" r="1.5" fill="white" opacity="0.8"/>
+            <circle cx="15" cy="8" r="1" fill="white" opacity="0.6"/>
+            <circle cx="10" cy="14" r="1" fill="white" opacity="0.7"/>
+            <circle cx="14" cy="15" r="1.2" fill="white" opacity="0.8"/>
+            {/* Highlight */}
+            <ellipse cx="10" cy="10" rx="2" ry="3" fill="rgba(255,255,255,0.3)"/>
+          </svg>
+          Mystery Pick
+        </>
+      )
+    : winner.approval !== null && winner.approval !== undefined
     ? `${(winner.approval * 100).toFixed(0)}% Match`
     : 'Chef Pick';
 
@@ -487,8 +578,11 @@ function Result() {
                   alt={winner.name}
                   style={{width: '100%', height: '100%', objectFit: 'cover'}}
                 />
-                <div style={styles.heroBadge}>
-                  <span role="img" aria-label="sparkle">✨</span>
+                <div style={{
+                  ...styles.heroBadge,
+                  background: isMysteryPick ? 'linear-gradient(135deg, #9B59B6, #6A1B9A)' : styles.heroBadge.background
+                }}>
+                  {!isMysteryPick && <span role="img" aria-label="sparkle">✨</span>}
                   {matchLabel}
                 </div>
               </div>

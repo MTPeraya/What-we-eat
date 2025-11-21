@@ -62,6 +62,7 @@ model Restaurant {
   assets               ImageAsset[]
   votes                Vote[]
   ratings              Rating[]              // 👈 back-relations (ratings)
+  favorites            Favorite[]            // 👈 ผู้ใช้ที่ชอบร้านนี้
 
   // back-relations
   mealHistories        MealHistory[]
@@ -86,6 +87,7 @@ model User {
   assets            ImageAsset[]
   sessions          Session[]
   ratings           Rating[]          // 👈 ratings ที่ผู้ใช้สร้าง
+  favorites         Favorite[]        // 👈 ร้านที่ผู้ใช้ชอบ
 
   // back-relations
   mealHistories     MealHistory[]
@@ -306,4 +308,20 @@ model RatingPhoto {
   rating     Rating   @relation(fields: [ratingId], references: [id])
 
   @@index([ratingId])
+}
+
+// ===================== Favorites =========================
+model Favorite {
+  id            String      @id @default(cuid())
+  userId        String
+  restaurantId  String
+  createdAt     DateTime    @default(now())
+
+  user          User        @relation(fields: [userId], references: [id])
+  restaurant    Restaurant  @relation(fields: [restaurantId], references: [id])
+
+  @@unique([userId, restaurantId])
+  @@index([userId])
+  @@index([restaurantId])
+  @@index([userId, createdAt])
 }

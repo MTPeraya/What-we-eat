@@ -102,6 +102,7 @@ function CreateRoom() {
           id: m.id ?? m.userId ?? m.uid,
           userId: m.userId ?? m.id ?? m.uid,
           displayName: m.displayName ?? m.name ?? "Anonymous",
+          profilePicture: m.profilePicture || null,
         }));
         setParticipants(normalized);
         if (data.hostId) setHostId(data.hostId);
@@ -148,7 +149,29 @@ function CreateRoom() {
 
   useEffect(() => {
     if (!roomCode) return;
-    const url = `${window.location.origin}/enter-code?code=${roomCode}`;
+    
+    // ใช้ IP address แทน localhost สำหรับ QR code
+    // เพื่อให้เครื่องอื่น scan QR code แล้วเข้าถึงได้
+    const getFrontendUrl = () => {
+      const hostname = window.location.hostname;
+      const port = window.location.port || '5173';
+      
+      // ถ้าเป็น localhost → ใช้ IP address ที่เข้าถึงได้จาก network
+      // ในกรณี multi-device testing, ถ้าเข้าถึงผ่าน network IP แล้ว
+      // window.location.hostname จะเป็น IP address อยู่แล้ว
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        // ถ้ายังเป็น localhost → แสดงว่ายังเข้าถึงผ่าน localhost
+        // ในกรณีนี้ QR code อาจไม่ทำงานกับเครื่องอื่น
+        // แต่ถ้าเข้าถึงผ่าน network IP แล้ว → hostname จะเป็น IP อยู่แล้ว
+        console.warn('[QR Code] Using localhost - QR code may not work from other devices. Access via network IP instead.');
+        return window.location.origin;
+      }
+      
+      // ถ้าเป็น network IP → ใช้ IP นั้น
+      return `http://${hostname}:${port}`;
+    };
+    
+    const url = `${getFrontendUrl()}/enter-code?code=${roomCode}`;
     QRCode.toDataURL(url, { width: 280, margin: 2 })
       .then(setQrcode)
       .catch(console.error);
@@ -207,97 +230,337 @@ function CreateRoom() {
     }
   };
 
+  // Theme colors matching Ratings page
+  const palette = {
+    background: "#FCEEE3",
+    card: "#FFF7EF",
+    border: "#C47B4E",
+    accent: "#BB3D25",
+    textPrimary: "#4A1F0C",
+    textSecondary: "#7A4B31",
+  };
+
   return (
     <>
       <Header />
-      <div className="room-container">
-        <div className="left">
+      <div style={{
+        background: palette.background,
+        minHeight: "100vh",
+        paddingTop: "1vh",
+        paddingBottom: "5rem",
+      }}>
+        <div className="room-container" style={{
+          background: "transparent",
+        }}>
+          <div className="left">
+            <div
+              style={{
+                background: palette.card,
+                borderRadius: "26px",
+                border: `2px solid ${palette.border}`,
+                padding: "1.5rem",
+                boxShadow: "0 25px 55px rgba(68,29,8,.12)",
+                marginBottom: "1.5rem",
+                textAlign: "center",
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 700,
+                  fontSize: "22px",
+                  color: palette.textPrimary,
+                  marginBottom: "8px",
+                }}
+              >
+                {yourUsername && <span>You are: {yourUsername}</span>}
+              </div>
+            </div>
+            
+            <div style={{
+              background: palette.card,
+              border: `3px solid ${palette.border}`,
+              borderRadius: "20px",
+              padding: "12px",
+              boxShadow: "0 20px 45px rgba(68,29,8,.1)",
+            }}>
+              {qrcode ? (
+                <img src={qrcode} alt="QR" width={280} height={280} style={{ borderRadius: "12px" }} />
+              ) : (
+                <div
+                  style={{
+                    width: 280,
+                    height: 280,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: palette.textSecondary,
+                  }}
+                >
+                  Generating QR...
+                </div>
+              )}
+            </div>
+            
+            <div className="room-code" style={{
+              background: palette.accent,
+              color: "#fff",
+              borderRadius: "16px",
+              padding: "16px",
+              fontSize: "24px",
+              fontWeight: 700,
+              boxShadow: "0 12px 25px rgba(187,61,37,.25)",
+            }}>
+              {roomCode}
+            </div>
+            
+            <div
+              className="location-box"
+              onClick={() => isHost && setIsLocationModalOpen(true)}
+              style={{
+                cursor: isHost ? "pointer" : "not-allowed",
+                opacity: isHost ? 1 : 0.7,
+                background: palette.card,
+                border: `2px solid ${palette.border}`,
+                borderRadius: "20px",
+                padding: "16px",
+                boxShadow: "0 8px 16px rgba(68,29,8,.08)",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (isHost) {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 12px 24px rgba(68,29,8,.12)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 8px 16px rgba(68,29,8,.08)";
+              }}
+            >
+              <div style={{
+                color: palette.textPrimary,
+                fontWeight: 600,
+                fontSize: "18px",
+                marginBottom: "8px",
+              }}>
+                📍 Location
+              </div>
+              <div style={{
+                color: palette.textSecondary,
+                fontSize: "14px",
+              }}>
+                {selectedCenter
+                  ? `${selectedCenter.lat.toFixed(5)}, ${selectedCenter.lng.toFixed(5)}`
+                  : "(tap to choose)"}
+              </div>
+            </div>
+          </div>
+          <div className="right">
           <div
             style={{
               fontWeight: "bold",
-              fontSize: 22,
-              color: "#673D1C",
-              marginBottom: 8,
+              fontSize: "24px",
+              color: "#4A1F0C",
+              marginBottom: "24px",
               textAlign: "center",
             }}
           >
-            {yourUsername && <span>You are: {yourUsername}</span>}
+            Participants ({participants.length})
           </div>
-          <div style={{ border: "3px solid #603A2B", borderRadius: "5px" }}>
-            {qrcode ? (
-              <img src={qrcode} alt="QR" width={280} height={280} />
-            ) : (
-              <div
-                style={{
-                  width: 280,
-                  height: 280,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                Generating QR...
+          <div className="scroll" style={{
+            background: "#FCEEE3",
+            borderRadius: "26px",
+            border: "2px solid #C47B4E",
+            padding: "1.5rem",
+            boxShadow: "0 20px 45px rgba(68,29,8,.1)",
+          }}>
+            {participants.length === 0 ? (
+              <div style={{
+                textAlign: "center",
+                color: "#7A4B31",
+                padding: "2rem",
+              }}>
+                No participants yet
               </div>
+            ) : (
+              participants.map((p) => {
+                const isHost = p.userId === hostId;
+                const isCurrentUser = p.userId === meUserId;
+                // Use username if it's current user, otherwise use displayName
+                const displayNameToShow = isCurrentUser && yourUsername ? yourUsername : p.displayName;
+                const profilePic = p.profilePicture || "/placeholderProfile.png";
+                
+                return (
+                  <div
+                    key={p.id}
+                    style={{
+                      background: "#FFF7EF",
+                      border: "2px solid #C47B4E",
+                      borderRadius: "20px",
+                      padding: "16px 20px",
+                      marginBottom: "16px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "16px",
+                      boxShadow: "0 8px 16px rgba(68,29,8,.08)",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                      e.currentTarget.style.boxShadow = "0 12px 24px rgba(68,29,8,.12)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "0 8px 16px rgba(68,29,8,.08)";
+                    }}
+                  >
+                    {/* Profile Picture */}
+                    <img
+                      src={profilePic}
+                      alt={displayNameToShow}
+                      style={{
+                        width: "56px",
+                        height: "56px",
+                        borderRadius: "50%",
+                        objectFit: "cover",
+                        border: `3px solid ${isHost ? "#BB3D25" : "#C47B4E"}`,
+                        flexShrink: 0,
+                        boxShadow: "0 4px 8px rgba(68,29,8,.15)",
+                      }}
+                    />
+                    
+                    {/* Name */}
+                    <div
+                      style={{
+                        flex: 1,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          color: "#4A1F0C",
+                          fontWeight: 700,
+                          fontSize: "20px",
+                          textDecoration: "underline",
+                          textUnderlineOffset: "4px",
+                          textDecorationThickness: "2px",
+                        }}
+                      >
+                        {displayNameToShow}
+                      </span>
+                      
+                      {/* Crown Icon for Host */}
+                      {isHost && (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="#BB3D25"
+                          style={{ flexShrink: 0 }}
+                        >
+                          <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/>
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
-          <div className="room-code">{roomCode}</div>
-          <div
-            className="location-box"
-            onClick={() => isHost && setIsLocationModalOpen(true)}
-            style={{
-              cursor: isHost ? "pointer" : "not-allowed",
-              opacity: isHost ? 1 : 0.7,
-            }}
-          >
-            <div>
-              📍 Location
-            </div>
-            <div>
-              {selectedCenter
-                ? `${selectedCenter.lat.toFixed(5)}, ${selectedCenter.lng.toFixed(5)}`
-                : "(tap to choose)"}
-            </div>
-          </div>
-        </div>
-        <div className="right">
-          {/* Member Count */}
-          {JSON.stringify(participants.length)}
-          <div className="scroll">
-            {participants.map((p) => (
-              <div key={p.id} className="member-box">
-                {p.displayName}
-                {p.userId === hostId ? " (host)" : ""}
-              </div>
-            ))}
-          </div>
-          <div className="room-btn">
+          <div className="room-btn" style={{
+            display: "flex",
+            gap: "16px",
+            justifyContent: "center",
+            marginTop: "24px",
+          }}>
             {isHost ? (
               <>
                 <button
-                  className="green small-btn shadow"
-                  style={{ width: "200px" }}
                   onClick={handleStart}
                   disabled={!selectedCenter}
+                  style={{
+                    background: palette.accent,
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "14px",
+                    padding: "0.85rem 2rem",
+                    fontWeight: 600,
+                    fontSize: "18px",
+                    cursor: selectedCenter ? "pointer" : "not-allowed",
+                    boxShadow: "0 12px 25px rgba(187,61,37,.25)",
+                    transition: "all 0.2s ease",
+                    opacity: selectedCenter ? 1 : 0.6,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (selectedCenter) {
+                      e.currentTarget.style.transform = "scale(1.05)";
+                      e.currentTarget.style.boxShadow = "0 15px 30px rgba(187,61,37,.35)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "scale(1)";
+                    e.currentTarget.style.boxShadow = "0 12px 25px rgba(187,61,37,.25)";
+                  }}
                 >
                   Start
                 </button>
                 <button
-                  className="brown small-btn shadow"
-                  style={{ width: "200px" }}
                   onClick={handleCancel}
+                  style={{
+                    background: palette.card,
+                    color: palette.textPrimary,
+                    border: `2px solid ${palette.border}`,
+                    borderRadius: "14px",
+                    padding: "0.85rem 2rem",
+                    fontWeight: 600,
+                    fontSize: "18px",
+                    cursor: "pointer",
+                    boxShadow: "0 8px 16px rgba(68,29,8,.08)",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = palette.background;
+                    e.currentTarget.style.transform = "scale(1.05)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = palette.card;
+                    e.currentTarget.style.transform = "scale(1)";
+                  }}
                 >
                   Cancel
                 </button>
               </>
             ) : (
               <button
-                className="brown small-btn shadow"
-                style={{ width: "200px" }}
                 onClick={handleCancel}
+                style={{
+                  background: palette.card,
+                  color: palette.textPrimary,
+                  border: `2px solid ${palette.border}`,
+                  borderRadius: "14px",
+                  padding: "0.85rem 2rem",
+                  fontWeight: 600,
+                  fontSize: "18px",
+                  cursor: "pointer",
+                  boxShadow: "0 8px 16px rgba(68,29,8,.08)",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = palette.background;
+                  e.currentTarget.style.transform = "scale(1.05)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = palette.card;
+                  e.currentTarget.style.transform = "scale(1)";
+                }}
               >
                 Cancel
               </button>
             )}
+          </div>
           </div>
         </div>
       </div>

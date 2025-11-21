@@ -42,7 +42,7 @@ export async function POST(
     // Check room exists and status
     const room = await prisma.room.findUnique({
       where: { id: roomId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, centerLat: true, centerLng: true },
     });
     if (!room) {
       return withCORS(NextResponse.json({ error: "ROOM_NOT_FOUND" }, { status: 404 }), origin);
@@ -71,15 +71,20 @@ export async function POST(
       );
     }
 
+    // Use room's center if not provided in request (ensures all users in same room get same restaurants)
+    const center = parsed.data.center || (room.centerLat != null && room.centerLng != null
+      ? { lat: room.centerLat, lng: room.centerLng }
+      : undefined);
+
     const started = Date.now();
     console.log("[candidates] Calling buildCandidates with:", {
       roomId,
-      center: parsed.data.center,
+      center: center || "none (using room center)",
       limit: parsed.data.limit ?? 24,
     });
     const cands = await buildCandidates({
       roomId,
-      center: parsed.data.center,
+      center,
       limit: parsed.data.limit ?? 24,
     });
     const tookMs = Date.now() - started;

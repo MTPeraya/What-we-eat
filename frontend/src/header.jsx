@@ -3,11 +3,15 @@ import "./App.css";
 import { Link } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 
-function Profile({ user, isLoggedIn }) {
+function Profile({ user, isLoggedIn, authChecked }) {
   const src =
     (isLoggedIn && user?.profilePicture) ? user.profilePicture : "/placeholderProfile.png";
+  
+  // If not logged in, navigate to login page
+  const profileLink = (!authChecked || !isLoggedIn) ? "/login" : "/profile";
+  
   return (
-    <Link to="/profile" aria-label="Profile" className="Margin1vh" style={{ textDecoration: 'none' }}>
+    <Link to={profileLink} aria-label="Profile" className="Margin1vh" style={{ textDecoration: 'none' }}>
       <img
         src={src}
         alt="profile"
@@ -103,6 +107,16 @@ function MenuIcon({ isAdmin = false, isLoggedIn = false, authChecked = false }) 
               </Link>
             </li>
 
+            {isLoggedIn && (
+              <>
+                <li>
+                  <Link to="/wishlist" onClick={closeMenu}>
+                    My Wishlist
+                  </Link>
+                </li>
+              </>
+            )}
+
             {isAdmin && (
               <>
                 <li className="divider" />
@@ -130,7 +144,7 @@ function Header() {
   return (
     <div className="header">
       <MenuIcon isAdmin={isAdmin} isLoggedIn={isLoggedIn} authChecked={authChecked} />
-      <Profile user={user} isLoggedIn={isLoggedIn} />
+      <Profile user={user} isLoggedIn={isLoggedIn} authChecked={authChecked} />
     </div>
   );
 }

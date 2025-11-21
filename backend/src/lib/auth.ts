@@ -26,12 +26,13 @@ export async function createSession(user: { id: string; username: string; role: 
     .sign(secret);
 
   const jar = await cookies();
+  const secureCookie = process.env.NODE_ENV === "production";
   jar.set({
     name: COOKIE,
     value: token,
     httpOnly: true,
-    sameSite: "none",
-    secure: process.env.NODE_ENV === "production",
+    sameSite: secureCookie ? "none" : "lax",
+    secure: secureCookie,
     path: "/",
     maxAge: maxAgeSec,
   });
@@ -41,12 +42,13 @@ export async function createSession(user: { id: string; username: string; role: 
 
 export async function destroySession() {
   const jar = await cookies();
+  const secureCookie = process.env.NODE_ENV === "production";
   jar.set({
     name: COOKIE,
     value: "",
     httpOnly: true,
-    sameSite: "none",
-    secure: process.env.NODE_ENV === "production",
+    sameSite: secureCookie ? "none" : "lax",
+    secure: secureCookie,
     path: "/",
     maxAge: 0,
   });
