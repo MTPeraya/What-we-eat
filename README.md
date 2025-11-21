@@ -46,11 +46,6 @@ Copy `.env.example` files to `.env`:
 # Root
 cp .env.example .env
 
-# Backend
-cd backend
-cp .env.example .env
-cd ..
-
 # Frontend
 cd frontend
 cp .env.example .env
@@ -67,7 +62,7 @@ Edit `.env` to configure:
 
 # 🗄️ Database Configuration
 
-This project supports **three options**:
+This project supports **2 options**:
 
 ## **Option 1 — Local Database via Docker Compose (Recommended)**
 
