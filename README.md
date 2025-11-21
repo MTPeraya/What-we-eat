@@ -64,7 +64,7 @@ Edit `.env` to configure:
 
 This project supports **2 options**:
 
-## **Option 1 — Local Database via Docker Compose (Recommended)**
+## **Option 1 — Local Database via Docker Compose**
 
 Docker Compose automatically starts a PostgreSQL container named `db`.
 
@@ -101,8 +101,7 @@ DATABASE_URL="postgresql://<USERNAME>:<PASSWORD>@<HOST>/<DBNAME>?sslmode=require
 
 | Scenario                                  | Backend Location | Database Host | DATABASE_URL Example                             |
 | ----------------------------------------- | ---------------- | ------------- | ------------------------------------------------ |
-| Local DB via Docker Compose (Recommended) | Docker           | db            | `postgresql://user:password@db:5432/wwe`         |
-| Local DB via standalone Docker            | Host machine     | localhost     | `postgresql://user:password@localhost:5432/wwe`  |
+| Local DB via Docker Compose  | Docker           | db            | `postgresql://user:password@db:5432/wwe`         |
 | Remote DB                                 | Anywhere         | Remote host   | `postgresql://user:pass@host/db?sslmode=require` |
 
 ---
