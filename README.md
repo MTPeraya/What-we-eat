@@ -1,149 +1,236 @@
 # 🍽️ What We Eat – Group Dining Decision Platform
 
-<p>A fun, fast, and fair way for groups in Thailand to decide where and what to eat.</p>
-<hr>
+A fun, fast, and fair way for groups in Thailand to decide where and what to eat.
 
-## Installation Guide
+---
 
-### 1. Clone the Repository
+# 🚀 Quick Start
 
-First, download the project files to your local machine:
+**Recommended for development:**
 
 ```bash
 git clone https://github.com/MTPeraya/What-we-eat.git
+cd What-we-eat
+docker compose up --build
 ```
 
-This creates a folder named `What-we-eat` containing all the project files.
+**Recommended Browser**
+For the best experience, please use 
+`Google Chrome` to open the application.
+Some features, especially those related to cookies or session handling may not work correctly in other browsers.
 
-### 2. Navigate into the Project
+Local Development URLs:
+
+* Frontend → [http://localhost:5173](http://localhost:5173)
+* Backend → [http://localhost:4001](http://localhost:4001)
+* Database → internal host: `db:5432`
+
+> Make sure to copy `.env.example` to `.env` and fill in the required variables before running.
+
+---
+
+# 🔧 Installation & Environment Setup
+
+## 1. Clone & Navigate
 
 ```bash
+git clone https://github.com/MTPeraya/What-we-eat.git
 cd What-we-eat
 ```
 
-### 3. Set Up Environment Variables
+## 2. Set Up `.env` Files
 
-This project requires `.env` files to configure environment variables. There are `.env.example` files in the **backend**, **frontend**, and at the root. You need to copy them and fill in the required values:
+Copy `.env.example` files to `.env`:
 
 ```bash
-# Root folder
+# Root
 cp .env.example .env
-
-# Backend
-cd backend
-cp .env.example .env
-# Edit .env to configure your database, ports, and other settings
-cd ..
 
 # Frontend
 cd frontend
 cp .env.example .env
-# Edit .env to configure API URLs and other frontend-specific settings
 cd ..
 ```
 
-> Make sure to update the variables such as database credentials, API endpoints, API keys, and any secret keys before running the project.
+Edit `.env` to configure:
 
-### 4. Run the Project
+* Database credentials (`DATABASE_URL`)
+* API endpoints
+* Secret keys (`JWT_SECRET`, `EXTERNAL_PLACES_API_KEY`)
 
-You have 2 options: run everything with **Docker** or run services individually.
-
-#### Option A: Run Everything with Docker (Recommended)
-
-
-1. Make sure **Docker Desktop** is installed and running.
-
-   * If Docker Desktop is not open, open it first and wait for it to be ready.
-
-2. From the project root, run:
-
-    ```bash
-    docker-compose up --build
-    ```
-
-* `--build` ensures all images are rebuilt, reflecting any changes to the code or configuration.
-* If you don’t need a rebuild, you can just run:
-
-    ```bash
-    docker-compose up
-    ```
 ---
 
-#### Option B: Run Services Individually
+# 🗄️ Database Configuration
 
-You will need two separate terminal windows:
+This project supports **2 options**:
 
-1. **Frontend:**
+## **Option 1 — Local Database via Docker Compose**
 
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
+Docker Compose automatically starts a PostgreSQL container named `db`.
 
-2. **Backend:**
+Use this in `.env`:
 
-   ```bash
-   cd backend
-   npm install
-   npm run dev
-   ```
+```text
+DATABASE_URL="postgresql://user:password@db:5432/db"
+DB_NAME=db
+DB_USER=user
+DB_PASSWORD=password
+```
 
-### 5. Troubleshooting
+> **Important:** The database may starts empty. After starting the DB container, run Prisma migrations to create tables:
 
-* **Docker not running:**
-    If you see errors like Cannot connect to the Docker daemon or docker-compose: <br>
-    * **Open Docker Desktop**
-    Wait for it to fully start (green “Docker is running” indicator). Retry docker-compose up.
+```bash
+docker compose exec backend npx prisma migrate dev --name init
+```
 
-* **Database not starting / connecting:**
-  Make sure the database service is running. If using Docker, run:
+**Note:** `db` is the internal Docker service name; do **not** use `localhost` inside Docker.
 
-  ```bash
-  docker-compose up -d db
-  ```
+---
 
-  Then create the database if necessary:
+## **Option 2 — Remote PostgreSQL (Cloud/School/Production)**
 
-  ```bash
-  docker exec -it <db_container_name> psql -U <username> -c "CREATE DATABASE <dbname>;"
-  ```
+Use the credentials provided by your external server:
 
-* **Docker build fails:**
-  Force rebuild images:
+```text
+DATABASE_URL="postgresql://<USERNAME>:<PASSWORD>@<HOST>/<DBNAME>?sslmode=require"
+```
 
-  ```bash
-  docker-compose build --no-cache
-  docker-compose up
-  ```
+---
 
-* **Ports already in use:**
-  Check which ports are in use and modify the `.env` files or Docker Compose to use free ports.
+## **Summary Table**
 
-* If you ever get errors about missing dependencies or outdated images, rerun with `--build`:
+| Scenario                                  | Backend Location | Database Host | DATABASE_URL Example                             |
+| ----------------------------------------- | ---------------- | ------------- | ------------------------------------------------ |
+| Local DB via Docker Compose  | Docker           | db            | `postgresql://user:password@db:5432/wwe`         |
+| Remote DB                                 | Anywhere         | Remote host   | `postgresql://user:pass@host/db?sslmode=require` |
 
-    ```bash
-    docker-compose down
-    docker-compose up --build
-    ```
-    This **stops and removes the old containers**, rebuilds the images, and starts fresh.
+---
 
+# 🔑 Secrets & API Keys
 
+Some features require keys that must **never** be shared publicly.
 
-If you follow these steps, you should be able to get the "What-we-eat" project running. The key is to first identify the type of project by looking for the files mentioned above. Good luck! 👍
+## **1. JWT_SECRET**
 
-## Document
-For more in-depth information, please visit our GitHub Wiki.
+Used by the backend to sign JWT tokens.
 
-- ([GG Doc](https://docs.google.com/document/d/1lpNJAadCo4cqqWD7-w_K0akjBc4lDBaMn1u7tO5rYpU/edit?usp=sharing))
-- ([Jira](https://ku-team-nattanan.atlassian.net/jira/software/projects/WWE/boards/38/backlog?atlOrigin=eyJpIjoiNzM0YjU2NDZlYzJkNDgyY2FmN2QzNGIyMjljZWJlNDEiLCJwIjoiaiJ9))
-- ([New Jira Link](https://whatweeat.atlassian.net/jira/software/projects/SCRUM/boards/1/backlog?atlOrigin=eyJpIjoiZjAxM2M3MDRlNDgzNGFiYTkwNTM3ZmFmZjMwMzI3OGEiLCJwIjoiaiJ9))
+* Must be a **long, random string**.
+* Generate using Node.js:
 
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
 
-- Sprint VDO
-    - [sprint 1](https://youtu.be/OVbAiq7yjBQ?feature=shared)
-    - [sprint 2](https://youtu.be/CaL2scmboik)
-    - [sprint 3](https://youtu.be/HSwlEBdlIQ0?si=959Ukg6LlrAV8a6I)
-    - [sprint 4](https://youtu.be/ovUweeUERIg?si=9hN5qsMwIIqY5lsN)
-    - [sprint 5](https://youtu.be/wVv01Df6Tfk?si=cgTUS_y8mc96Ty0i)
+`.env` example:
 
+```text
+JWT_SECRET="your_generated_secret_here"
+```
+
+---
+
+## **2. EXTERNAL_PLACES_API_KEY (Google Maps / Places API)**
+
+Used for:
+
+* Searching restaurants
+* Getting restaurant details
+* Displaying maps
+
+### How to get it:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create/select a project
+3. Navigate to **APIs & Services → Credentials → Create API Key**
+4. Copy the generated key
+
+Enable these APIs:
+
+* Places API
+* Maps JavaScript API (optional for frontend maps)
+* Geocoding API (optional for address lookup)
+
+`.env` example:
+
+```text
+EXTERNAL_PLACES_API_KEY="YOUR_GOOGLE_MAPS_API_KEY"
+```
+
+> ⚠ Keep this key private. Do not commit to public repos.
+
+---
+
+# ▶️ Running the Project
+
+## Option A — Docker (Recommended)
+
+```bash
+docker compose up --build
+```
+
+* Use `--build` to rebuild images if you made changes.
+* Without rebuild: `docker compose up`
+
+---
+
+## Option B — Run Services Individually
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### Backend
+
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+---
+
+# ⚠ Troubleshooting
+
+* **Docker not running** → Open Docker Desktop and wait until it says "running".
+* **Database connection errors** → Ensure DB container is up:
+
+```bash
+docker compose up -d db
+```
+
+* **Force rebuild**:
+
+```bash
+docker compose build --no-cache
+docker compose up
+```
+
+* **Ports already in use** → Change ports in `.env` and `docker-compose.yml`.
+
+---
+
+# 📄 Documentation & Sprint Videos
+
+* [GG Doc Link](https://docs.google.com/document/d/1lpNJAadCo4cqqWD7-w_K0akjBc4lDBaMn1u7tO5rYpU/edit?usp=sharing)
+* [Jira Link](https://whatweeat.atlassian.net/jira/software/projects/SCRUM/boards/1/backlog?atlOrigin=eyJpIjoiZjAxM2M3MDRlNDgzNGFiYTkwNTM3ZmFmZjMwMzI3OGEiLCJwIjoiaiJ9)
+
+### Sprint Videos
+
+* [Sprint 1](https://youtu.be/OVbAiq7yjBQ?feature=shared)
+* [Sprint 2](https://youtu.be/CaL2scmboik)
+* [Sprint 3](https://youtu.be/HSwlEBdlIQ0?si=959Ukg6LlrAV8a6I)
+* [Sprint 4](https://youtu.be/ovUweeUERIg?si=9hN5qsMwIIqY5lsN)
+* [Sprint 5](https://youtu.be/wVv01Df6Tfk?si=cgTUS_y8mc96Ty0i)
+
+---
+
+# 📚 More Information
+
+For detailed setup instructions, advanced configurations, and additional documentation, check out our GitHub Wiki:
+[What We Eat Wiki](https://github.com/MTPeraya/What-we-eat/wiki)
+
+---

@@ -17,8 +17,3 @@ EXPOSE 5173
 
 # For dev (hot reload)
 CMD ["npm", "run", "dev"]
-
-# For production, replace with:
-# RUN npm run build
-# EXPOSE 4173
-# CMD ["npm", "run", "preview", "--", "--host"]
