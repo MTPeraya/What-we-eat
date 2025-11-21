@@ -13,6 +13,7 @@ function CreateRoom() {
   const [participants, setParticipants] = useState([]);
   const [qrcode, setQrcode] = useState("");
   const [yourUsername, setYourUsername] = useState("");
+  const [yourDisplayName, setYourDisplayName] = useState("");
   const [meUserId, setMeUserId] = useState("");
   const [hostId, setHostId] = useState("");
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
@@ -44,8 +45,10 @@ function CreateRoom() {
         const data = await res.json();
         const uid = data?.user?.id;
         const uname = data?.user?.username;
+        const displayName = data?.user?.displayName;
         if (uid) setMeUserId(uid);
         if (uname) setYourUsername(uname);
+        if (displayName) setYourDisplayName(displayName);
       } catch {
         console.log("Error");
       }
@@ -272,7 +275,9 @@ function CreateRoom() {
                   marginBottom: "8px",
                 }}
               >
-                {yourUsername && <span>You are: {yourUsername}</span>}
+                {(yourDisplayName || yourUsername) && (
+                  <span>You are: {yourDisplayName || yourUsername}</span>
+                )}
               </div>
             </div>
             
@@ -386,8 +391,10 @@ function CreateRoom() {
               participants.map((p) => {
                 const isHost = p.userId === hostId;
                 const isCurrentUser = p.userId === meUserId;
-                // Use username if it's current user, otherwise use displayName
-                const displayNameToShow = isCurrentUser && yourUsername ? yourUsername : p.displayName;
+                // Use displayName if available, fallback to username for current user, otherwise use participant's displayName
+                const displayNameToShow = isCurrentUser 
+                  ? (yourDisplayName || yourUsername || p.displayName || "Anonymous")
+                  : (p.displayName || "Anonymous");
                 const profilePic = p.profilePicture || "/placeholderProfile.png";
                 
                 return (
