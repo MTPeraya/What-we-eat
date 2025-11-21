@@ -76,8 +76,8 @@ Docker Compose automatically starts a PostgreSQL container named `db`.
 Use this in `.env`:
 
 ```text
-DATABASE_URL="postgresql://user:password@db:5432/wwe"
-DB_NAME=wwe
+DATABASE_URL="postgresql://user:password@db:5432/db"
+DB_NAME=db
 DB_USER=user
 DB_PASSWORD=password
 ```
