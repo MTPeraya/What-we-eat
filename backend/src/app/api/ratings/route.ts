@@ -161,13 +161,37 @@ export async function GET(req: NextRequest) {
 // ---------- POST /api/ratings ----------
 export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin");
+  console.log("[ratings POST] Request received from origin:", origin);
 
   try {
     const { userId } = await requireAuth(req);
+    console.log("[ratings POST] User authenticated:", userId);
 
-    const json = (await req.json().catch(() => ({}))) as unknown;
+    let json: unknown;
+    try {
+      json = await req.json();
+    } catch (e) {
+      console.error("[ratings POST] Failed to parse JSON:", e);
+      return withCORS(
+        NextResponse.json(
+          { error: "INVALID_JSON", message: "Request body must be valid JSON" },
+          { status: 400 }
+        ),
+        origin
+      );
+    }
+    
+    console.log("[ratings POST] Request body:", JSON.stringify(json, null, 2));
+    
+    // Type-safe access for logging
+    const bodyForLogging = json as Record<string, unknown>;
+    console.log("[ratings POST] restaurantId:", bodyForLogging?.restaurantId);
+    console.log("[ratings POST] placeId:", bodyForLogging?.placeId);
+    console.log("[ratings POST] score:", bodyForLogging?.score);
+    
     const parsed = BodySchema.safeParse(json);
     if (!parsed.success) {
+      console.error("[ratings POST] Validation failed:", JSON.stringify(parsed.error.flatten(), null, 2));
       return withCORS(
         NextResponse.json(
           { error: "INVALID_BODY", details: parsed.error.flatten() },
@@ -176,6 +200,7 @@ export async function POST(req: NextRequest) {
         origin
       );
     }
+    console.log("[ratings POST] Validation passed");
 
     const { roomId, restaurantId, placeId, score, tags, comment } = parsed.data;
     const photos: PhotoInput[] = parsed.data.photos ?? [];

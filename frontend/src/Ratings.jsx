@@ -366,6 +366,12 @@ function ReviewAdding({
   };
 
   const handleSubmitReview = async () => {
+    if (!restaurantId) {
+      console.error("[ReviewAdding] restaurantId is missing!");
+      alert("Error: Restaurant ID is missing. Please try again.");
+      return;
+    }
+    
     if (rating === 0) {
       alert("Please select a rating");
             return;
@@ -429,22 +435,33 @@ function ReviewAdding({
         }
       }
 
+      const requestBody = {
+        restaurantId,
+        score: rating,
+        comment: reviewText || undefined,
+        photos: uploadedPhotos.length > 0 ? uploadedPhotos : undefined,
+      };
+      
+      console.log("[ReviewAdding] Submitting review with data:", {
+        restaurantId,
+        score: rating,
+        hasComment: !!reviewText,
+        commentLength: reviewText?.length || 0,
+        photosCount: uploadedPhotos.length,
+      });
+
       const response = await fetch(`${config.endpoints.ratings}`, {
         method: "POST",
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          restaurantId,
-          score: rating,
-          comment: reviewText || undefined,
-          photos: uploadedPhotos.length > 0 ? uploadedPhotos : undefined,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
+        console.error("[ReviewAdding] Error response:", errorData);
         throw new Error(errorData?.error || "Failed to submit review");
       }
 
