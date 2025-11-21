@@ -65,45 +65,31 @@ This project supports **three options**:
 ## **Option 1 — Local Database via Docker Compose (Recommended)**
 
 Docker Compose automatically starts a PostgreSQL container named `db`.
+
 Use this in `.env`:
 
+```text
+DATABASE_URL="postgresql://user:password@db:5432/wwe"
+DB_NAME=wwe
+DB_USER=user
+DB_PASSWORD=password
 ```
-DATABASE_URL="postgresql://user:password@db:5432/mydb"
+
+> **Important:** The database may starts empty. After starting the DB container, run Prisma migrations to create tables:
+
+```bash
+docker compose exec backend npx prisma migrate dev --name init
 ```
 
 **Note:** `db` is the internal Docker service name; do **not** use `localhost` inside Docker.
 
 ---
 
-## **Option 2 — Local PostgreSQL on Your Machine**
-
-Run PostgreSQL manually:
-
-```bash
-docker run -d \
-  --name local-postgres \
-  -e POSTGRES_USER=user \
-  -e POSTGRES_PASSWORD=password \
-  -e POSTGRES_DB=mydb \
-  -p 5432:5432 \
-  postgres:16
-```
-
-`.env`:
-
-```
-DATABASE_URL="postgresql://user:password@localhost:5432/mydb"
-```
-
-Use this if you want to run the backend **outside Docker**.
-
----
-
-## **Option 3 — Remote PostgreSQL (Cloud/School/Production)**
+## **Option 2 — Remote PostgreSQL (Cloud/School/Production)**
 
 Use the credentials provided by your external server:
 
-```
+```text
 DATABASE_URL="postgresql://<USERNAME>:<PASSWORD>@<HOST>/<DBNAME>?sslmode=require"
 ```
 
@@ -113,8 +99,8 @@ DATABASE_URL="postgresql://<USERNAME>:<PASSWORD>@<HOST>/<DBNAME>?sslmode=require
 
 | Scenario                                  | Backend Location | Database Host | DATABASE_URL Example                             |
 | ----------------------------------------- | ---------------- | ------------- | ------------------------------------------------ |
-| Local DB via Docker Compose (Recommended) | Docker           | db            | `postgresql://user:password@db:5432/mydb`        |
-| Local DB via standalone Docker            | Host machine     | localhost     | `postgresql://user:password@localhost:5432/mydb` |
+| Local DB via Docker Compose (Recommended) | Docker           | db            | `postgresql://user:password@db:5432/wwe`         |
+| Local DB via standalone Docker            | Host machine     | localhost     | `postgresql://user:password@localhost:5432/wwe`  |
 | Remote DB                                 | Anywhere         | Remote host   | `postgresql://user:pass@host/db?sslmode=require` |
 
 ---
@@ -136,7 +122,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 `.env` example:
 
-```
+```text
 JWT_SECRET="your_generated_secret_here"
 ```
 
@@ -165,7 +151,7 @@ Enable these APIs:
 
 `.env` example:
 
-```
+```text
 EXTERNAL_PLACES_API_KEY="YOUR_GOOGLE_MAPS_API_KEY"
 ```
 
@@ -178,11 +164,11 @@ EXTERNAL_PLACES_API_KEY="YOUR_GOOGLE_MAPS_API_KEY"
 ## Option A — Docker (Recommended)
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 * Use `--build` to rebuild images if you made changes.
-* Without rebuild: `docker-compose up`
+* Without rebuild: `docker compose up`
 
 ---
 
@@ -208,28 +194,28 @@ npm run dev
 
 # ⚠ Troubleshooting
 
-* **Docker not running** → Open Docker Desktop and wait until it says "running"
+* **Docker not running** → Open Docker Desktop and wait until it says "running".
 * **Database connection errors** → Ensure DB container is up:
 
 ```bash
-docker-compose up -d db
+docker compose up -d db
 ```
 
 * **Force rebuild**:
 
 ```bash
-docker-compose build --no-cache
-docker-compose up
+docker compose build --no-cache
+docker compose up
 ```
 
-* **Ports already in use** → Change ports in `.env` and `docker-compose.yml`
+* **Ports already in use** → Change ports in `.env` and `docker-compose.yml`.
 
 ---
 
 # 📄 Documentation & Sprint Videos
 
 * [GG Doc Link](https://docs.google.com/document/d/1lpNJAadCo4cqqWD7-w_K0akjBc4lDBaMn1u7tO5rYpU/edit?usp=sharing)
-* [ Jira Link](https://whatweeat.atlassian.net/jira/software/projects/SCRUM/boards/1/backlog?atlOrigin=eyJpIjoiZjAxM2M3MDRlNDgzNGFiYTkwNTM3ZmFmZjMwMzI3OGEiLCJwIjoiaiJ9)
+* [Jira Link](https://whatweeat.atlassian.net/jira/software/projects/SCRUM/boards/1/backlog?atlOrigin=eyJpIjoiZjAxM2M3MDRlNDgzNGFiYTkwNTM3ZmFmZjMwMzI3OGEiLCJwIjoiaiJ9)
 
 ### Sprint Videos
 
@@ -242,5 +228,8 @@ docker-compose up
 ---
 
 # 📚 More Information
+
 For detailed setup instructions, advanced configurations, and additional documentation, check out our GitHub Wiki:
 [What We Eat Wiki](https://github.com/MTPeraya/What-we-eat/wiki)
+
+---
