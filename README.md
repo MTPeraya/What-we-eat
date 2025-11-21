@@ -14,6 +14,13 @@ cd What-we-eat
 docker compose up --build
 ```
 
+**Recommended Browser**
+For the best experience, please use 
+`Google Chrome` to open the application.
+Some features, especially those related to cookies or session handling may not work correctly in other browsers.
+
+Local Development URLs:
+
 * Frontend → [http://localhost:5173](http://localhost:5173)
 * Backend → [http://localhost:4001](http://localhost:4001)
 * Database → internal host: `db:5432`
