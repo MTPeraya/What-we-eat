@@ -47,13 +47,17 @@ export async function GET(
     });
 
     // Map participants to include profilePicture
-    const participantsWithProfile = participants.map(p => ({
-      id: p.id,
-      userId: p.userId,
-      displayName: p.displayName,
-      role: p.role,
-      profilePicture: p.user?.profilePicture || null,
-    }));
+    const participantsWithProfile = participants.map(p => {
+      const profilePicture = p.user?.profilePicture || null;
+      console.log(`[rooms GET] Participant ${p.displayName} (userId: ${p.userId}): profilePicture =`, profilePicture ? 'present' : 'null');
+      return {
+        id: p.id,
+        userId: p.userId,
+        displayName: p.displayName,
+        role: p.role,
+        profilePicture,
+      };
+    });
 
     // Check if room has started (status changed from OPEN to STARTED)
     const viewingResults = room.status === "STARTED";
