@@ -153,24 +153,24 @@ function CreateRoom() {
   useEffect(() => {
     if (!roomCode) return;
     
-    // ใช้ IP address แทน localhost สำหรับ QR code
-    // เพื่อให้เครื่องอื่น scan QR code แล้วเข้าถึงได้
+    // Use IP address instead of localhost for QR code
+    // So other devices can scan the QR code and access the app
     const getFrontendUrl = () => {
       const hostname = window.location.hostname;
       const port = window.location.port || '5173';
       
-      // ถ้าเป็น localhost → ใช้ IP address ที่เข้าถึงได้จาก network
-      // ในกรณี multi-device testing, ถ้าเข้าถึงผ่าน network IP แล้ว
-      // window.location.hostname จะเป็น IP address อยู่แล้ว
+      // If using localhost → use IP address accessible from network
+      // For multi-device testing, if accessing via network IP,
+      // window.location.hostname will already be the IP address
       if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        // ถ้ายังเป็น localhost → แสดงว่ายังเข้าถึงผ่าน localhost
-        // ในกรณีนี้ QR code อาจไม่ทำงานกับเครื่องอื่น
-        // แต่ถ้าเข้าถึงผ่าน network IP แล้ว → hostname จะเป็น IP อยู่แล้ว
+        // If still localhost → accessing through localhost
+        // In this case, QR code may not work from other devices
+        // But if accessing via network IP → hostname will already be the IP
         console.warn('[QR Code] Using localhost - QR code may not work from other devices. Access via network IP instead.');
         return window.location.origin;
       }
       
-      // ถ้าเป็น network IP → ใช้ IP นั้น
+      // If using network IP → use that IP
       return `http://${hostname}:${port}`;
     };
     

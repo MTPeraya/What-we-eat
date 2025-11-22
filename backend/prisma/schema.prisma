@@ -62,7 +62,7 @@ model Restaurant {
   assets               ImageAsset[]
   votes                Vote[]
   ratings              Rating[]              // 👈 back-relations (ratings)
-  favorites            Favorite[]            // 👈 ผู้ใช้ที่ชอบร้านนี้
+  favorites            Favorite[]            // 👈 Users who favorited this restaurant
 
   // back-relations
   mealHistories        MealHistory[]
@@ -86,8 +86,8 @@ model User {
   votes             Vote[]
   assets            ImageAsset[]
   sessions          Session[]
-  ratings           Rating[]          // 👈 ratings ที่ผู้ใช้สร้าง
-  favorites         Favorite[]        // 👈 ร้านที่ผู้ใช้ชอบ
+  ratings           Rating[]          // 👈 Ratings created by this user
+  favorites         Favorite[]        // 👈 Restaurants favorited by this user
 
   // back-relations
   mealHistories     MealHistory[]
@@ -113,7 +113,7 @@ model Room {
   participants         RoomParticipant[]
   votes                Vote[]
   assets               ImageAsset[]
-  ratings              Rating[]            // 👈 ratings ผูกกับห้อง (optional)
+  ratings              Rating[]            // 👈 Ratings linked to this room (optional)
 
   // back-relations
   mealHistories        MealHistory[]

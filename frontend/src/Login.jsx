@@ -81,82 +81,83 @@ function Login() {
         <h1 className="head-name">WHAT WE EAT</h1>
         <div className="box" style={{ height: "380px" }}>
           <form onSubmit={handleLogin}>
-          {/* username - email */}
-          <label htmlFor="username" className="font-normal block mb-3">
-            Username / Email
-          </label>
-          <input
-            type="text"
-            id="username"
-            autoComplete="username"
-            value={username}
-            className="n-container"
-            onChange={(e) => setUsername(e.target.value)}
-          />
-
-          {/* password */}
-          <label htmlFor="password" className="font-normal block mb-3">
-            Password
-          </label>
-          <input
-            type="password"
-            id="password"
-            autoComplete="current-password"
-            value={password}
-            className="n-container"
-            onChange={(e) => setPassword(e.target.value)}
-          />
-
-          {/* check box */}
-          <label
-            htmlFor="remember"
-            style={{
-              color: "#603A2B",
-              fontSize: "16px",
-              fontWeight: "normal",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "1px",
-              marginTop: "15px",
-              cursor: "pointer",
-            }}
-          >
+            {/* username - email */}
+            <label htmlFor="username" className="font-normal block mb-3">
+              Username / Email
+            </label>
             <input
-              type="checkbox"
-              id="remember"
-              onChange={(e) => setRemember(e.target.checked)}
+              type="text"
+              id="username"
+              autoComplete="username"
+              value={username}
+              className="n-container"
+              onChange={(e) => setUsername(e.target.value)}
             />
-            Remember me
-          </label>
 
-          {/* login button */}
-          <button
-            className="green small-btn shadow"
-            style={{ marginTop: "15px" }}
-          >
-            Login
-          </button>
-        </form>
+            {/* password */}
+            <label htmlFor="password" className="font-normal block mb-3">
+              Password
+            </label>
+            <input
+              type="password"
+              id="password"
+              autoComplete="current-password"
+              value={password}
+              className="n-container"
+              onChange={(e) => setPassword(e.target.value)}
+            />
 
-        {/* register thin button */}
-        <p className="font-normal" style={{ margin: "-8px auto" }}>
-          Don't have an Account?{" "}
-          <Link to="/register" className="thin-button">
-            Register
+            {/* check box */}
+            <label
+              htmlFor="remember"
+              style={{
+                color: "#603A2B",
+                fontSize: "16px",
+                fontWeight: "normal",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "1px",
+                marginTop: "15px",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                id="remember"
+                onChange={(e) => setRemember(e.target.checked)}
+              />
+              Remember me
+            </label>
+
+            {/* login button */}
+            <button
+              className="green small-btn shadow"
+              style={{ marginTop: "15px" }}
+              type="submit"
+            >
+              Login
+            </button>
+          </form>
+
+          {/* register thin button */}
+          <p className="font-normal" style={{ margin: "-8px auto" }}>
+            Don't have an Account?{" "}
+            <Link to="/register" className="thin-button">
+              Register
+            </Link>
+          </p>
+        </div>
+
+        {/* guest thin button */}
+        <p
+          className="font-normal"
+          style={{ color: "white", margin: "15px auto" }}
+        >
+          Don't want to login?{" "}
+          <Link to="/enter-code" className="white-thin-button">
+            Stay as a guest
           </Link>
         </p>
-      </div>
-
-      {/* guest thin button */}
-      <p
-        className="font-normal"
-        style={{ color: "white", margin: "15px auto" }}
-      >
-        Don't want to login?{" "}
-        <Link to="/enter-code" className="white-thin-button">
-          Stay as a guest
-        </Link>
-      </p>
       </div>
     </>
   );
