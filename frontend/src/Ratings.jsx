@@ -14,6 +14,15 @@ import { useParams, useLocation, useNavigate } from "react-router-dom";
 
 // CONSTANT VARIABLE
 
+const palette = {
+  background: "#FCEEE3",
+  card: "#FFF7EF",
+  border: "#C47B4E",
+  accent: "#BB3D25",
+  textPrimary: "#4A1F0C",
+  textSecondary: "#7A4B31",
+};
+
 const stars = ({ size, color }) => (
   <svg
     className="mx-2"
@@ -28,6 +37,27 @@ const stars = ({ size, color }) => (
     />
   </svg>
 );
+
+const HeartIcon = ({ filled }) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill={filled ? palette.accent : "none"}
+        stroke={filled ? palette.accent : palette.textPrimary}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+    >
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+    </svg>
+);
+// Ensure proptypes are consistent if you use them elsewhere
+HeartIcon.propTypes = {
+    filled: PropTypes.bool.isRequired,
+};
+
 
 const calculateCombinedRating = (
   googleRating,
@@ -57,14 +87,6 @@ const formatRating = (value) =>
   typeof value === "number" ? value.toFixed(1) : "-";
 const createEmptyDistribution = () => [0, 0, 0, 0, 0];
 
-const palette = {
-  background: "#FCEEE3",
-  card: "#FFF7EF",
-  border: "#C47B4E",
-  accent: "#BB3D25",
-  textPrimary: "#4A1F0C",
-  textSecondary: "#7A4B31",
-};
 
 const styles = {
   pageWrapper: {
@@ -136,6 +158,21 @@ const styles = {
     fontWeight: 600,
     cursor: "pointer",
     boxShadow: "0 12px 25px rgba(187,61,37,.25)",
+  },
+  // NEW style for wishlist button (transparent, border, heart icon)
+  wishlistButton: { 
+    alignSelf: "flex-start",
+    background: "transparent",
+    color: palette.textPrimary,
+    border: `2px solid ${palette.border}`,
+    borderRadius: "14px",
+    padding: "0.85rem 1.6rem",
+    fontWeight: 600,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    transition: "all 0.2s ease",
   },
   reviewWrapper: {
     width: "100%",
@@ -691,13 +728,168 @@ function RatingPage() {
     const navigate = useNavigate();
     const [showReviewAdding, setShowReviewAdding] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const [reviewInformation, setReviewInformation] = useState([]);
-  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
-  const [userReviewStats, setUserReviewStats] = useState({
-    avg: null,
-    count: 0,
-    distribution: createEmptyDistribution(),
-  });
+    const [reviewInformation, setReviewInformation] = useState([]);
+    const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+    const [userReviewStats, setUserReviewStats] = useState({
+        avg: null,
+        count: 0,
+        distribution: createEmptyDistribution(),
+    });
+
+    // --- NEW WISHLIST STATE ---
+    const [isWishlisted, setIsWishlisted] = useState(false);
+    const [isWishlistUpdating, setIsWishlistUpdating] = useState(false);
+    // -------------------------
+
+
+    // --- MODIFIED RESTAURANT DATA HANDLING ---
+
+    const restaurantFromState = location.state?.restaurant;
+    const resolvedRestaurantId = restaurantFromState?.id || restaurantId;
+
+    // A consistent structure for placeholder/fallback data
+    const initialRestaurantData = {
+        imgURL: "../public/restaurant/restaurant1.jpg",
+        name: "Restaurant 1",
+        rating: null,
+        address: "",
+        id: resolvedRestaurantId,
+        googleRatingCount: null,
+    };
+    
+    // State to hold the definitive restaurant data
+    const [restaurantDetails, setRestaurantDetails] = useState(
+        restaurantFromState || initialRestaurantData
+    );
+
+    // Update state if navigation state changes
+    useEffect(() => {
+        if (restaurantFromState) {
+            setRestaurantDetails(restaurantFromState);
+        }
+    }, [restaurantFromState]);
+
+    // Function to fetch restaurant details from the backend
+    const fetchRestaurantDetails = useCallback(async () => {
+        if (!resolvedRestaurantId || restaurantFromState) return;
+
+        try {
+            // This endpoint is the source of the first CORS/404 errors, 
+            // ensure the backend API route for restaurants also uses withCORS.
+            const response = await fetch(
+                `${config.endpoints.restaurants}/${resolvedRestaurantId}`,
+                { credentials: "include" }
+            );
+
+            if (!response.ok) {
+                console.error(`[RatingPage] Failed to fetch restaurant details: ${response.status}`);
+                setRestaurantDetails(initialRestaurantData);
+                return;
+            }
+
+            const details = await response.json();
+
+            setRestaurantDetails({
+                imgURL: details.url || initialRestaurantData.imgURL,
+                name: details.name || initialRestaurantData.name,
+                // Ensure rating and count are numbers or null
+                rating: typeof details.rating === 'number' ? details.rating : null, 
+                googleRatingCount: details.googleRatingCount ?? null,
+                address: details.address || initialRestaurantData.address,
+                id: resolvedRestaurantId,
+            });
+        } catch (error) {
+            console.error("[RatingPage] Error fetching restaurant details:", error);
+            setRestaurantDetails(initialRestaurantData);
+        }
+    }, [resolvedRestaurantId, restaurantFromState]);
+
+
+    useEffect(() => {
+        // Fetch details if we don't have them (e.g., page refresh)
+        if (!restaurantFromState && resolvedRestaurantId) {
+            fetchRestaurantDetails();
+        }
+    }, [restaurantFromState, resolvedRestaurantId, fetchRestaurantDetails]);
+    
+    // Use the state for the final rendering object
+    const restaurant = restaurantDetails; 
+    
+    // --- END MODIFIED RESTAURANT DATA HANDLING ---
+
+    // --- FIXED WISHLIST LOGIC ---
+    // The backend uses a GET request to the base path to fetch all favorites.
+    // We must fetch the entire list and check the status locally.
+
+    const fetchWishlistStatus = useCallback(async () => {
+        if (!resolvedRestaurantId) return;
+        try {
+            // Use the base endpoint to fetch all favorites
+            const response = await fetch(config.endpoints.wishlist, {
+                credentials: "include",
+            });
+            
+            // Check for success or specific non-error status (e.g., 401 unauthenticated)
+            if (response.ok) {
+                const data = await response.json();
+                const favorites = data.favorites || [];
+
+                // Check if the current restaurantId is present in the list
+                const isFavorite = favorites.some(
+                    (f) => f.restaurantId === resolvedRestaurantId
+                );
+                
+                setIsWishlisted(isFavorite);
+            } else if (response.status === 401) {
+                 // UNAUTHENTICATED: Treat as not wishlisted (user must log in)
+                setIsWishlisted(false);
+            } else {
+                // Log other warnings but default to not wishlisted
+                console.warn("Failed to fetch wishlist status:", response.status);
+                setIsWishlisted(false); 
+            }
+        } catch (error) {
+            console.error("Error fetching wishlist status:", error);
+            setIsWishlisted(false);
+        }
+    }, [resolvedRestaurantId]);
+
+
+    const toggleWishlist = useCallback(async () => {
+        if (!resolvedRestaurantId || isWishlistUpdating) return;
+
+        setIsWishlistUpdating(true);
+        // Backend uses POST to add, DELETE to remove. Both use the base path.
+        const method = isWishlisted ? 'DELETE' : 'POST';
+        const endpoint = config.endpoints.wishlist;
+
+        try {
+            // Request must send restaurantId in the JSON body
+            const response = await fetch(endpoint, {
+                method: method,
+                credentials: "include",
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ restaurantId: resolvedRestaurantId }),
+            });
+
+            if (response.ok) {
+                // Success: toggle the local state
+                setIsWishlisted(prev => !prev);
+            } else {
+                const errorData = await response.json().catch(() => null);
+                console.error("Failed to toggle wishlist:", errorData);
+                alert(`Failed to ${isWishlisted ? 'remove from' : 'add to'} wishlist. Please try again.`);
+            }
+        } catch (error) {
+            console.error("Error toggling wishlist:", error);
+            alert("An unexpected error occurred while updating the wishlist.");
+        } finally {
+            setIsWishlistUpdating(false);
+        }
+    }, [resolvedRestaurantId, isWishlisted, isWishlistUpdating]);
+
+    // --- END FIXED WISHLIST LOGIC ---
+
 
     const handleGoBack = () => {
         navigate(-1); // Go back to previous page
@@ -711,32 +903,7 @@ function RatingPage() {
     return () => window.removeEventListener("resize", handleResize);
     }, []);
 
-    // Get restaurant data from navigation state or use fallback
-    const restaurantFromState = location.state?.restaurant;
-  const resolvedRestaurantId = restaurantFromState?.id || restaurantId;
-  const restaurant = restaurantFromState
-    ? {
-        imgURL:
-          restaurantFromState.url || "../public/restaurant/restaurant1.jpg",
-        name: restaurantFromState.name || "Restaurant",
-        rating:
-          typeof restaurantFromState.rating === "number"
-            ? restaurantFromState.rating
-            : null,
-        address: restaurantFromState.address || "",
-        id: resolvedRestaurantId,
-        googleRatingCount: restaurantFromState.googleRatingCount ?? null,
-      }
-    : {
-        imgURL: "../public/restaurant/restaurant1.jpg",
-        name: "Restaurant 1",
-        rating: null,
-        address: "",
-        id: resolvedRestaurantId,
-        googleRatingCount: null,
-      };
-
-  const fetchReviews = useCallback(async () => {
+    const fetchReviews = useCallback(async () => {
     if (!resolvedRestaurantId) return;
     try {
       setIsLoadingReviews(true);
@@ -824,12 +991,19 @@ function RatingPage() {
   useEffect(() => {
     if (resolvedRestaurantId) {
       fetchReviews();
+      // Fetch wishlist status when component mounts
+      fetchWishlistStatus(); 
     }
-  }, [resolvedRestaurantId, fetchReviews]);
+  }, [resolvedRestaurantId, fetchReviews, fetchWishlistStatus]);
 
   const handleReviewSubmitted = useCallback(() => {
     fetchReviews();
-  }, [fetchReviews]);
+    // After submitting a review, also refetch details in case the backend updates 
+    // the aggregated stats on the restaurant object itself (optional, but robust)
+    if (!restaurantFromState) {
+        fetchRestaurantDetails();
+    }
+  }, [fetchReviews, restaurantFromState, fetchRestaurantDetails]);
 
   const googleRatingValue =
     typeof restaurant.rating === "number" ? restaurant.rating : null;
@@ -918,13 +1092,18 @@ function RatingPage() {
               <div
                 style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}
               >
-                {stars({ size: "46px", color: palette.accent })}
+                {/* Display placeholder star if overallRating is null/0 */}
+                {overallRating !== null && overallRating !== 0 ? (
+                  stars({ size: "46px", color: palette.accent })
+                ) : (
+                  stars({ size: "46px", color: palette.textSecondary })
+                )}
                             <div>
                   <div style={{ fontSize: "2.5rem", fontWeight: 700 }}>
                     {formatRating(overallRating)}
                   </div>
                   <small style={{ color: palette.textSecondary }}>
-                    {googleRatingCount
+                    {googleRatingCount > 0
                       ? `${googleRatingCount.toLocaleString()} Google reviews • `
                       : ""}
                     {userRatingCount} community reviews
@@ -938,6 +1117,27 @@ function RatingPage() {
                 >
                   Leave a Review
                 </button>
+                
+                {/* --- WISHLIST BUTTON ADDED HERE --- */}
+                <button
+                    style={{
+                        ...styles.wishlistButton,
+                        background: isWishlisted ? palette.accent : 'transparent',
+                        color: isWishlisted ? '#fff' : palette.textPrimary,
+                        border: `2px solid ${isWishlisted ? palette.accent : palette.border}`,
+                        opacity: isWishlistUpdating ? 0.7 : 1,
+                        pointerEvents: isWishlistUpdating ? 'none' : 'auto',
+                    }}
+                    onClick={toggleWishlist}
+                    disabled={isWishlistUpdating}
+                >
+                    <HeartIcon filled={isWishlisted} />
+                    {isWishlistUpdating 
+                        ? (isWishlisted ? "Removing..." : "Adding...")
+                        : isWishlisted ? "Wishlisted" : "Add to Wishlist"}
+                </button>
+                {/* ---------------------------------- */}
+                
                 {!showReviewAdding && (
                   <span style={{ color: palette.textSecondary }}>
                     Have photos? Share them with the community.

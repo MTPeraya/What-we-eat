@@ -51,7 +51,6 @@ export async function createSession(
     httpOnly: true,
     secure: secureCookie,
     sameSite: secureCookie ? 'none' : 'lax',
-    domain: secureCookie ? process.env.COOKIE_DOMAIN : undefined,
     path: '/',
     expires: expiresAt,
   });

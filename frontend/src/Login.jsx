@@ -69,9 +69,6 @@ function Login() {
       alert("Cannot connect to server");
     }
 
-    // console.log({ username, password, remember });
-    // console.log({ message })
-    // navigate("/create-room")
   };
 
   return (
