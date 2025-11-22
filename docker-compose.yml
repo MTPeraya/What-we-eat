@@ -38,7 +38,6 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules
-      - /app/.next
       - ./backend/storage:/app/storage
 
     command: npm run dev  # Use dev mode instead of production
