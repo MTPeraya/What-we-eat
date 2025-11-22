@@ -23,7 +23,7 @@ function parseRange(fromStr?: string, toStr?: string) {
 }
 
 // Helper to convert data to CSV
-function toCSV(data: any, title: string): string {
+function toCSV(data: unknown, title: string): string {
   if (!data || (Array.isArray(data) && data.length === 0)) {
     return `${title}\nNo data available\n\n`;
   }
@@ -77,7 +77,43 @@ export async function GET(req: NextRequest) {
     const { from, to, format, type } = parsed.data;
     const { from: fromDate, to: toDate } = parseRange(from, to);
 
-    const results: any = {
+    interface StatsResults {
+      metadata: {
+        generatedAt: string;
+        range: { from: string; to: string };
+      };
+      overview?: {
+        roomsCreated: number;
+        votes: number;
+        decisions: number;
+        ratings: { pending: number; approved: number; rejected: number };
+      };
+      timeseries?: {
+        rooms: Array<{ date: string; value: number }>;
+        votes: Array<{ date: string; value: number }>;
+        decisions: Array<{ date: string; value: number }>;
+        ratings: Array<{ date: string; value: number }>;
+      };
+      engagement?: {
+        avgParticipantsPerRoom: number;
+        avgVotesPerRoom: number;
+        voteRate: number;
+      };
+      topRestaurants?: Array<{
+        restaurant: {
+          id: string;
+          name: string;
+          address: string | null;
+          rating: number | null;
+          userRatingsTotal: number | null;
+          lat: number | null;
+          lng: number | null;
+        } | undefined;
+        wins: number;
+      }>;
+    }
+
+    const results: StatsResults = {
       metadata: {
         generatedAt: new Date().toISOString(),
         range: { from: fromDate.toISOString(), to: toDate.toISOString() },
@@ -110,7 +146,6 @@ export async function GET(req: NextRequest) {
     }
 
     if (type === 'all' || type === 'timeseries') {
-      const bucket = 'day';
       const [rooms, votes, decisions, ratings] = await Promise.all([
         prisma.room.findMany({ where: { createdAt: { gte: fromDate, lte: toDate } }, select: { createdAt: true } }),
         prisma.vote.findMany({ where: { createdAt: { gte: fromDate, lte: toDate } }, select: { createdAt: true } }),
@@ -232,7 +267,7 @@ export async function GET(req: NextRequest) {
       }
       if (results.topRestaurants) {
         csv += toCSV(
-          results.topRestaurants.map((item: any) => ({
+          results.topRestaurants.map((item) => ({
             name: item.restaurant?.name || 'Unknown',
             address: item.restaurant?.address || '',
             rating: item.restaurant?.rating || '',

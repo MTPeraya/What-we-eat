@@ -18,8 +18,21 @@ const QuerySchema = z.object({
   format: z.enum(['csv', 'json']).default('csv'),
 });
 
+type MealHistoryItem = {
+  decidedAt: Date | null;
+  roomId: string | null;
+  restaurant: {
+    name: string | null;
+    address: string | null;
+    rating: number | null;
+    lat: number | null;
+    lng: number | null;
+    placeId: string | null;
+  } | null;
+};
+
 // Helper function to convert data to CSV
-function toCSV(data: any[]): string {
+function toCSV(data: MealHistoryItem[]): string {
   if (data.length === 0) return '';
   
   const headers = ['Date', 'Restaurant Name', 'Address', 'Rating', 'Latitude', 'Longitude', 'Place ID', 'Room ID'];
