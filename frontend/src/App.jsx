@@ -15,6 +15,7 @@ import UserPage from "./UserPage";
 import RatingPage from "./Ratings";
 import DrawPage from "./DrawPage";
 import WishlistPage from "./WishlistPage";
+import ManageReviews from "./ManageReviews";
 import { AuthProvider } from "./context/AuthContext";
 import { useAuth } from "./hooks/useAuth";
 
@@ -47,6 +48,7 @@ function App() {
           <Route path="/admin-dashboard" element={<AdminDash />} />
           <Route path="/profile" element={<UserPage />} />
           <Route path="/wishlist" element={<WishlistPage />} />
+          <Route path="/manage-reviews" element={<ManageReviews />} />
           <Route path="/rating/:restaurantId" element={<RatingPage />} />
         </Routes>
       </Router>

@@ -67,6 +67,7 @@ export async function GET(req: NextRequest) {
         restaurant: {
           select: {
             id: true,
+            placeId: true,
             name: true,
             address: true,
             lat: true,

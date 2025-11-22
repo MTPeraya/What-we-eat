@@ -42,7 +42,12 @@ export async function POST(
         origin
       );
     }
-    const { displayName } = parsed.data;
+    let { displayName } = parsed.data;
+
+    // If user is logged in, use their username or displayName from user object instead
+    if (userId && s?.user) {
+      displayName = s.user.displayName || s.user.username || displayName;
+    }
 
     const room = await prisma.room.findUnique({
       where: { id: roomId },
@@ -64,6 +69,11 @@ export async function POST(
         select: { id: true },
       });
       if (existed) {
+        // Update displayName if it changed (e.g., user logged in after joining as guest)
+        await prisma.roomParticipant.update({
+          where: { id: existed.id },
+          data: { displayName },
+        });
         return withCORS(
           NextResponse.json({ ok: true, roomId }, { status: 200 }),
           origin

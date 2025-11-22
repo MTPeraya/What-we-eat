@@ -15,5 +15,5 @@ COPY . .
 # Expose Vite dev server
 EXPOSE 5173
 
-# For dev (hot reload)
+# For dev (hot reload) - --host flag is already in vite.config.js
 CMD ["npm", "run", "dev"]

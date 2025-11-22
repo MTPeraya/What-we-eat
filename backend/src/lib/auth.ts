@@ -26,12 +26,18 @@ export async function createSession(user: { id: string; username: string; role: 
     .sign(secret);
 
   const jar = await cookies();
-  const secureCookie = process.env.NODE_ENV === "production";
+  const isDocker = process.env.DOCKER === 'true' || process.env.DOCKER_ENV === 'true';
+  const isProduction = process.env.NODE_ENV === "production";
+  // In Docker dev, use 'none' with secure=false (browsers may accept this for local network)
+  // In production, use 'none' with secure=true (requires HTTPS)
+  // In local dev (non-Docker), use 'lax' with secure=false
+  const secureCookie = isProduction;
+  const sameSite = (isDocker || isProduction) ? "none" : "lax";
   jar.set({
     name: COOKIE,
     value: token,
     httpOnly: true,
-    sameSite: secureCookie ? "none" : "lax",
+    sameSite: sameSite,
     secure: secureCookie,
     path: "/",
     maxAge: maxAgeSec,
@@ -42,12 +48,18 @@ export async function createSession(user: { id: string; username: string; role: 
 
 export async function destroySession() {
   const jar = await cookies();
-  const secureCookie = process.env.NODE_ENV === "production";
+  const isDocker = process.env.DOCKER === 'true' || process.env.DOCKER_ENV === 'true';
+  const isProduction = process.env.NODE_ENV === "production";
+  // In Docker dev, use 'none' with secure=false (browsers may accept this for local network)
+  // In production, use 'none' with secure=true (requires HTTPS)
+  // In local dev (non-Docker), use 'lax' with secure=false
+  const secureCookie = isProduction;
+  const sameSite = (isDocker || isProduction) ? "none" : "lax";
   jar.set({
     name: COOKIE,
     value: "",
     httpOnly: true,
-    sameSite: secureCookie ? "none" : "lax",
+    sameSite: sameSite,
     secure: secureCookie,
     path: "/",
     maxAge: 0,

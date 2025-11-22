@@ -46,11 +46,20 @@ export async function createSession(
     },
   });
 
-  const secureCookie = process.env.NODE_ENV === 'production';
+  // In Docker or cross-origin environments, we need sameSite='none' for cookies to work
+  // even in development mode when accessing from different machines
+  const isDocker = process.env.DOCKER === 'true' || process.env.DOCKER_ENV === 'true';
+  const isProduction = process.env.NODE_ENV === 'production';
+  // In Docker dev, use 'none' with secure=false (browsers may accept this for local network)
+  // In production, use 'none' with secure=true (requires HTTPS)
+  // In local dev (non-Docker), use 'lax' with secure=false
+  const secureCookie = isProduction;
+  const sameSite = (isDocker || isProduction) ? 'none' : 'lax';
+  
   res.cookies.set(COOKIE_NAME, raw, {
     httpOnly: true,
     secure: secureCookie,
-    sameSite: secureCookie ? 'none' : 'lax',
+    sameSite: sameSite,
     path: '/',
     expires: expiresAt,
   });
@@ -87,10 +96,17 @@ export async function destroySession(req: NextRequest, res: NextResponse) {
       .delete({ where: { tokenHash: hashToken(token) } })
       .catch(() => {});
   }
+  
+  // Use same cookie settings as createSession for consistency
+  const isDocker = process.env.DOCKER === 'true' || process.env.DOCKER_ENV === 'true';
+  const isProduction = process.env.NODE_ENV === 'production';
+  const secureCookie = isProduction;
+  const sameSite = (isDocker || isProduction) ? 'none' : 'lax';
+  
   res.cookies.set(COOKIE_NAME, '', {
     httpOnly: true,
-    secure: true,
-    sameSite: 'none',
+    secure: secureCookie,
+    sameSite: sameSite,
     path: '/',
     maxAge: 0,
   });
