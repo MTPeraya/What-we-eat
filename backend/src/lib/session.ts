@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes, createHash } from 'crypto';
 
 const COOKIE_NAME = 'session';
-const SESSION_TTL_MINUTES = Number(process.env.SESSION_TTL_MINUTES ?? 120);
+// Increased default session TTL from 2 hours to 7 days for better user experience
+const SESSION_TTL_MINUTES = Number(process.env.SESSION_TTL_MINUTES ?? 10080); // 7 days = 10080 minutes
 
 type CreatedSession = { token: string; expiresAt: Date };
 
@@ -46,15 +47,40 @@ export async function createSession(
     },
   });
 
-  // In Docker or cross-origin environments, we need sameSite='none' for cookies to work
-  // even in development mode when accessing from different machines
+  // Cookie settings for cross-origin support
+  // IMPORTANT: Modern browsers (Chrome 80+, Safari 13+) reject SameSite=None without Secure=true
+  // For local network access (192.168.x.x, 10.x.x.x), we use 'lax' which works better
   const isDocker = process.env.DOCKER === 'true' || process.env.DOCKER_ENV === 'true';
   const isProduction = process.env.NODE_ENV === 'production';
-  // In Docker dev, use 'none' with secure=false (browsers may accept this for local network)
-  // In production, use 'none' with secure=true (requires HTTPS)
-  // In local dev (non-Docker), use 'lax' with secure=false
-  const secureCookie = isProduction;
-  const sameSite = (isDocker || isProduction) ? 'none' : 'lax';
+  
+  // Check if request is from local network (for Docker/local dev)
+  const origin = req?.headers.get('origin') || '';
+  const isLocalNetwork = origin && (
+    origin.includes('localhost') ||
+    origin.includes('127.0.0.1') ||
+    /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|169\.254\.)/.test(origin)
+  );
+  
+  // Use 'lax' for local network (works better than 'none' without secure)
+  // Use 'none' with secure=true only for production HTTPS
+  // Use 'lax' for local development
+  let secureCookie: boolean;
+  let sameSite: 'strict' | 'lax' | 'none';
+  
+  if (isProduction) {
+    // Production: must use secure=true with sameSite='none' for cross-origin
+    secureCookie = true;
+    sameSite = 'none';
+  } else if (isDocker && !isLocalNetwork) {
+    // Docker with external access: try 'lax' first (better browser support)
+    // If this doesn't work, user needs HTTPS
+    secureCookie = false;
+    sameSite = 'lax';
+  } else {
+    // Local development or Docker with local network: use 'lax'
+    secureCookie = false;
+    sameSite = 'lax';
+  }
   
   res.cookies.set(COOKIE_NAME, raw, {
     httpOnly: true,
@@ -62,6 +88,7 @@ export async function createSession(
     sameSite: sameSite,
     path: '/',
     expires: expiresAt,
+    // Don't set domain - let browser use default (works better for local network)
   });
 
   return { token: raw, expiresAt };
@@ -79,6 +106,55 @@ export async function getSession(req: NextRequest) {
   if (!s || s.expiresAt <= new Date()) return null;
 
   return { sessionId: s.id, userId: s.userId, user: s.user };
+}
+
+/** Refresh session expiration (extend TTL) */
+export async function refreshSession(
+  req: NextRequest,
+  res: NextResponse,
+  sessionId: string
+): Promise<void> {
+  const newExpiresAt = addMinutes(new Date(), SESSION_TTL_MINUTES);
+  
+  await prisma.session.update({
+    where: { id: sessionId },
+    data: { expiresAt: newExpiresAt },
+  });
+
+  // Update cookie with new expiration
+  const token = req.cookies.get(COOKIE_NAME)?.value;
+  if (token) {
+    const isDocker = process.env.DOCKER === 'true' || process.env.DOCKER_ENV === 'true';
+    const isProduction = process.env.NODE_ENV === 'production';
+    const origin = req.headers.get('origin') || '';
+    const isLocalNetwork = origin && (
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1') ||
+      /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|169\.254\.)/.test(origin)
+    );
+    
+    let secureCookie: boolean;
+    let sameSite: 'strict' | 'lax' | 'none';
+    
+    if (isProduction) {
+      secureCookie = true;
+      sameSite = 'none';
+    } else if (isDocker && !isLocalNetwork) {
+      secureCookie = false;
+      sameSite = 'lax';
+    } else {
+      secureCookie = false;
+      sameSite = 'lax';
+    }
+    
+    res.cookies.set(COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: secureCookie,
+      sameSite: sameSite,
+      path: '/',
+      expires: newExpiresAt,
+    });
+  }
 }
 
 /** Require authentication only */
@@ -100,8 +176,26 @@ export async function destroySession(req: NextRequest, res: NextResponse) {
   // Use same cookie settings as createSession for consistency
   const isDocker = process.env.DOCKER === 'true' || process.env.DOCKER_ENV === 'true';
   const isProduction = process.env.NODE_ENV === 'production';
-  const secureCookie = isProduction;
-  const sameSite = (isDocker || isProduction) ? 'none' : 'lax';
+  const origin = req.headers.get('origin') || '';
+  const isLocalNetwork = origin && (
+    origin.includes('localhost') ||
+    origin.includes('127.0.0.1') ||
+    /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|169\.254\.)/.test(origin)
+  );
+  
+  let secureCookie: boolean;
+  let sameSite: 'strict' | 'lax' | 'none';
+  
+  if (isProduction) {
+    secureCookie = true;
+    sameSite = 'none';
+  } else if (isDocker && !isLocalNetwork) {
+    secureCookie = false;
+    sameSite = 'lax';
+  } else {
+    secureCookie = false;
+    sameSite = 'lax';
+  }
   
   res.cookies.set(COOKIE_NAME, '', {
     httpOnly: true,

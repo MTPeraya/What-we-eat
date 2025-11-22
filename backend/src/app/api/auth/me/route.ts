@@ -1,6 +1,6 @@
 // backend/src/app/api/auth/me/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/session";
+import { getSession, refreshSession } from "@/lib/session";
 import { withCORS, preflight } from "@/lib/cors";
 import prisma from "@/lib/db";
 
@@ -49,14 +49,20 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    console.log(`[auth/me] Successfully returning user: ${user.username}`);
-    return withCORS(
+    // Auto-refresh session to extend expiration
+    const res = withCORS(
       NextResponse.json(
         { user },
         { status: 200 }
       ),
       origin
     );
+    
+    // Refresh session expiration (extends cookie TTL)
+    await refreshSession(req, res, s.sessionId);
+
+    console.log(`[auth/me] Successfully returning user: ${user.username} (session refreshed)`);
+    return res;
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
     console.error(`[auth/me] Error:`, msg, e);
