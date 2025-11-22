@@ -47,15 +47,28 @@ function isLocalNetworkOrigin(origin: string | null | undefined): boolean {
 }
 
 /**
+ * Check if we're in a Docker/development environment
+ */
+function isDockerOrDevelopment(): boolean {
+  const nodeEnv = process.env.NODE_ENV;
+  const isDevelopment = nodeEnv === 'development' || !nodeEnv;
+  // Also check if we're running in Docker (common indicators)
+  // Docker Compose sets COMPOSE_PROJECT_NAME, or we can set DOCKER=true
+  const isDocker = process.env.DOCKER === 'true' || 
+                   process.env.COMPOSE_PROJECT_NAME !== undefined;
+  return isDevelopment || isDocker;
+}
+
+/**
  * Check if an origin is allowed
  */
 function isAllowedOrigin(origin: string | null | undefined): boolean {
   if (!origin) return false;
   
-  const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+  const isDevOrDocker = isDockerOrDevelopment();
   
-  // In development, allow local network IPs
-  if (isDevelopment && isLocalNetworkOrigin(origin)) {
+  // In development/Docker, allow local network IPs
+  if (isDevOrDocker && isLocalNetworkOrigin(origin)) {
     return true;
   }
   
@@ -72,7 +85,7 @@ function isAllowedOrigin(origin: string | null | undefined): boolean {
 }
 
 export function withCORS(res: NextResponse, requestOrigin?: string | null) {
-  const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+  const isDevOrDocker = isDockerOrDevelopment();
   
   // Check if request origin is allowed, otherwise use first allowed origin
   let origin: string;
@@ -81,9 +94,13 @@ export function withCORS(res: NextResponse, requestOrigin?: string | null) {
   } else if (requestOrigin) {
     // Origin provided but not in allowed list - log for debugging
     console.warn("[CORS] Origin not in allowed list:", requestOrigin, "Allowed:", ALLOWED_ORIGINS);
-    // In development or Docker environment, allow it anyway to prevent CORS issues
-    if (isDevelopment) {
-      console.log("[CORS] Allowing origin in development mode:", requestOrigin);
+    // In development or Docker environment, allow local network IPs anyway to prevent CORS issues
+    if (isDevOrDocker && isLocalNetworkOrigin(requestOrigin)) {
+      console.log("[CORS] Allowing local network origin in development/Docker mode:", requestOrigin);
+      origin = requestOrigin;
+    } else if (isDevOrDocker) {
+      // In Docker/dev, be more permissive - allow any origin for development
+      console.log("[CORS] Allowing origin in development/Docker mode:", requestOrigin);
       origin = requestOrigin;
     } else {
       origin = ALLOWED_ORIGINS[0] || "*";
@@ -106,12 +123,14 @@ export function withCORS(res: NextResponse, requestOrigin?: string | null) {
   );
   res.headers.set("Access-Control-Max-Age", "86400"); // 24 hours
   
-  // Debug logging in development
-  if (isDevelopment) {
+  // Debug logging in development/Docker
+  if (isDevOrDocker) {
     console.log("[CORS] Setting headers:", {
       'Access-Control-Allow-Origin': origin,
       'Access-Control-Allow-Credentials': 'true',
-      'Request-Origin': requestOrigin || 'none'
+      'Request-Origin': requestOrigin || 'none',
+      'NODE_ENV': process.env.NODE_ENV || 'not set',
+      'DOCKER': process.env.DOCKER || 'not set'
     });
   }
   
@@ -119,15 +138,16 @@ export function withCORS(res: NextResponse, requestOrigin?: string | null) {
 }
 
 export function preflight(allowMethods: string, requestOrigin?: string | null) {
-  const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+  const isDevOrDocker = isDockerOrDevelopment();
   const res = new NextResponse(null, { status: 204 });
   res.headers.set("Access-Control-Allow-Methods", allowMethods);
   
-  if (isDevelopment) {
+  if (isDevOrDocker) {
     console.log("[CORS] Preflight request:", {
       origin: requestOrigin || 'none',
       methods: allowMethods,
-      nodeEnv: process.env.NODE_ENV || 'not set'
+      nodeEnv: process.env.NODE_ENV || 'not set',
+      isLocalNetwork: isLocalNetworkOrigin(requestOrigin)
     });
   }
   

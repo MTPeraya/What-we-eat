@@ -16,11 +16,12 @@ services:
       - "4001:4001"  # backend at http://localhost:4001
     environment:
       NODE_ENV: development
+      DOCKER: "true"
       DATABASE_URL: ${DATABASE_URL}
       EXTERNAL_PLACES_API_KEY: ${EXTERNAL_PLACES_API_KEY}
       
-      # CORS
-      FRONTEND_ORIGIN: "http://localhost:5173"
+      # CORS - can be overridden via .env file for different machines
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
 
     volumes:
       - ./backend:/app
