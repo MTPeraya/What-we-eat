@@ -27,11 +27,23 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
         user: {
           select: {
             username: true,
-            role: true
+            role: true,
+            profilePicture: true
           }
         },
         photos: { select: { publicUrl: true, width: true, height: true } },
       },
+    });
+
+    // Debug: Log profilePicture data
+    items.forEach((item, idx) => {
+      console.log(`[restaurants/[id]/ratings] Item ${idx}:`, {
+        username: item.user?.username,
+        hasProfilePicture: !!item.user?.profilePicture,
+        profilePictureType: item.user?.profilePicture 
+          ? (item.user.profilePicture.startsWith('data:') ? 'base64' : 'url')
+          : 'null'
+      });
     });
 
     return withCORS(NextResponse.json({ items }, { status: 200 }), origin);
