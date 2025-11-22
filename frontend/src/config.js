@@ -49,7 +49,7 @@ export const config = {
     uploads: `${API_URL}/api/uploads`,
     analytics: `${API_URL}/api/admin/stats`,
     content: `${API_URL}/api/admin/content`,
-    favorites: `${API_URL}/api/favorites`,
+    wishlist: `${API_URL}/api/favorites`,
 
   }
 };
