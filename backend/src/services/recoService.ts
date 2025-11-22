@@ -128,7 +128,9 @@ export async function buildCandidates(params: {
     const userIds = members.map((m) => m.userId!).filter(Boolean);
 
     const cooldownSince = new Date(Date.now() - REPEAT_COOLDOWN_DAYS * 24 * 60 * 60 * 1000);
-    let recentHistories: Array<{ restaurantId: string; userId: string | null; decidedAt: Date }>;
+    // FIX: Initialize the array to an empty array
+    let recentHistories: Array<{ restaurantId: string; userId: string | null; decidedAt: Date }> = []; 
+
     if (userIds.length > 0) {
       try {
         recentHistories = await prisma.mealHistory.findMany({
@@ -137,6 +139,7 @@ export async function buildCandidates(params: {
         });
       } catch (err) {
         console.error("[buildCandidates] Error fetching meal history:", err);
+        // On error, recentHistories remains [] (from initialization), which is safe.
       }
     }
 

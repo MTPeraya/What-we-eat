@@ -16,6 +16,7 @@ services:
       - "4001:4001"  # backend at http://localhost:4001
     environment:
       DATABASE_URL: ${DATABASE_URL}
+      EXTERNAL_PLACES_API_KEY: ${EXTERNAL_PLACES_API_KEY}
       
       # CORS
       FRONTEND_ORIGIN: "http://localhost:5173"
