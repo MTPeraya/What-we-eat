@@ -97,8 +97,9 @@ export function withCORS(res: NextResponse, requestOrigin?: string | null) {
   }
   res.headers.set(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization"
+    "Content-Type, Authorization, Accept, Origin, X-Requested-With"
   );
+  res.headers.set("Access-Control-Max-Age", "86400"); // 24 hours
   return res;
 }
 

@@ -11,7 +11,10 @@ import { buildCandidates } from "@/services/recoService";
 // ================== CORS ==================
 export async function OPTIONS(req: NextRequest) {
   const origin = req.headers.get('origin');
-  return preflight('POST, OPTIONS', origin);
+  console.log("[mystery-pick] OPTIONS request from origin:", origin);
+  const res = preflight('POST, OPTIONS', origin);
+  console.log("[mystery-pick] OPTIONS response headers:", Object.fromEntries(res.headers.entries()));
+  return res;
 }
 
 // ================== Schemas ==================
@@ -29,6 +32,7 @@ const MysteryPickBodySchema = z
 // ================== POST: Mystery Pick - Auto-create room and pick random restaurant ==================
 export async function POST(req: NextRequest) {
   const origin = req.headers.get('origin');
+  console.log("[mystery-pick] POST request from origin:", origin);
   
   try {
     // Allow both authenticated users and guests
@@ -204,13 +208,17 @@ export async function POST(req: NextRequest) {
     );
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
-    return withCORS(
+    const stack = (e as Error)?.stack;
+    console.error("[mystery-pick] Error:", { origin, error: msg, stack });
+    const errorResponse = withCORS(
       NextResponse.json(
         { error: "MYSTERY_PICK_FAILED", details: msg },
         { status: 500 }
       ),
       origin
     );
+    console.log("[mystery-pick] Error response headers:", Object.fromEntries(errorResponse.headers.entries()));
+    return errorResponse;
   }
 }
 

@@ -101,12 +101,22 @@ function CreateRoom() {
 
         const data = await res.json();
         const raw = data.participants || data.members || [];
+        console.log('[CreateRoom] Received participants:', raw.map(p => ({
+          displayName: p.displayName,
+          userId: p.userId,
+          hasProfilePicture: !!p.profilePicture
+        })));
         const normalized = raw.map((m) => ({
           id: m.id ?? m.userId ?? m.uid,
           userId: m.userId ?? m.id ?? m.uid,
           displayName: m.displayName ?? m.name ?? "Anonymous",
           profilePicture: m.profilePicture || null,
         }));
+        console.log('[CreateRoom] Normalized participants:', normalized.map(p => ({
+          displayName: p.displayName,
+          userId: p.userId,
+          profilePicture: p.profilePicture ? 'present' : 'null'
+        })));
         setParticipants(normalized);
         if (data.hostId) setHostId(data.hostId);
 
@@ -395,7 +405,9 @@ function CreateRoom() {
                 const displayNameToShow = isCurrentUser 
                   ? (yourDisplayName || yourUsername || p.displayName || "Anonymous")
                   : (p.displayName || "Anonymous");
+                // Use profilePicture from participant data, fallback to placeholder
                 const profilePic = p.profilePicture || "/placeholderProfile.png";
+                console.log(`[CreateRoom] Rendering participant: ${displayNameToShow}, userId: ${p.userId}, profilePic: ${profilePic}`);
                 
                 return (
                   <div
@@ -425,6 +437,13 @@ function CreateRoom() {
                     <img
                       src={profilePic}
                       alt={displayNameToShow}
+                      onError={(e) => {
+                        console.warn('[CreateRoom] Failed to load profile picture for', displayNameToShow, ':', profilePic);
+                        e.currentTarget.src = "/placeholderProfile.png";
+                      }}
+                      onLoad={() => {
+                        console.log('[CreateRoom] Successfully loaded profile picture for', displayNameToShow, ':', profilePic);
+                      }}
                       style={{
                         width: "56px",
                         height: "56px",
