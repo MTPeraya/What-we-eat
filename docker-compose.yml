@@ -18,15 +18,12 @@ services:
       NODE_ENV: development
       DOCKER: "true"
       DATABASE_URL: ${DATABASE_URL}
-      EXTERNAL_PLACES_API_KEY: ${EXTERNAL_PLACES_API_KEY}
-      
-      # CORS - can be overridden via .env file for different machines
+      EXTERNAL_PLACES_API_KEY: ${EXTERNAL_PLACES_API_KEY}  
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
 
     volumes:
       - ./backend:/app
       - /app/node_modules
-      - /app/.next
       - ./backend/storage:/app/storage
 
     command: npm run dev  # Use dev mode instead of production
