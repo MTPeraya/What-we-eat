@@ -211,12 +211,15 @@ docker compose up
 
 * **Ports already in use** → Change ports in `.env` and `docker-compose.yml`.
 
----
+--- 
 
-# 📄 Documentation & Sprint Videos
+# 📄 Documentation & Videos
 
 * [GG Doc Link](https://docs.google.com/document/d/1lpNJAadCo4cqqWD7-w_K0akjBc4lDBaMn1u7tO5rYpU/edit?usp=sharing)
 * [Jira Link](https://whatweeat.atlassian.net/jira/software/projects/SCRUM/boards/1/backlog?atlOrigin=eyJpIjoiZjAxM2M3MDRlNDgzNGFiYTkwNTM3ZmFmZjMwMzI3OGEiLCJwIjoiaiJ9)
+
+### Software Demonstration
+[Demo video Link](https://youtu.be/lyA92GLkeNM?si=_H367hINM2da1Pe7)
 
 ### Sprint Videos
 
@@ -225,6 +228,9 @@ docker compose up
 * [Sprint 3](https://youtu.be/HSwlEBdlIQ0?si=959Ukg6LlrAV8a6I)
 * [Sprint 4](https://youtu.be/ovUweeUERIg?si=9hN5qsMwIIqY5lsN)
 * [Sprint 5](https://youtu.be/wVv01Df6Tfk?si=cgTUS_y8mc96Ty0i)
+
+### Software Development Video
+[Video Link](https://youtu.be/LgBe3M6c_2I?si=Cyu-Fi4_BKWMw47e)
 
 ---
 
