@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Fetch ratings with restaurant + user
+    // Fetch ratings with restaurant + user + photos
     const ratings = await prisma.rating.findMany({
       orderBy: { createdAt: "desc" },
       select: {
@@ -41,6 +41,15 @@ export async function GET(req: NextRequest) {
           select: {
             displayName: true,
             username: true,
+            profilePicture: true,
+          },
+        },
+        photos: {
+          select: {
+            id: true,
+            publicUrl: true,
+            base64Data: true,
+            mime: true,
           },
         },
       },
@@ -52,6 +61,17 @@ export async function GET(req: NextRequest) {
       status: r.status ?? "pending",
       restaurantName: r.restaurant?.name ?? "Unknown",
       author: r.user?.displayName ?? r.user?.username ?? "Anonymous",
+      user: r.user ? {
+        username: r.user.username,
+        displayName: r.user.displayName,
+        profilePicture: r.user.profilePicture,
+      } : null,
+      photos: r.photos.map((p) => ({
+        id: p.id,
+        publicUrl: p.publicUrl,
+        base64Data: p.base64Data,
+        mime: p.mime,
+      })),
     }));
 
     return withCORS(NextResponse.json(items, { status: 200 }), origin);

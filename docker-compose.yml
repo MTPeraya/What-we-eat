@@ -2,25 +2,37 @@ services:
   frontend:
     build: ./frontend
     image: mperaya/wwe-frontend:latest
+    container_name: wwe-frontend
     ports:
-      - "5173:5173"  # dev server at http://localhost:5173
+      - "5173:5173"  # dev server accessible from host and network
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    command: npm run dev  # or change to preview for prod
+    command: npm run dev
+    environment:
+      - NODE_ENV=development
+      # - VITE_BACKEND_URL=http://localhost:4001  # VITE_BACKEND_URL is not set - frontend config.js will auto-detect network IP
+    networks:
+      - wwe-network
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
 
   backend:
     build: ./backend
     image: mperaya/wwe-backend:latest
+    container_name: wwe-backend
     ports:
-      - "4001:4001"  # backend at http://localhost:4001
+      - "4001:4001"  # backend accessible from host and network
     environment:
       NODE_ENV: development
-      DOCKER: "true"
+      DOCKER: "true"  # Enable Docker mode for CORS and cookies
       DATABASE_URL: ${DATABASE_URL}
       EXTERNAL_PLACES_API_KEY: ${EXTERNAL_PLACES_API_KEY}
       
-      # CORS - can be overridden via .env file for different machines
+      # CORS - can be overridden via .env file
+      # If not set, CORS will allow local network IPs automatically
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
 
     volumes:
@@ -34,9 +46,20 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    
+    networks:
+      - wwe-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4001/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   db:
     image: postgres:16
+    container_name: wwe-db
     restart: always
     environment:
       POSTGRES_USER: ${DB_USER}
@@ -49,6 +72,12 @@ services:
       retries: 10
     volumes:
       - db_data:/var/lib/postgresql/data
+    networks:
+      - wwe-network
+
+networks:
+  wwe-network:
+    driver: bridge
 
 volumes:
   db_data:

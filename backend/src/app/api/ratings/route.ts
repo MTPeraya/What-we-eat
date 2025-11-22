@@ -105,6 +105,7 @@ export async function GET(req: NextRequest) {
           select: {
             displayName: true,
             username: true,
+            profilePicture: true,
           }
         },
         photos: {
@@ -126,6 +127,11 @@ export async function GET(req: NextRequest) {
         r.user
           ? (r.user.displayName ?? r.user.username ?? "Anonymous")
           : "Anonymous",
+      user: r.user ? {
+        username: r.user.username,
+        displayName: r.user.displayName,
+        profilePicture: r.user.profilePicture,
+      } : null,
       content: r.comment ?? "",
       status: r.status,
       // Return photos with base64Data if available, otherwise use publicUrl

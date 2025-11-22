@@ -75,7 +75,7 @@ export async function HEAD(
       new NextResponse(null, { status: 200 }),
       origin
     );
-  } catch (e) {
+  } catch {
     return withCORS(
       new NextResponse(null, { status: 500 }),
       origin

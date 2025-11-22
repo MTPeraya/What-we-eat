@@ -971,6 +971,15 @@ function RatingPage() {
 
       const data = await response.json();
       const reviews = data.items || [];
+      
+      console.log('[Ratings] Fetched reviews:', reviews.length);
+      reviews.forEach((review, idx) => {
+        console.log(`[Ratings] Review ${idx}:`, {
+          username: review.user?.username,
+          hasProfilePicture: !!review.user?.profilePicture,
+          profilePictureType: review.user?.profilePicture ? (review.user.profilePicture.startsWith('data:') ? 'base64' : 'url') : 'none'
+        });
+      });
 
       const transformedReviews = reviews.map((review) => {
         // Use base64Data if available (for small files), otherwise use publicUrl
@@ -978,10 +987,35 @@ function RatingPage() {
           .map((photo) => photo.base64Data || photo.publicUrl)
           .filter(Boolean);
 
+        // Validate and use profilePicture
+        let profileURL = "/placeholderProfile.png";
+        if (review.user?.profilePicture) {
+          const pic = review.user.profilePicture.trim(); // Remove any whitespace
+          // Check if it's a valid base64 data URI or URL
+          if (pic.startsWith('data:image/')) {
+            // Validate base64 format
+            if (pic.includes(';base64,') && pic.length > 100) {
+              profileURL = pic;
+            } else {
+              console.warn(`[Ratings] Invalid base64 format for ${review.user?.username}:`, pic.substring(0, 50));
+            }
+          } else if (pic.startsWith('http://') || pic.startsWith('https://')) {
+            profileURL = pic;
+          } else {
+            console.warn(`[Ratings] Invalid profilePicture format for ${review.user?.username}:`, pic.substring(0, 50));
+          }
+        }
+        
+        console.log(`[Ratings] Transforming review for ${review.user?.username}:`, {
+          hasProfilePicture: !!review.user?.profilePicture,
+          profileURLType: profileURL.startsWith('data:') ? 'base64' : profileURL.startsWith('http') ? 'url' : 'placeholder',
+          profileURLLength: profileURL.length
+        });
+
         return {
             userinfo: {
             username: review.user?.username || "Anonymous",
-            profileURL: "/placeholderProfile.png",
+            profileURL: profileURL,
             isVerified: review.status === "approved",
             },
             reviewInfo: {

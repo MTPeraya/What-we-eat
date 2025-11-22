@@ -642,13 +642,17 @@ const HistoryBlock = (
     
     return(
         <div 
-            className={`d-flex justify-content-between py-2 m-2 w-100 ${isMobile? "ps-2": "px-4"}`} 
+            className={`d-flex justify-content-between py-2 ${isMobile? "ps-2 pe-2": "px-4"} mb-2`} 
             style={{
                 background: THEME_COLORS.card,
                 border: `2px solid ${THEME_COLORS.border}`,
                 borderRadius: "18px",
                 boxShadow: "0 8px 16px rgba(68,29,8,.08)",
-                transition: "all 0.2s ease"
+                transition: "all 0.2s ease",
+                width: "100%",
+                maxWidth: "100%",
+                boxSizing: "border-box",
+                overflow: "hidden"
             }}
             onMouseEnter={(e) => {
                 e.currentTarget.style.boxShadow = "0 12px 24px rgba(68,29,8,.12)";
@@ -661,10 +665,15 @@ const HistoryBlock = (
         >
             {isMobile? 
             <>
-                <div className="d-flex flex-column w-100">
+                <div className="d-flex flex-column" style={{width: "100%", minWidth: 0, flex: 1}}>
                    <a 
                        href={locationUrl} 
-                       style={linkStyle}
+                       style={{
+                           ...linkStyle,
+                           overflowWrap: "break-word",
+                           wordBreak: "break-word",
+                           maxWidth: "100%"
+                       }}
                        onMouseEnter={(e) => {
                            e.target.style.color = THEME_COLORS.accentDark;
                            e.target.style.textDecoration = "underline";
@@ -674,9 +683,14 @@ const HistoryBlock = (
                            e.target.style.textDecoration = "none";
                        }}
                    >
-                       <h3 className="my-0" style={{color: THEME_COLORS.textPrimary}}>{restaurant}</h3>
+                       <h3 className="my-0" style={{
+                           color: THEME_COLORS.textPrimary,
+                           overflowWrap: "break-word",
+                           wordBreak: "break-word",
+                           maxWidth: "100%"
+                       }}>{restaurant}</h3>
                    </a>
-                    <div className="d-flex justify-content-between px-1 mt-1">
+                    <div className="d-flex justify-content-between px-1 mt-1" style={{width: "100%"}}>
                         <a 
                             href={reviewUrl} 
                             style={linkStyle}
@@ -691,14 +705,19 @@ const HistoryBlock = (
                         >
                             reviews
                         </a>
-                        <p className="my-0" style={{color: THEME_COLORS.textSecondary}}>{date}</p>
+                        <p className="my-0" style={{color: THEME_COLORS.textSecondary, whiteSpace: "nowrap", marginLeft: "8px"}}>{date}</p>
                     </div>
                    
                 </div>
             </> 
             :<>
-            <div className="d-flex flex-column">
-                <h3 className="my-0" style={{color: THEME_COLORS.textPrimary}}>{restaurant}</h3>
+            <div className="d-flex flex-column" style={{minWidth: 0, flex: 1, maxWidth: "100%", overflow: "hidden"}}>
+                <h3 className="my-0" style={{
+                    color: THEME_COLORS.textPrimary,
+                    overflowWrap: "break-word",
+                    wordBreak: "break-word",
+                    maxWidth: "100%"
+                }}>{restaurant}</h3>
                 <p className="my-0 mt-1">
                     <a 
                         href={locationUrl} 
@@ -716,7 +735,7 @@ const HistoryBlock = (
                     </a>
                 </p>
             </div>
-            <div className="d-flex flex-column">
+            <div className="d-flex flex-column" style={{minWidth: 0, flexShrink: 0, marginLeft: "16px"}}>
                 <h3 className="my-0">
                     <a 
                         href={reviewUrl} 
@@ -733,7 +752,7 @@ const HistoryBlock = (
                         reviews
                     </a>
                 </h3>
-                <p className="my-0 mt-1" style={{color: THEME_COLORS.textSecondary}}>{date}</p>
+                <p className="my-0 mt-1" style={{color: THEME_COLORS.textSecondary, whiteSpace: "nowrap"}}>{date}</p>
             </div>
             </>}
 
@@ -748,35 +767,161 @@ function History({
     isLoadingHistory = false,
     isMobile = false
 }){
+    const handleDownloadHistory = async (format = 'csv') => {
+        try {
+            const url = `${config.apiUrl}/api/me/history/download?format=${format}`;
+            const response = await fetch(url, {
+                credentials: 'include',
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to download history');
+            }
+            
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = `history_${new Date().toISOString().split('T')[0]}.${format}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+        } catch (error) {
+            console.error('Error downloading history:', error);
+            alert('Failed to download history. Please try again.');
+        }
+    };
+
     return (
         <div className="d-flex flex-column align-items-center" style={{width: "100%"}}>
-            <div className="d-flex justify-content-between align-items-center px-3 pt-2 mb-3" style={{width:"100%"}}>
-                <h2 style={{color: THEME_COLORS.textPrimary, margin: 0}}>History</h2>
-                <div className="form-check form-switch d-flex align-items-center gap-2" title="no-repeat">
-                    <label 
-                        className="form-check-label" 
-                        htmlFor="flexSwitchCheckDefault"
-                        title="no-repeat"
-                        style={{color: THEME_COLORS.textSecondary, fontWeight: 500, margin: 0}}
-                    >
-                        no-repeat
-                    </label>
-                    <input 
-                        className="form-check-input" 
-                        type="checkbox" 
-                        role="switch" 
-                        id="flexSwitchCheckDefault"
-                        checked={NoRepeat}
-                        onChange={(e) => handleNoRepeatToggle(e.target.checked)}
-                        title="the restaurant you ate recently will not be offered"
-                        style={{
-                            width: "3rem",
-                            height: "1.5rem",
-                            cursor: "pointer",
-                            backgroundColor: NoRepeat ? THEME_COLORS.accent : THEME_COLORS.border,
-                            borderColor: THEME_COLORS.border
-                        }}
-                    />
+            <div style={{
+                width: "100%",
+                padding: "0 1rem",
+                marginBottom: "1.5rem"
+            }}>
+                <div style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "1.5rem",
+                    flexWrap: "wrap"
+                }}>
+                    <h2 style={{
+                        color: THEME_COLORS.textPrimary,
+                        margin: 0,
+                        flex: "0 1 auto",
+                        minWidth: "fit-content"
+                    }}>History</h2>
+                    <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "1rem",
+                        flexWrap: "wrap"
+                    }}>
+                        {userHistory.length > 0 && (
+                            <div style={{
+                                display: "flex",
+                                gap: "0.5rem",
+                                alignItems: "center"
+                            }}>
+                                <button
+                                    onClick={() => handleDownloadHistory('csv')}
+                                    style={{
+                                        padding: "0.5rem 1rem",
+                                        backgroundColor: THEME_COLORS.accent,
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: "12px",
+                                        cursor: "pointer",
+                                        fontSize: "0.875rem",
+                                        fontWeight: 500,
+                                        boxShadow: "0 4px 12px rgba(187,61,37,.25)",
+                                        transition: "all 0.2s ease"
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.opacity = "0.9";
+                                        e.currentTarget.style.transform = "translateY(-2px)";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.opacity = "1";
+                                        e.currentTarget.style.transform = "translateY(0)";
+                                    }}
+                                    title="Download as CSV"
+                                >
+                                    📥 CSV
+                                </button>
+                                <button
+                                    onClick={() => handleDownloadHistory('json')}
+                                    style={{
+                                        padding: "0.5rem 1rem",
+                                        backgroundColor: THEME_COLORS.border,
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: "12px",
+                                        cursor: "pointer",
+                                        fontSize: "0.875rem",
+                                        fontWeight: 500,
+                                        boxShadow: "0 4px 12px rgba(196,123,78,.25)",
+                                        transition: "all 0.2s ease"
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.opacity = "0.9";
+                                        e.currentTarget.style.transform = "translateY(-2px)";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.opacity = "1";
+                                        e.currentTarget.style.transform = "translateY(0)";
+                                    }}
+                                    title="Download as JSON"
+                                >
+                                    📥 JSON
+                                </button>
+                            </div>
+                        )}
+                        <div 
+                            className="form-check form-switch d-flex align-items-center gap-2" 
+                            title="no-repeat"
+                            style={{
+                                flex: "0 0 auto",
+                                whiteSpace: "nowrap",
+                                margin: 0
+                            }}
+                        >
+                            <label 
+                                className="form-check-label" 
+                                htmlFor="flexSwitchCheckDefault"
+                                title="no-repeat"
+                                style={{
+                                    color: THEME_COLORS.textSecondary,
+                                    fontWeight: 500,
+                                    margin: 0,
+                                    whiteSpace: "nowrap",
+                                    fontSize: "0.95rem"
+                                }}
+                            >
+                                no-repeat
+                            </label>
+                            <input 
+                                className="form-check-input" 
+                                type="checkbox" 
+                                role="switch" 
+                                id="flexSwitchCheckDefault"
+                                checked={NoRepeat}
+                                onChange={(e) => handleNoRepeatToggle(e.target.checked)}
+                                title="the restaurant you ate recently will not be offered"
+                                style={{
+                                    width: "3rem",
+                                    height: "1.5rem",
+                                    cursor: "pointer",
+                                    backgroundColor: NoRepeat ? THEME_COLORS.accent : THEME_COLORS.border,
+                                    borderColor: THEME_COLORS.border,
+                                    flexShrink: 0,
+                                    margin: 0
+                                }}
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
             <div 
@@ -786,10 +931,12 @@ function History({
                     borderRadius: "26px",
                     border: `2px solid ${THEME_COLORS.border}`,
                     boxShadow: "0 25px 55px rgba(68,29,8,.12)",
-                    padding: "2rem"
+                    padding: "2rem",
+                    boxSizing: "border-box",
+                    overflow: "hidden"
                 }}
             >
-                <div className="d-flex flex-column" style={{width:"100%"}}>
+                <div className="d-flex flex-column" style={{width:"100%", maxWidth: "100%"}}>
                     {isLoadingHistory ? (
                         <div className="text-center p-4">
                             <div className="spinner-border" role="status" style={{color: THEME_COLORS.accent}}>
@@ -910,10 +1057,25 @@ function UserPage(){
                 const transformedHistory = items.map(item => {
                     const restaurant = item.restaurant;
                     
-                    // Create Google Maps URL
-                    const locationUrl = restaurant?.lat && restaurant?.lng
-                        ? `https://www.google.com/maps/search/?api=1&query=${restaurant.lat},${restaurant.lng}`
-                        : '';
+                    // Create Google Maps URL - same logic as ResultPage.jsx
+                    let locationUrl = '';
+                    if (restaurant) {
+                        // Best: Use Google Place ID if available
+                        if (restaurant.placeId) {
+                            locationUrl = `https://www.google.com/maps/place/?q=place_id:${restaurant.placeId}`;
+                        }
+                        // Good: Use restaurant name + address
+                        else if (restaurant.name) {
+                            const searchQuery = restaurant.address 
+                                ? `${restaurant.name}, ${restaurant.address}`
+                                : restaurant.name;
+                            locationUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery)}`;
+                        }
+                        // Fallback: Use coordinates only
+                        else if (restaurant.lat && restaurant.lng) {
+                            locationUrl = `https://www.google.com/maps/search/?api=1&query=${restaurant.lat},${restaurant.lng}`;
+                        }
+                    }
                     
                     // Create review URL (navigate to rating page)
                     const reviewUrl = restaurant?.id 
@@ -1196,7 +1358,7 @@ function UserPage(){
                             </div>
                             <div className="d-flex flex-column align-items-center mb-4" style={{width: "100%"}}>
                                 <JustButton name="Account Management" onClick={HandleEditClick}/>
-                                <JustButton name="Manage Post"/>
+                                <JustButton name="Manage Post" onClick={() => navigate('/manage-reviews')}/>
                                 <JustButton 
                                     name={isLoggingOut ? "Logging out..." : "Logout"} 
                                     onClick={handleLogout}

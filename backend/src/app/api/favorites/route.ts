@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
         restaurant: {
           select: {
             id: true,
+            placeId: true,
             name: true,
             address: true,
             lat: true,
@@ -55,6 +56,7 @@ export async function GET(req: NextRequest) {
             restaurantId: f.restaurantId,
             restaurant: {
               id: f.restaurant.id,
+              placeId: f.restaurant.placeId,
               name: f.restaurant.name,
               address: f.restaurant.address,
               lat: Number(f.restaurant.lat),
@@ -157,6 +159,7 @@ export async function POST(req: NextRequest) {
         restaurant: {
           select: {
             id: true,
+            placeId: true,
             name: true,
             address: true,
             lat: true,
@@ -176,6 +179,7 @@ export async function POST(req: NextRequest) {
             restaurantId: favorite.restaurantId,
             restaurant: {
               id: favorite.restaurant.id,
+              placeId: favorite.restaurant.placeId,
               name: favorite.restaurant.name,
               address: favorite.restaurant.address,
               lat: Number(favorite.restaurant.lat),

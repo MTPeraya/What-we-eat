@@ -220,10 +220,6 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
         return undefined;
     }, [roomCenter?.lat, roomCenter?.lng, userCenter?.lat, userCenter?.lng]);
     const centerKey = center ? `${center.lat}:${center.lng}` : 'none';
-    const normalizedCenter = useMemo(() => {
-        if (!center) return null;
-        return { lat: Number(center.lat), lng: Number(center.lng) };
-    }, [center]);
     
     // Notify parent about current card changes (only when card actually changes)
     useEffect(() => {
@@ -383,7 +379,7 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
             setIsLoading(false);
             isLoadingCardsRef.current = false; // Reset loading flag
         }
-    }, [roomId, centerKey, normalizedCenter, isHost, center, userCenter]);
+    }, [roomId, centerKey, isHost, userCenter]);
     
     // Keep ref up to date with latest loadInitialCards function
     useEffect(() => {

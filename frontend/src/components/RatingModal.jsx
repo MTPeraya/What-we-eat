@@ -547,7 +547,7 @@ function RatingModal({ isOpen, onClose, restaurant }) {
                 return {
                     userinfo: {
                         username: review.user?.username || 'Anonymous',
-                        profileURL: "/placeholderProfile.png",
+                        profileURL: review.user?.profilePicture || "/placeholderProfile.png",
                         isVerified: review.status === 'approved' // Verified badge
                     },
                     reviewInfo: {
