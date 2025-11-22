@@ -748,14 +748,14 @@ function RatingPage() {
     const resolvedRestaurantId = restaurantFromState?.id || restaurantId;
 
     // A consistent structure for placeholder/fallback data
-    const initialRestaurantData = {
+    const initialRestaurantData = useMemo(() => ({
         imgURL: "/restaurant/restaurant1.jpg",
         name: "Loading...",
         rating: null,
         address: "",
         id: resolvedRestaurantId,
         googleRatingCount: null,
-    };
+    }), [resolvedRestaurantId]);
     
     // State to hold the definitive restaurant data
     const [restaurantDetails, setRestaurantDetails] = useState(
@@ -805,7 +805,7 @@ function RatingPage() {
                     if (text) {
                         errorData = JSON.parse(text);
                     }
-                } catch (e) {
+                } catch {
                     // Ignore parse errors
                 }
 
@@ -844,7 +844,7 @@ function RatingPage() {
                 name: "Error Loading Restaurant",
             });
         }
-    }, [resolvedRestaurantId, restaurantFromState]);
+    }, [resolvedRestaurantId, restaurantFromState, initialRestaurantData]);
 
 
     useEffect(() => {
