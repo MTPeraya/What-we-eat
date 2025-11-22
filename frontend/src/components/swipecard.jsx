@@ -383,7 +383,7 @@ const SwipeCards = ({ roomId, userCenter, isHost, onCurrentCardChange }) => {
             setIsLoading(false);
             isLoadingCardsRef.current = false; // Reset loading flag
         }
-    }, [roomId, centerKey, normalizedCenter, isHost, center]);
+    }, [roomId, centerKey, normalizedCenter, isHost, center, userCenter]);
     
     // Keep ref up to date with latest loadInitialCards function
     useEffect(() => {
