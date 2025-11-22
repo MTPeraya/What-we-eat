@@ -31,12 +31,15 @@ if (ENV_API_URL) {
   resolvedApiUrl = ENV_API_URL;
   
   // If accessing from local network IP and backend URL uses localhost, replace with network IP
+  // This is important for Docker when accessing from other machines on the network
   if (isCurrentHostNetworkIP && LOCAL_HOST_PATTERN.test(ENV_API_URL)) {
     resolvedApiUrl = ENV_API_URL.replace(LOCAL_HOST_PATTERN, currentHostname);
     console.log('[Config] Detected local network access, using backend:', resolvedApiUrl);
   }
 } else if (isCurrentHostLocal || isCurrentHostNetworkIP) {
   // Default to localhost backend for local development
+  // If accessing from network IP, use the same IP for backend
+  // This ensures Docker works when accessing from other machines
   resolvedApiUrl = isCurrentHostNetworkIP 
     ? `http://${currentHostname}:4001`
     : DEFAULT_LOCAL_API_URL;
@@ -47,6 +50,8 @@ if (ENV_API_URL) {
   console.log('[Config] Using production backend:', resolvedApiUrl);
 }
 
+// For production: if ENV_API_URL is set to localhost but we're accessing from external domain,
+// we should use production default
 const shouldForceDefault =
   !!ENV_API_URL && LOCAL_HOST_PATTERN.test(ENV_API_URL) && !isCurrentHostLocal && !isCurrentHostNetworkIP;
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from 'react-bootstrap';
 
 const stars = ({size, color}) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 432 408"><path fill={color} d="M213 328L81 408l35-150L0 157l153-13L213 3l60 141l154 13l-117 101l35 150z"/></svg>
@@ -6,7 +6,7 @@ const stars = ({size, color}) => <svg xmlns="http://www.w3.org/2000/svg" width={
 function ReviewCard(
     {userinfo = {
         username: "awesome name 1519",
-        profileURL: "../../public/placeholderProfile.png"
+        profileURL: "/placeholderProfile.png"
     },
     reviewInfo = {
         star: 4,
@@ -17,6 +17,15 @@ function ReviewCard(
 ){
     const [showModal, setShowModal] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    
+    // Debug: Log received props
+    useEffect(() => {
+        console.log('[ReviewCard] Received props for', userinfo.username, ':', {
+            profileURL: userinfo.profileURL?.substring(0, 50) + (userinfo.profileURL?.length > 50 ? '...' : ''),
+            profileURLLength: userinfo.profileURL?.length,
+            isBase64: userinfo.profileURL?.startsWith('data:')
+        });
+    }, [userinfo.profileURL, userinfo.username]);
 
     const handleImageClick = (index) => {
         setCurrentImageIndex(index);
@@ -43,7 +52,32 @@ function ReviewCard(
         }}>
             <div className="d-flex flex-shrink-0">{/* header*/}
                 <div> {/* profile picture*/}
-                    <img src={userinfo.profileURL} height="50px" className="rounded-circle my-2" alt="Profile"/>
+                    <img 
+                        key={`profile-${userinfo.username}-${userinfo.profileURL?.substring(0, 20)}`}
+                        src={userinfo.profileURL || "/placeholderProfile.png"} 
+                        alt="Profile"
+                        onError={(e) => {
+                            console.warn('[ReviewCard] Failed to load profile picture for', userinfo.username, ':', userinfo.profileURL?.substring(0, 50));
+                            console.warn('[ReviewCard] Error details:', e);
+                            if (e.currentTarget.src !== "/placeholderProfile.png" && e.currentTarget.src !== window.location.origin + "/placeholderProfile.png") {
+                                e.currentTarget.src = "/placeholderProfile.png";
+                            }
+                        }}
+                        onLoad={(e) => {
+                            console.log('[ReviewCard] Successfully loaded profile picture for', userinfo.username);
+                            console.log('[ReviewCard] Loaded image src:', e.currentTarget.src.substring(0, 50));
+                        }}
+                        style={{
+                            width: "50px",
+                            height: "50px",
+                            borderRadius: "50%",
+                            objectFit: "cover",
+                            marginTop: "8px",
+                            marginBottom: "8px",
+                            flexShrink: 0,
+                            display: "block",
+                        }}
+                    />
 
                 </div>
                 <div className="flex-grow-1">

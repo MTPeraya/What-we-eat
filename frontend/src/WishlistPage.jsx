@@ -106,9 +106,28 @@ function WishlistPage() {
         }
     };
 
-    const handleViewOnMap = (lat, lng) => {
-        const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-        window.open(url, '_blank');
+    const handleViewOnMap = (restaurant) => {
+        let googleMapsUrl;
+        
+        // Best: Use Google Place ID if available
+        if (restaurant.placeId) {
+            googleMapsUrl = `https://www.google.com/maps/place/?q=place_id:${restaurant.placeId}`;
+        }
+        // Good: Use restaurant name + address
+        else if (restaurant.name) {
+            const searchQuery = restaurant.address 
+                ? `${restaurant.name}, ${restaurant.address}`
+                : restaurant.name;
+            googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery)}`;
+        }
+        // Fallback: Use coordinates only
+        else if (restaurant.lat && restaurant.lng) {
+            googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${restaurant.lat},${restaurant.lng}`;
+        }
+        
+        if (googleMapsUrl) {
+            window.open(googleMapsUrl, '_blank');
+        }
     };
 
     if (!authChecked) {
@@ -337,10 +356,7 @@ function WishlistPage() {
                                                 </div>
                                             )}
                                             <button
-                                                onClick={() => handleViewOnMap(
-                                                    favorite.restaurant.lat,
-                                                    favorite.restaurant.lng
-                                                )}
+                                                onClick={() => handleViewOnMap(favorite.restaurant)}
                                                 style={{
                                                     background: THEME_COLORS.accent,
                                                     border: 'none',

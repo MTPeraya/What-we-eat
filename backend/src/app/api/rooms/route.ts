@@ -46,7 +46,13 @@ export async function POST(req: NextRequest) {
         origin
       );
     }
-    const { displayName, expiresAt } = parsed.data;
+    let { displayName } = parsed.data;
+    const { expiresAt } = parsed.data;
+
+    // If user is logged in, use their username or displayName from user object instead
+    if (userId && session?.user) {
+      displayName = session.user.displayName || session.user.username || displayName;
+    }
 
     // unique code
     let code = generateRoomCode();

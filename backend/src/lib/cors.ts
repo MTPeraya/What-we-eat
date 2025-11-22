@@ -10,6 +10,7 @@ const ALLOWED_ORIGINS = [
   "http://127.0.0.1:4001",
   "https://what-we-eat.vercel.app",
   process.env.FRONTEND_ORIGIN,
+  // Allow any origin in development/Docker mode (will be filtered by isAllowedOrigin)
 ].filter(Boolean) as string[];
 
 /**
@@ -47,28 +48,16 @@ function isLocalNetworkOrigin(origin: string | null | undefined): boolean {
 }
 
 /**
- * Check if we're in a Docker/development environment
- */
-function isDockerOrDevelopment(): boolean {
-  const nodeEnv = process.env.NODE_ENV;
-  const isDevelopment = nodeEnv === 'development' || !nodeEnv;
-  // Also check if we're running in Docker (common indicators)
-  // Docker Compose sets COMPOSE_PROJECT_NAME, or we can set DOCKER=true
-  const isDocker = process.env.DOCKER === 'true' || 
-                   process.env.COMPOSE_PROJECT_NAME !== undefined;
-  return isDevelopment || isDocker;
-}
-
-/**
  * Check if an origin is allowed
  */
 function isAllowedOrigin(origin: string | null | undefined): boolean {
   if (!origin) return false;
   
-  const isDevOrDocker = isDockerOrDevelopment();
+  const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+  const isDocker = process.env.DOCKER === 'true' || process.env.DOCKER_ENV === 'true';
   
-  // In development/Docker, allow local network IPs
-  if (isDevOrDocker && isLocalNetworkOrigin(origin)) {
+  // In development or Docker, allow local network IPs
+  if ((isDevelopment || isDocker) && isLocalNetworkOrigin(origin)) {
     return true;
   }
   
@@ -85,7 +74,8 @@ function isAllowedOrigin(origin: string | null | undefined): boolean {
 }
 
 export function withCORS(res: NextResponse, requestOrigin?: string | null) {
-  const isDevOrDocker = isDockerOrDevelopment();
+  const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+  const isDocker = process.env.DOCKER === 'true' || process.env.DOCKER_ENV === 'true';
   
   // Check if request origin is allowed, otherwise use first allowed origin
   let origin: string;
@@ -94,20 +84,30 @@ export function withCORS(res: NextResponse, requestOrigin?: string | null) {
   } else if (requestOrigin) {
     // Origin provided but not in allowed list - log for debugging
     console.warn("[CORS] Origin not in allowed list:", requestOrigin, "Allowed:", ALLOWED_ORIGINS);
-    // In development or Docker environment, allow local network IPs anyway to prevent CORS issues
-    if (isDevOrDocker && isLocalNetworkOrigin(requestOrigin)) {
-      console.log("[CORS] Allowing local network origin in development/Docker mode:", requestOrigin);
-      origin = requestOrigin;
-    } else if (isDevOrDocker) {
-      // In Docker/dev, be more permissive - allow any origin for development
-      console.log("[CORS] Allowing origin in development/Docker mode:", requestOrigin);
-      origin = requestOrigin;
+    // In development or Docker environment, allow it anyway to prevent CORS issues
+    // This is especially important for Docker when accessing from other machines
+    if (isDevelopment || isDocker) {
+      // Check if it's a local network IP first (most common case in Docker)
+      if (isLocalNetworkOrigin(requestOrigin)) {
+        console.log("[CORS] Allowing local network origin in development/Docker mode:", requestOrigin);
+        origin = requestOrigin;
+      } else {
+        // In Docker/dev mode, be permissive to allow any origin for easier development
+        console.log("[CORS] Allowing origin in development/Docker mode:", requestOrigin);
+        origin = requestOrigin;
+      }
     } else {
+      // Production: use first allowed origin or wildcard
       origin = ALLOWED_ORIGINS[0] || "*";
     }
   } else {
     // No origin provided (e.g., same-origin request) - use wildcard or first allowed
+    // In Docker/dev, be more permissive
+    if (isDevelopment || isDocker) {
+      origin = "*";
+    } else {
     origin = ALLOWED_ORIGINS[0] || "*";
+    }
   }
   
   res.headers.set("Access-Control-Allow-Origin", origin);
@@ -123,14 +123,12 @@ export function withCORS(res: NextResponse, requestOrigin?: string | null) {
   );
   res.headers.set("Access-Control-Max-Age", "86400"); // 24 hours
   
-  // Debug logging in development/Docker
-  if (isDevOrDocker) {
+  // Debug logging in development
+  if (isDevelopment) {
     console.log("[CORS] Setting headers:", {
       'Access-Control-Allow-Origin': origin,
       'Access-Control-Allow-Credentials': 'true',
-      'Request-Origin': requestOrigin || 'none',
-      'NODE_ENV': process.env.NODE_ENV || 'not set',
-      'DOCKER': process.env.DOCKER || 'not set'
+      'Request-Origin': requestOrigin || 'none'
     });
   }
   
@@ -138,16 +136,18 @@ export function withCORS(res: NextResponse, requestOrigin?: string | null) {
 }
 
 export function preflight(allowMethods: string, requestOrigin?: string | null) {
-  const isDevOrDocker = isDockerOrDevelopment();
+  const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+  const isDocker = process.env.DOCKER === 'true' || process.env.DOCKER_ENV === 'true';
   const res = new NextResponse(null, { status: 204 });
   res.headers.set("Access-Control-Allow-Methods", allowMethods);
   
-  if (isDevOrDocker) {
+  if (isDevelopment || isDocker) {
     console.log("[CORS] Preflight request:", {
       origin: requestOrigin || 'none',
       methods: allowMethods,
       nodeEnv: process.env.NODE_ENV || 'not set',
-      isLocalNetwork: isLocalNetworkOrigin(requestOrigin)
+      docker: isDocker,
+      isLocalNetwork: isLocalNetworkOrigin(requestOrigin || '')
     });
   }
   
