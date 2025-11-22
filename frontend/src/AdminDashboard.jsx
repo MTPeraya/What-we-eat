@@ -1066,18 +1066,107 @@ const DashboardAnalytics = () => {
       </div>
     );
 
+  const handleDownloadAnalytics = async (format = 'json') => {
+    try {
+      const url = `${config.endpoints.analytics}/download?format=${format}&type=all`;
+      const response = await fetch(url, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to download analytics');
+      }
+      
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `analytics_${new Date().toISOString().split('T')[0]}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Error downloading analytics:', error);
+      alert('Failed to download analytics. Please try again.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="mb-6">
-        <h2
-          className="text-3xl sm:text-4xl font-bold mb-2"
-          style={{ color: THEME_COLORS.textPrimary }}
-        >
-          📊 System Analytics & Health
-        </h2>
-        <p style={{ color: THEME_COLORS.textSecondary }}>
-          Monitor your platform's performance and engagement metrics
-        </p>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+          <div>
+            <h2
+              className="text-3xl sm:text-4xl font-bold mb-2"
+              style={{ color: THEME_COLORS.textPrimary }}
+            >
+              📊 System Analytics & Health
+            </h2>
+            <p style={{ color: THEME_COLORS.textSecondary }}>
+              Monitor your platform's performance and engagement metrics
+            </p>
+          </div>
+          <div style={{
+            display: "flex",
+            gap: "0.5rem",
+            alignItems: "center",
+            flexWrap: "wrap"
+          }}>
+            <button
+              onClick={() => handleDownloadAnalytics('csv')}
+              style={{
+                padding: "0.75rem 1.5rem",
+                backgroundColor: THEME_COLORS.accent,
+                color: "white",
+                border: "none",
+                borderRadius: "14px",
+                cursor: "pointer",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                boxShadow: "0 4px 12px rgba(187,61,37,.25)",
+                transition: "all 0.2s ease"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = "0.9";
+                e.currentTarget.style.transform = "translateY(-2px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = "1";
+                e.currentTarget.style.transform = "translateY(0)";
+              }}
+              title="Download Analytics as CSV"
+            >
+              📥 Download CSV
+            </button>
+            <button
+              onClick={() => handleDownloadAnalytics('json')}
+              style={{
+                padding: "0.75rem 1.5rem",
+                backgroundColor: THEME_COLORS.border,
+                color: "white",
+                border: "none",
+                borderRadius: "14px",
+                cursor: "pointer",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                boxShadow: "0 4px 12px rgba(196,123,78,.25)",
+                transition: "all 0.2s ease"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = "0.9";
+                e.currentTarget.style.transform = "translateY(-2px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = "1";
+                e.currentTarget.style.transform = "translateY(0)";
+              }}
+              title="Download Analytics as JSON"
+            >
+              📥 Download JSON
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Part 1: Overview Metrics */}

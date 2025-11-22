@@ -767,6 +767,32 @@ function History({
     isLoadingHistory = false,
     isMobile = false
 }){
+    const handleDownloadHistory = async (format = 'csv') => {
+        try {
+            const url = `${config.apiUrl}/api/me/history/download?format=${format}`;
+            const response = await fetch(url, {
+                credentials: 'include',
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to download history');
+            }
+            
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = `history_${new Date().toISOString().split('T')[0]}.${format}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+        } catch (error) {
+            console.error('Error downloading history:', error);
+            alert('Failed to download history. Please try again.');
+        }
+    };
+
     return (
         <div className="d-flex flex-column align-items-center" style={{width: "100%"}}>
             <div style={{
@@ -787,47 +813,114 @@ function History({
                         flex: "0 1 auto",
                         minWidth: "fit-content"
                     }}>History</h2>
-                    <div 
-                        className="form-check form-switch d-flex align-items-center gap-2" 
-                        title="no-repeat"
-                        style={{
-                            flex: "0 0 auto",
-                            whiteSpace: "nowrap",
-                            margin: 0
-                        }}
-                    >
-                        <label 
-                            className="form-check-label" 
-                            htmlFor="flexSwitchCheckDefault"
+                    <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "1rem",
+                        flexWrap: "wrap"
+                    }}>
+                        {userHistory.length > 0 && (
+                            <div style={{
+                                display: "flex",
+                                gap: "0.5rem",
+                                alignItems: "center"
+                            }}>
+                                <button
+                                    onClick={() => handleDownloadHistory('csv')}
+                                    style={{
+                                        padding: "0.5rem 1rem",
+                                        backgroundColor: THEME_COLORS.accent,
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: "12px",
+                                        cursor: "pointer",
+                                        fontSize: "0.875rem",
+                                        fontWeight: 500,
+                                        boxShadow: "0 4px 12px rgba(187,61,37,.25)",
+                                        transition: "all 0.2s ease"
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.opacity = "0.9";
+                                        e.currentTarget.style.transform = "translateY(-2px)";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.opacity = "1";
+                                        e.currentTarget.style.transform = "translateY(0)";
+                                    }}
+                                    title="Download as CSV"
+                                >
+                                    📥 CSV
+                                </button>
+                                <button
+                                    onClick={() => handleDownloadHistory('json')}
+                                    style={{
+                                        padding: "0.5rem 1rem",
+                                        backgroundColor: THEME_COLORS.border,
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: "12px",
+                                        cursor: "pointer",
+                                        fontSize: "0.875rem",
+                                        fontWeight: 500,
+                                        boxShadow: "0 4px 12px rgba(196,123,78,.25)",
+                                        transition: "all 0.2s ease"
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.opacity = "0.9";
+                                        e.currentTarget.style.transform = "translateY(-2px)";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.opacity = "1";
+                                        e.currentTarget.style.transform = "translateY(0)";
+                                    }}
+                                    title="Download as JSON"
+                                >
+                                    📥 JSON
+                                </button>
+                            </div>
+                        )}
+                        <div 
+                            className="form-check form-switch d-flex align-items-center gap-2" 
                             title="no-repeat"
                             style={{
-                                color: THEME_COLORS.textSecondary,
-                                fontWeight: 500,
-                                margin: 0,
+                                flex: "0 0 auto",
                                 whiteSpace: "nowrap",
-                                fontSize: "0.95rem"
-                            }}
-                        >
-                            no-repeat
-                        </label>
-                        <input 
-                            className="form-check-input" 
-                            type="checkbox" 
-                            role="switch" 
-                            id="flexSwitchCheckDefault"
-                            checked={NoRepeat}
-                            onChange={(e) => handleNoRepeatToggle(e.target.checked)}
-                            title="the restaurant you ate recently will not be offered"
-                            style={{
-                                width: "3rem",
-                                height: "1.5rem",
-                                cursor: "pointer",
-                                backgroundColor: NoRepeat ? THEME_COLORS.accent : THEME_COLORS.border,
-                                borderColor: THEME_COLORS.border,
-                                flexShrink: 0,
                                 margin: 0
                             }}
-                        />
+                        >
+                            <label 
+                                className="form-check-label" 
+                                htmlFor="flexSwitchCheckDefault"
+                                title="no-repeat"
+                                style={{
+                                    color: THEME_COLORS.textSecondary,
+                                    fontWeight: 500,
+                                    margin: 0,
+                                    whiteSpace: "nowrap",
+                                    fontSize: "0.95rem"
+                                }}
+                            >
+                                no-repeat
+                            </label>
+                            <input 
+                                className="form-check-input" 
+                                type="checkbox" 
+                                role="switch" 
+                                id="flexSwitchCheckDefault"
+                                checked={NoRepeat}
+                                onChange={(e) => handleNoRepeatToggle(e.target.checked)}
+                                title="the restaurant you ate recently will not be offered"
+                                style={{
+                                    width: "3rem",
+                                    height: "1.5rem",
+                                    cursor: "pointer",
+                                    backgroundColor: NoRepeat ? THEME_COLORS.accent : THEME_COLORS.border,
+                                    borderColor: THEME_COLORS.border,
+                                    flexShrink: 0,
+                                    margin: 0
+                                }}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
