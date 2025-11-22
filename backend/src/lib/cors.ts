@@ -52,8 +52,10 @@ function isLocalNetworkOrigin(origin: string | null | undefined): boolean {
 function isAllowedOrigin(origin: string | null | undefined): boolean {
   if (!origin) return false;
   
+  const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+  
   // In development, allow local network IPs
-  if (process.env.NODE_ENV === 'development' && isLocalNetworkOrigin(origin)) {
+  if (isDevelopment && isLocalNetworkOrigin(origin)) {
     return true;
   }
   
@@ -70,15 +72,18 @@ function isAllowedOrigin(origin: string | null | undefined): boolean {
 }
 
 export function withCORS(res: NextResponse, requestOrigin?: string | null) {
+  const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+  
   // Check if request origin is allowed, otherwise use first allowed origin
   let origin: string;
   if (requestOrigin && isAllowedOrigin(requestOrigin)) {
     origin = requestOrigin;
   } else if (requestOrigin) {
     // Origin provided but not in allowed list - log for debugging
-    console.warn("[CORS] Origin not allowed:", requestOrigin, "Allowed:", ALLOWED_ORIGINS);
-    // In development, allow it anyway to prevent CORS issues
-    if (process.env.NODE_ENV === 'development') {
+    console.warn("[CORS] Origin not in allowed list:", requestOrigin, "Allowed:", ALLOWED_ORIGINS);
+    // In development or Docker environment, allow it anyway to prevent CORS issues
+    if (isDevelopment) {
+      console.log("[CORS] Allowing origin in development mode:", requestOrigin);
       origin = requestOrigin;
     } else {
       origin = ALLOWED_ORIGINS[0] || "*";
@@ -100,11 +105,31 @@ export function withCORS(res: NextResponse, requestOrigin?: string | null) {
     "Content-Type, Authorization, Accept, Origin, X-Requested-With"
   );
   res.headers.set("Access-Control-Max-Age", "86400"); // 24 hours
+  
+  // Debug logging in development
+  if (isDevelopment) {
+    console.log("[CORS] Setting headers:", {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Credentials': 'true',
+      'Request-Origin': requestOrigin || 'none'
+    });
+  }
+  
   return res;
 }
 
 export function preflight(allowMethods: string, requestOrigin?: string | null) {
+  const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
   const res = new NextResponse(null, { status: 204 });
   res.headers.set("Access-Control-Allow-Methods", allowMethods);
+  
+  if (isDevelopment) {
+    console.log("[CORS] Preflight request:", {
+      origin: requestOrigin || 'none',
+      methods: allowMethods,
+      nodeEnv: process.env.NODE_ENV || 'not set'
+    });
+  }
+  
   return withCORS(res, requestOrigin);
 }

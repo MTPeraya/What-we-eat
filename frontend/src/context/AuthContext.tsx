@@ -22,20 +22,45 @@ export function AuthProvider({ children }) {
     setState(prev => ({ ...prev, loading: true }));
 
     try {
-      const res = await fetch(`${config.endpoints.auth}/me`, {
-        credentials: 'include'
+      const authUrl = `${config.endpoints.auth}/me`;
+      console.log('[AuthContext] Fetching from:', authUrl);
+      
+      const res = await fetch(authUrl, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }).catch((fetchError) => {
+        // Handle network errors (server down, CORS, etc.)
+        console.warn('[AuthContext] Network error:', fetchError.message);
+        throw fetchError;
       });
+
       console.log('[AuthContext] /me status:', res.status);
+
+      // Handle empty responses
+      if (!res.ok && res.status === 0) {
+        console.warn('[AuthContext] Empty response - backend may be unavailable');
+        setState({
+          user: null,
+          authChecked: true,
+          loading: false
+        });
+        return;
+      }
 
       let data = null;
       try {
-        data = await res.json();
+        const text = await res.text();
+        if (text) {
+          data = JSON.parse(text);
+        }
       } catch (err) {
         console.warn('[AuthContext] Failed to parse /me response:', err);
       }
 
       if (!res.ok) {
-        console.warn('[AuthContext] /me returned error:', data?.error);
+        console.warn('[AuthContext] /me returned error:', data?.error || `Status ${res.status}`);
         setState({
           user: null,
           authChecked: true,
@@ -51,7 +76,8 @@ export function AuthProvider({ children }) {
         loading: false
       });
     } catch (error) {
-      console.error('[AuthContext] Failed to fetch auth status:', error);
+      // Silently handle auth errors - don't block UI
+      console.warn('[AuthContext] Failed to fetch auth status (non-blocking):', error.message || error);
       setState({
         user: null,
         authChecked: true,

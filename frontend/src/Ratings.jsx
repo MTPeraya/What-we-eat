@@ -749,8 +749,8 @@ function RatingPage() {
 
     // A consistent structure for placeholder/fallback data
     const initialRestaurantData = {
-        imgURL: "../public/restaurant/restaurant1.jpg",
-        name: "Restaurant 1",
+        imgURL: "/restaurant/restaurant1.jpg",
+        name: "Loading...",
         rating: null,
         address: "",
         id: resolvedRestaurantId,
@@ -774,33 +774,75 @@ function RatingPage() {
         if (!resolvedRestaurantId || restaurantFromState) return;
 
         try {
-            // This endpoint is the source of the first CORS/404 errors, 
-            // ensure the backend API route for restaurants also uses withCORS.
-            const response = await fetch(
-                `${config.endpoints.restaurants}/${resolvedRestaurantId}`,
-                { credentials: "include" }
-            );
+            const url = `${config.endpoints.restaurants}/${resolvedRestaurantId}`;
+            console.log(`[RatingPage] Fetching restaurant from: ${url}`);
+            
+            const response = await fetch(url, {
+                credentials: "include",
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            }).catch((fetchError) => {
+                // Handle network errors (CORS, connection refused, etc.)
+                console.error(`[RatingPage] Network error fetching restaurant:`, fetchError);
+                throw new Error(`Network error: ${fetchError.message}`);
+            });
+
+            // Handle empty responses (server down, CORS blocking, etc.)
+            if (!response.ok && response.status === 0) {
+                console.error(`[RatingPage] Empty response - backend may be unavailable`);
+                setRestaurantDetails({
+                    ...initialRestaurantData,
+                    name: "Error Loading Restaurant",
+                });
+                return;
+            }
 
             if (!response.ok) {
-                console.error(`[RatingPage] Failed to fetch restaurant details: ${response.status}`);
-                setRestaurantDetails(initialRestaurantData);
+                let errorData = null;
+                try {
+                    const text = await response.text();
+                    if (text) {
+                        errorData = JSON.parse(text);
+                    }
+                } catch (e) {
+                    // Ignore parse errors
+                }
+
+                if (response.status === 404) {
+                    console.error(`[RatingPage] Restaurant not found: ${resolvedRestaurantId}`, errorData);
+                    setRestaurantDetails({
+                        ...initialRestaurantData,
+                        name: "Restaurant Not Found",
+                    });
+                } else {
+                    console.error(`[RatingPage] Failed to fetch restaurant details: ${response.status}`, errorData);
+                    setRestaurantDetails({
+                        ...initialRestaurantData,
+                        name: "Error Loading Restaurant",
+                    });
+                }
                 return;
             }
 
             const details = await response.json();
+            console.log(`[RatingPage] Successfully loaded restaurant:`, details.name);
 
             setRestaurantDetails({
                 imgURL: details.url || initialRestaurantData.imgURL,
-                name: details.name || initialRestaurantData.name,
+                name: details.name || "Unknown Restaurant",
                 // Ensure rating and count are numbers or null
                 rating: typeof details.rating === 'number' ? details.rating : null, 
                 googleRatingCount: details.googleRatingCount ?? null,
-                address: details.address || initialRestaurantData.address,
+                address: details.address || "",
                 id: resolvedRestaurantId,
             });
         } catch (error) {
             console.error("[RatingPage] Error fetching restaurant details:", error);
-            setRestaurantDetails(initialRestaurantData);
+            setRestaurantDetails({
+                ...initialRestaurantData,
+                name: "Error Loading Restaurant",
+            });
         }
     }, [resolvedRestaurantId, restaurantFromState]);
 
