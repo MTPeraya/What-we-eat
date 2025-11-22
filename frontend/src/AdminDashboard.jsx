@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { Modal } from "react-bootstrap";
 import Header from "./header";
 import {
   LayoutDashboard,
@@ -1162,6 +1163,20 @@ const ContentModeration = () => {
   const [contentList, setContentList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("pending");
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  const nextImage = () => {
+    if (selectedImage) {
+      setCurrentImageIndex((prev) => (prev + 1) % selectedImage.length);
+    }
+  };
+
+  const prevImage = () => {
+    if (selectedImage) {
+      setCurrentImageIndex((prev) => (prev - 1 + selectedImage.length) % selectedImage.length);
+    }
+  };
 
   // Fetch content from backend
   const fetchContent = useCallback(async () => {
@@ -1329,6 +1344,38 @@ const ContentModeration = () => {
                     "{item.content ?? "No content provided."}"
                   </p>
                 </div>
+                {item.photos && item.photos.length > 0 && (
+                  <div className="mb-2 flex flex-wrap gap-2">
+                    {item.photos.map((photo, photoIndex) => (
+                      <img
+                        key={photo.id}
+                        src={photo.base64Data || photo.publicUrl}
+                        alt="Review photo"
+                        style={{
+                          width: "120px",
+                          height: "120px",
+                          objectFit: "cover",
+                          borderRadius: "8px",
+                          border: `2px solid ${THEME_COLORS.border}`,
+                          cursor: "pointer",
+                          transition: "all 0.2s ease"
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = "scale(1.05)";
+                          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = "scale(1)";
+                          e.currentTarget.style.boxShadow = "none";
+                        }}
+                        onClick={() => {
+                          setSelectedImage(item.photos);
+                          setCurrentImageIndex(photoIndex);
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
                 <p className="text-xs" style={{ color: THEME_COLORS.textSecondary, opacity: 0.8 }}>
                   By: {item.author ?? "Anonymous"}
                 </p>
@@ -1393,6 +1440,150 @@ const ContentModeration = () => {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Image Modal */}
+      {selectedImage && selectedImage.length > 0 && (
+        <Modal 
+          show={!!selectedImage} 
+          onHide={() => setSelectedImage(null)} 
+          size="lg" 
+          centered
+        >
+          <Modal.Header 
+            closeButton 
+            style={{
+              backgroundColor: THEME_COLORS.card,
+              borderBottom: `2px solid ${THEME_COLORS.border}`
+            }}
+          >
+            <Modal.Title style={{ color: THEME_COLORS.textPrimary }}>
+              Review Photos ({currentImageIndex + 1}/{selectedImage.length})
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body 
+            className="p-0 position-relative" 
+            style={{
+              backgroundColor: '#000',
+              minHeight: '400px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <img 
+              src={selectedImage[currentImageIndex]?.base64Data || selectedImage[currentImageIndex]?.publicUrl}
+              alt={`Review photo ${currentImageIndex + 1}`}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '70vh',
+                objectFit: 'contain',
+                display: 'block'
+              }}
+            />
+            
+            {selectedImage.length > 1 && (
+              <>
+                <button 
+                  className="position-absolute top-50 start-0 translate-middle-y ms-3"
+                  style={{
+                    zIndex: 1050,
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '50px',
+                    height: '50px',
+                    fontSize: '24px',
+                    fontWeight: 'bold',
+                    color: THEME_COLORS.textPrimary,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={prevImage}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 1)';
+                    e.currentTarget.style.transform = 'scale(1.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  &#8249;
+                </button>
+                <button 
+                  className="position-absolute top-50 end-0 translate-middle-y me-3"
+                  style={{
+                    zIndex: 1050,
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '50px',
+                    height: '50px',
+                    fontSize: '24px',
+                    fontWeight: 'bold',
+                    color: THEME_COLORS.textPrimary,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={nextImage}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 1)';
+                    e.currentTarget.style.transform = 'scale(1.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  &#8250;
+                </button>
+              </>
+            )}
+          </Modal.Body>
+          <Modal.Footer style={{
+            backgroundColor: THEME_COLORS.card,
+            borderTop: `2px solid ${THEME_COLORS.border}`
+          }}>
+            <div className="d-flex gap-2 justify-content-center w-100 flex-wrap">
+              {selectedImage.map((_, index) => (
+                <button
+                  key={index}
+                  className="btn btn-sm"
+                  style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    padding: 0,
+                    backgroundColor: index === currentImageIndex ? THEME_COLORS.accent : THEME_COLORS.border,
+                    border: `2px solid ${THEME_COLORS.accent}`,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => setCurrentImageIndex(index)}
+                  onMouseEnter={(e) => {
+                    if (index !== currentImageIndex) {
+                      e.currentTarget.style.backgroundColor = THEME_COLORS.textSecondary;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (index !== currentImageIndex) {
+                      e.currentTarget.style.backgroundColor = THEME_COLORS.border;
+                    }
+                  }}
+                />
+              ))}
+            </div>
+          </Modal.Footer>
+        </Modal>
       )}
     </div>
   );

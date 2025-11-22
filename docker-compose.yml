@@ -11,7 +11,7 @@ services:
     command: npm run dev
     environment:
       - NODE_ENV=development
-      - VITE_BACKEND_URL=http://localhost:4001
+      # - VITE_BACKEND_URL=http://localhost:4001  # VITE_BACKEND_URL is not set - frontend config.js will auto-detect network IP
     networks:
       - wwe-network
     restart: unless-stopped
