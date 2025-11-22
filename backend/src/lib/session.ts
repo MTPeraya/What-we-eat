@@ -10,6 +10,7 @@ type CreatedSession = { token: string; expiresAt: Date };
 function hashToken(t: string) {
   return createHash('sha256').update(t).digest('hex');
 }
+
 function addMinutes(d: Date, minutes: number) {
   return new Date(d.getTime() + minutes * 60 * 1000);
 }
@@ -18,12 +19,8 @@ function addMinutes(d: Date, minutes: number) {
 function getClientIp(req?: NextRequest): string | undefined {
   if (!req) return undefined;
   const fwd = req.headers.get('x-forwarded-for'); // eg: "1.2.3.4, 5.6.7.8"
-  if (fwd) {
-    const first = fwd.split(',')[0]?.trim();
-    if (first) return first;
-  }
-  const real = req.headers.get('x-real-ip')?.trim();
-  return real || undefined;
+  if (fwd) return fwd.split(',')[0]?.trim();
+  return req.headers.get('x-real-ip')?.trim() || undefined;
 }
 
 /** Create session + set HttpOnly cookie */
@@ -46,20 +43,10 @@ export async function createSession(
     },
   });
 
-  // In Docker or cross-origin environments, we need sameSite='none' for cookies to work
-  // even in development mode when accessing from different machines
-  const isDocker = process.env.DOCKER === 'true' || process.env.DOCKER_ENV === 'true';
-  const isProduction = process.env.NODE_ENV === 'production';
-  // In Docker dev, use 'none' with secure=false (browsers may accept this for local network)
-  // In production, use 'none' with secure=true (requires HTTPS)
-  // In local dev (non-Docker), use 'lax' with secure=false
-  const secureCookie = isProduction;
-  const sameSite = (isDocker || isProduction) ? 'none' : 'lax';
-  
   res.cookies.set(COOKIE_NAME, raw, {
     httpOnly: true,
-    secure: secureCookie,
-    sameSite: sameSite,
+    secure: true,       // always true
+    sameSite: 'none',   // always none for cross-origin
     path: '/',
     expires: expiresAt,
   });
@@ -92,21 +79,13 @@ export async function requireAuth(req: NextRequest) {
 export async function destroySession(req: NextRequest, res: NextResponse) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
   if (token) {
-    await prisma.session
-      .delete({ where: { tokenHash: hashToken(token) } })
-      .catch(() => {});
+    await prisma.session.delete({ where: { tokenHash: hashToken(token) } }).catch(() => {});
   }
-  
-  // Use same cookie settings as createSession for consistency
-  const isDocker = process.env.DOCKER === 'true' || process.env.DOCKER_ENV === 'true';
-  const isProduction = process.env.NODE_ENV === 'production';
-  const secureCookie = isProduction;
-  const sameSite = (isDocker || isProduction) ? 'none' : 'lax';
-  
+
   res.cookies.set(COOKIE_NAME, '', {
     httpOnly: true,
-    secure: secureCookie,
-    sameSite: sameSite,
+    secure: true,       // always true
+    sameSite: 'none',   // always none
     path: '/',
     maxAge: 0,
   });
