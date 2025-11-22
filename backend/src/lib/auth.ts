@@ -28,11 +28,13 @@ export async function createSession(user: { id: string; username: string; role: 
   const jar = await cookies();
   const isDocker = process.env.DOCKER === 'true' || process.env.DOCKER_ENV === 'true';
   const isProduction = process.env.NODE_ENV === "production";
-  // In Docker dev, use 'none' with secure=false (browsers may accept this for local network)
-  // In production, use 'none' with secure=true (requires HTTPS)
-  // In local dev (non-Docker), use 'lax' with secure=false
+  
+  // Use 'lax' for local network (works better than 'none' without secure)
+  // Use 'none' with secure=true only for production HTTPS
+  // Use 'lax' for local development
   const secureCookie = isProduction;
-  const sameSite = (isDocker || isProduction) ? "none" : "lax";
+  const sameSite = isProduction ? "none" : "lax";
+  
   jar.set({
     name: COOKIE,
     value: token,
@@ -48,13 +50,9 @@ export async function createSession(user: { id: string; username: string; role: 
 
 export async function destroySession() {
   const jar = await cookies();
-  const isDocker = process.env.DOCKER === 'true' || process.env.DOCKER_ENV === 'true';
   const isProduction = process.env.NODE_ENV === "production";
-  // In Docker dev, use 'none' with secure=false (browsers may accept this for local network)
-  // In production, use 'none' with secure=true (requires HTTPS)
-  // In local dev (non-Docker), use 'lax' with secure=false
   const secureCookie = isProduction;
-  const sameSite = (isDocker || isProduction) ? "none" : "lax";
+  const sameSite = isProduction ? "none" : "lax";
   jar.set({
     name: COOKIE,
     value: "",
