@@ -216,7 +216,7 @@ docker compose up
 # 📄 Documentation & Videos
 
 * [GG Doc Link](https://docs.google.com/document/d/1lpNJAadCo4cqqWD7-w_K0akjBc4lDBaMn1u7tO5rYpU/edit?usp=sharing)
-* [Jira Link](https://whatweeat.atlassian.net/jira/software/projects/SCRUM/boards/1/backlog?atlOrigin=eyJpIjoiZjAxM2M3MDRlNDgzNGFiYTkwNTM3ZmFmZjMwMzI3OGEiLCJwIjoiaiJ9)
+* [Jira Link](https://whatweeat.atlassian.net/jira/software/projects/SCRUM/boards/1/backlog?atlOrigin=eyJpIjoiYTNhOGVhZjFmY2E3NDQ0YWEyNjk0MTA4MzMzMzU4OTIiLCJwIjoiaiJ9)
 
 ### Software Demonstration
 [Demo video Link](https://youtu.be/lyA92GLkeNM?si=_H367hINM2da1Pe7)
